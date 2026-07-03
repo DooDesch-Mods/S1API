@@ -99,6 +99,12 @@ namespace S1API.Items.Storable
         private readonly GameObject _storedItemPlaceholder;
         private bool _hasCustomStoredItem;
 
+        /// <summary>
+        /// INTERNAL: Whether a custom StoredItem was assigned via <see cref="WithStoredItem"/>.
+        /// Subclasses use this to avoid overwriting a modder-supplied StoredItem.
+        /// </summary>
+        protected bool HasCustomStoredItem => _hasCustomStoredItem;
+
         private TSelf Self => (TSelf)this;
 
         /// <summary>
