@@ -307,10 +307,25 @@
       "analyzerVersion": "1.0.0.0",
       "events": [],
       "note": null
+    },
+    {
+      "timestamp": "2026-07-06T04:06:17.7808193Z",
+      "classCoveragePercentage": 31.610337972166995,
+      "memberCoveragePercentage": 0,
+      "totalClasses": 1006,
+      "coveredClasses": 318,
+      "totalMembers": 25377,
+      "coveredMembers": 0,
+      "excludedClasses": 1176,
+      "gameAssemblyVersion": "Assembly-CSharp.dll:0.0.0.0, ScheduleOne.Core.dll:0.0.0.0",
+      "gameAssemblyHash": "AF680F5F4219D455D790B33773AA471BA9797157BFEF71252D016F5EDBE0FC7D",
+      "analyzerVersion": "1.0.0.0",
+      "events": [],
+      "note": null
     }
   ],
   "latestEntry": {
-    "timestamp": "2026-07-06T01:15:00.4276696Z",
+    "timestamp": "2026-07-06T04:06:17.7808193Z",
     "classCoveragePercentage": 31.610337972166995,
     "memberCoveragePercentage": 0,
     "totalClasses": 1006,
