@@ -11,7 +11,7 @@ namespace S1API.Entities.Appearances.AccessoryFields
         public const string Cap = "Avatar/Accessories/Head/Cap/Cap";
         public const string CapFastFood = "Avatar/Accessories/Head/Cap/Cap_FastFood";
         public const string ChefHat = "Avatar/Accessories/Head/ChefHat/ChefHat";
-        public const string CowboyHat = "Avatar/Accessories/Head/Cowboy/CowboyHat";
+        public const string CowboyHat = "Avatar/Accessories/Head/CowboyHat/CowboyHat";
         public const string FlatCap = "Avatar/Accessories/Head/FlatCap/FlatCap";
         public const string LegendSunglasses = "Avatar/Accessories/Head/LegendSunglasses/LegendSunglasses";
         public const string Oakleys = "Avatar/Accessories/Head/Oakleys/Oakleys";
@@ -24,6 +24,6 @@ namespace S1API.Entities.Appearances.AccessoryFields
         public const string Beanie = "Avatar/Accessories/Head/Beanie/Beanie";
         public const string TrashCrown = "Avatar/Accessories/Head/TrashCrown/TrashCrown";
         public const string SantaHat = "Avatar/Accessories/Head/SantaHat/SantaHat";
-	    public const string MushroomHat = "Avatar/Accessories/Head/MushroomHat/MushroomHat";
+        public const string MushroomHat = "Avatar/Accessories/Head/MushroomHat/MushroomHat";
     }
 }

@@ -177,7 +177,7 @@ namespace S1API.Entities
                 }
 
                 S1AvatarFramework.Avatar previousAvatar = next.NPC.S1NPC.Avatar;
-                next.NPC.S1NPC.Avatar = mugshotRig;
+                global::S1API.Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(next.NPC.S1NPC, "Avatar", mugshotRig);
 
                 // Use a per-capture clone so subsequent appearance edits don't mutate the in-flight mugshot
                 var mugshotSettings = ScriptableObject.Instantiate(next._customAvatarSettings);
@@ -287,7 +287,7 @@ namespace S1API.Entities
                 }
 
                 // Restore avatar reference
-                next.NPC.S1NPC.Avatar = previousAvatar ?? next._runtimeAvatar;
+                global::S1API.Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(next.NPC.S1NPC, "Avatar", previousAvatar ?? next._runtimeAvatar);
                 next.ApplyToAvatar(next._runtimeAvatar);
 
                 // Reset rig and deactivate
@@ -326,6 +326,8 @@ namespace S1API.Entities
         /// <param name="appearanceValue">The value to set</param>
         public NPCAppearance Set<T>(object appearanceValue) where T : BaseAppearance
         {
+            InvalidateCombinedLayer();
+
             if (_setters.TryGetValue(typeof(T), out var setter))
             {
                 try
@@ -363,6 +365,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.FaceLayerSettings.Count > MaxFaceLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.FaceLayerSettings.Add(new S1AvatarFramework.AvatarSettings.LayerSetting
             {
                 layerPath = path,
@@ -392,6 +395,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.BodyLayerSettings.Count > MaxBodyLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.BodyLayerSettings.Add(new S1AvatarFramework.AvatarSettings.LayerSetting
             {
                 layerPath = path,
@@ -421,6 +425,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.AccessorySettings.Count > MaxAccessoryLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.AccessorySettings.Add(new S1AvatarFramework.AvatarSettings.AccessorySetting
             {
                 path = path,
@@ -579,6 +584,14 @@ namespace S1API.Entities
             avatarSettings.PupilDilation = 1f;
             avatarSettings.HairPath = string.Empty;
             avatarSettings.HairColor = Color.black;
+            avatarSettings.UseCombinedLayer = false;
+            avatarSettings.CombinedLayer = null;
+        }
+
+        private void InvalidateCombinedLayer()
+        {
+            _customAvatarSettings.UseCombinedLayer = false;
+            _customAvatarSettings.CombinedLayer = null;
         }
 
         private S1AvatarFramework.Avatar _runtimeAvatar;

@@ -20,6 +20,7 @@ namespace S1API.Console
     public static class ConsoleHelper
     {
         private static readonly Log Logger = new Log("ConsoleHelper");
+        private static bool _setPlayerEnergyUnavailableWarningLogged;
 
         /// <summary>
         /// Submits a raw console command string (e.g. "settime 1530").
@@ -257,18 +258,19 @@ namespace S1API.Console
         /// <summary>
         /// Sets the player's energy to a value between 0 and 100.
         /// </summary>
-        [System.Obsolete("SetPlayerEnergyLevel depends on the game's removed SetEnergy console command on beta IL2CPP builds. It is retained as a compatibility no-op where unavailable and may be removed in a future S1API version.")]
+        [System.Obsolete("Player energy was removed from newer game builds. This method is retained as a compatibility no-op where unavailable and may be removed in a future S1API version.")]
         public static void SetPlayerEnergyLevel(float amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-            Logger.Warning("SetPlayerEnergyLevel is unavailable because the SetEnergy console command is not present in this game build.");
-            return;
-#else
-            var command = new SetEnergy();
-            var args = new List<string>();
-            args.Add(amount.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            command.Execute(args);
-#endif
+            LogSetPlayerEnergyUnavailable();
+        }
+
+        private static void LogSetPlayerEnergyUnavailable()
+        {
+            if (_setPlayerEnergyUnavailableWarningLogged)
+                return;
+
+            _setPlayerEnergyUnavailableWarningLogged = true;
+            Logger.Warning("SetPlayerEnergyLevel is unavailable because player energy is not present in this game build.");
         }
 
         /// <summary>

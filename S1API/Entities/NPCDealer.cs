@@ -135,108 +135,12 @@ namespace S1API.Entities
         {
             try
             {
-                var categoriesObj = Utils.ReflectionUtils.TryGetFieldOrProperty(NPC.S1NPC, "ConversationCategories");
-                
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                var categories = categoriesObj as Il2CppSystem.Collections.Generic.List<S1Messaging.EConversationCategory>;
-                if (categories == null)
+                NPC.SetConversationCategory(S1Messaging.EConversationCategory.Dealer);
+                if (NPC.S1NPC.MSGConversation != null)
                 {
-                    categories = new Il2CppSystem.Collections.Generic.List<S1Messaging.EConversationCategory>();
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(NPC.S1NPC, "ConversationCategories", categories);
-                }
-                
-                bool changed = false;
-                
-                // Log current contents
-                try
-                {
-                    string before = string.Join(",", Enumerable.Range(0, categories.Count).Select(i => categories[i].ToString()))
-                        + $" | first={ (categories.Count>0? categories[0].ToString():"<none>") }";
-                }
-                catch { }
-                
-                // Remove Customer category if present (dealers should only be dealers)
-                for (int i = categories.Count - 1; i >= 0; i--)
-                {
-                    if (categories[i] == S1Messaging.EConversationCategory.Customer)
-                    {
-                        categories.RemoveAt(i);
-                        changed = true;
-                    }
-                }
-                
-                // Check if Dealer category is already present
-                bool hasDealer = false;
-                for (int i = 0; i < categories.Count; i++)
-                {
-                    if (categories[i] == S1Messaging.EConversationCategory.Dealer)
-                    {
-                        hasDealer = true;
-                        break;
-                    }
-                }
-                
-                if (!hasDealer)
-                {
-                    categories.Add(S1Messaging.EConversationCategory.Dealer);
-                    changed = true;
-                }
-                
-                // Log after contents
-                try
-                {
-                    string after = string.Join(",", Enumerable.Range(0, categories.Count).Select(i => categories[i].ToString()))
-                        + $" | first={ (categories.Count>0? categories[0].ToString():"<none>") }";
-                }
-                catch { }
-                
-                // Update the MSGConversation if it already exists and we made changes
-                if (changed && NPC.S1NPC.MSGConversation != null)
-                {
-                    NPC.S1NPC.MSGConversation.SetCategories(categories);
-                    
-                    // Force UI creation if not already created, so badge exists to refresh
-                    NPC.S1NPC.MSGConversation.EnsureUIExists();
-                    
                     TryHookConversationUIRefresh(NPC.S1NPC.MSGConversation);
                     RefreshDealerCategoryBadge();
                 }
- #else
-                var categories = categoriesObj as System.Collections.Generic.List<S1Messaging.EConversationCategory>;
-                if (categories == null)
-                {
-                    categories = new System.Collections.Generic.List<S1Messaging.EConversationCategory>();
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(NPC.S1NPC, "ConversationCategories", categories);
-                }
-                
-                bool changed = false;
-                
-                
-                // Remove Customer category if present (dealers should only be dealers)
-                if (categories.Remove(S1Messaging.EConversationCategory.Customer))
-                {
-                    changed = true;
-                }
-                
-                if (!categories.Contains(S1Messaging.EConversationCategory.Dealer))
-                {
-                    categories.Add(S1Messaging.EConversationCategory.Dealer);
-                    changed = true;
-                }
-                
-                
-                // Update the MSGConversation if it already exists and we made changes
-                if (changed && NPC.S1NPC.MSGConversation != null)
-                {
-                    NPC.S1NPC.MSGConversation.SetCategories(categories);
-                    
-                    // Force UI creation if not already created, so badge exists to refresh
-                    NPC.S1NPC.MSGConversation.EnsureUIExists();
-                    
-                    TryHookConversationUIRefresh(NPC.S1NPC.MSGConversation);
-                    RefreshDealerCategoryBadge();
-                }
- #endif
             }
             catch (Exception ex)
             {

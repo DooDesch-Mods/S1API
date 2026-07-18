@@ -580,39 +580,10 @@ namespace S1API.Entities
                 }
                 catch { /* ignore */ }
 
-                // Ensure DealSignal exists and is wired to the customer's schedule manager
+                // Ensure the deal-attendance implementation used by this game version is present.
                 try
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                    Logger.Warning("Skipping customer DealSignal setup because NPCSignal_WaitForDelivery is not present in this IL2CPP beta build.");
-#else
-#if MONOMELON
-                    var dealSignalField = typeof(S1Economy.Customer).GetField("DealSignal", BindingFlags.Public | BindingFlags.Instance);
-#else
-                    var dealSignalField = typeof(S1Economy.Customer).GetProperty("DealSignal", BindingFlags.Public | BindingFlags.Instance);
-#endif
-                    var existingSignal = dealSignalField?.GetValue(customer) as S1Schedules.NPCSignal_WaitForDelivery;
-                    if (existingSignal == null)
-                    {
-                        var sched = NPC.gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
-                        if (sched == null)
-                        {
-                            var schedGo = new GameObject("NPCScheduleManager");
-                            schedGo.transform.SetParent(NPC.gameObject.transform, false);
-                            sched = schedGo.AddComponent<S1NPCs.NPCScheduleManager>();
-                        }
-
-                        var signal = NPC.gameObject.GetComponentInChildren<S1Schedules.NPCSignal_WaitForDelivery>(true);
-                        if (signal == null)
-                        {
-                            var go = new GameObject("DealSignal");
-                            go.transform.SetParent(sched.transform, false);
-                            signal = go.AddComponent<S1Schedules.NPCSignal_WaitForDelivery>();
-                            go.SetActive(false);
-                        }
-                        dealSignalField?.SetValue(customer, signal);
-                    }
-#endif
+                    EnsureDealAttendanceSupport(NPC.gameObject, NPC.GetType());
                 }
                 catch { /* ignore */ }
             }
@@ -620,6 +591,33 @@ namespace S1API.Entities
             {
                 // ignore; best-effort runtime init
             }
+        }
+
+        internal static bool EnsureDealAttendanceSupport(GameObject prefabRoot, Type ownerType = null)
+        {
+            if (prefabRoot == null)
+                return false;
+
+            var behaviourManager = prefabRoot.GetComponentInChildren<S1NPCs.Behaviour.NPCBehaviour>(true);
+            if (behaviourManager == null)
+            {
+                Logger.Warning($"Cannot add CustomerAttendDealBehaviour for NPC type {ownerType?.Name ?? "Unknown"}: NPCBehaviour is missing.");
+                return false;
+            }
+
+            var component = prefabRoot.GetComponentInChildren<S1NPCs.Behaviour.CustomerAttendDealBehaviour>(true);
+            if (component == null)
+            {
+                var behaviourObject = new GameObject("Customer attend deal");
+                behaviourObject.transform.SetParent(behaviourManager.transform, false);
+                component = behaviourObject.AddComponent<S1NPCs.Behaviour.CustomerAttendDealBehaviour>();
+            }
+
+            component.EnabledOnAwake = false;
+            component.Name = "Customer attend deal";
+            component.Priority = 4;
+            component.SetCanUseUmbrellaDuringBehaviour(true);
+            return true;
         }
 
         /// <summary>
@@ -1028,7 +1026,7 @@ namespace S1API.Entities
                 }
                 
                 // Show dialogue if player is nearby
-                var closestPlayer = S1PlayerScripts.Player.GetClosestPlayer(NPC.gameObject.transform.position, out var distance);
+                var closestPlayer = GetClosestPlayer(NPC.gameObject.transform.position, out var distance);
                 if (closestPlayer == S1PlayerScripts.Player.Local && distance < 6f)
                 {
                     // Get dialogue database from the NPC's dialogue handler
@@ -1084,12 +1082,32 @@ namespace S1API.Entities
             yield return new WaitForSeconds(0.1f);
             if (handler != null && container != null)
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
                 handler.StartDialogue(container);
-#else
-                handler.InitializeDialogue(container);
-#endif
             }
+        }
+
+        private static S1PlayerScripts.Player GetClosestPlayer(Vector3 position, out float distance)
+        {
+            S1PlayerScripts.Player closestPlayer = null;
+            distance = float.MaxValue;
+
+            var players = S1PlayerScripts.Player.PlayerList;
+            if (players == null)
+                return null;
+
+            foreach (S1PlayerScripts.Player player in players)
+            {
+                if (player == null)
+                    continue;
+
+                var playerDistance = Vector3.Distance(position, player.transform.position);
+                if (playerDistance < distance)
+                {
+                    closestPlayer = player;
+                    distance = playerDistance;
+                }
+            }
+            return closestPlayer;
         }
 
         private static void SetNonPublicInstanceField(object target, string fieldName, object value)

@@ -255,8 +255,14 @@ namespace S1API.Internal.Utils
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy);
             foreach (var field in fields)
             {
-                if (field is { IsLiteral: true, IsInitOnly: false } && field.FieldType == typeof(string))
-                    consts.Add((string)field.GetRawConstantValue());
+                if (field is not { IsLiteral: true, IsInitOnly: false }
+                    || field.FieldType != typeof(string)
+                    || field.IsDefined(typeof(ObsoleteAttribute), inherit: false))
+                    continue;
+
+                string value = (string)field.GetRawConstantValue();
+                if (!string.IsNullOrWhiteSpace(value))
+                    consts.Add(value);
             }
 
             ConstStringFieldsCache[type] = consts;

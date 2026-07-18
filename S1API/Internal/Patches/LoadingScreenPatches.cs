@@ -1,12 +1,10 @@
 #if (IL2CPPMELON)
 using S1UI = Il2CppScheduleOne.UI;
 using S1Persistence = Il2CppScheduleOne.Persistence;
-using S1Audio = Il2CppScheduleOne.Audio;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 #elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
 using S1UI = ScheduleOne.UI;
 using S1Persistence = ScheduleOne.Persistence;
-using S1Audio = ScheduleOne.Audio;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 #endif
 
@@ -33,6 +31,7 @@ namespace S1API.Internal.Patches
         private static readonly Log Logger = new Log("LoadingScreenPatches");
         private static bool _isWaitingForMugshots = false;
         private static bool _hasCustomNpcTypes = false;
+        private static bool _allowGameClose;
 
         /// <summary>
         /// Patch GetLoadStatusText to return our custom text when waiting for mugshots
@@ -54,6 +53,9 @@ namespace S1API.Internal.Patches
         [HarmonyPrefix]
         private static bool Close_Prefix(S1UI.LoadingScreen __instance)
         {
+            if (_allowGameClose)
+                return true;
+
             if (!IsGameLoading())
                 return true;
 
@@ -203,61 +205,28 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Closes the loading screen directly using reflection to bypass our harmony patch
+        /// Closes the loading screen through the game's implementation while bypassing this prefix.
+        /// The beta implementation also removes its state from SceneState, so reproducing only
+        /// the visual fade leaves all player input blocked after loading.
         /// </summary>
         private static void CloseLoadingScreenDirectly(S1UI.LoadingScreen loadingScreen)
         {
             try
             {
-                ReflectionUtils.TrySetFieldOrProperty(loadingScreen, "IsOpen", false);
-
-                var musicPlayer = S1DevUtilities.Singleton<S1Audio.MusicManager>.Instance;
-                if (musicPlayer != null)
-                {
-                    musicPlayer.SetTrackEnabled("Loading Screen", enabled: false);
-                    musicPlayer.StopTrack("Loading Screen");
-                }
-                
-                var fadeMethod = typeof(S1UI.LoadingScreen).GetMethod("Fade",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                
-                if (fadeMethod != null)
-                {
-                    fadeMethod.Invoke(loadingScreen, new object[] { 0f });
-                }
-                else
-                {
-                    MelonCoroutines.Start(ManualFadeOut(loadingScreen.Group, loadingScreen.Canvas));
-                }
+                _allowGameClose = true;
+                loadingScreen.Close();
             }
             catch (System.Exception ex)
             {
                 Logger.Error($"Error closing loading screen: {ex.Message}");
+                ReflectionUtils.TrySetFieldOrProperty(loadingScreen, "IsOpen", false);
                 if (loadingScreen.Canvas != null)
                     loadingScreen.Canvas.enabled = false;
             }
-        }
-
-        /// <summary>
-        /// Manual fade out coroutine as fallback
-        /// </summary>
-        private static IEnumerator ManualFadeOut(CanvasGroup group, Canvas canvas)
-        {
-            const float FADE_TIME = 0.25f;
-            
-            if (group == null || canvas == null)
-                yield break;
-
-            float startAlpha = group.alpha;
-            
-            for (float t = 0f; t < FADE_TIME; t += Time.deltaTime)
+            finally
             {
-                group.alpha = Mathf.Lerp(startAlpha, 0f, t / FADE_TIME);
-                yield return new WaitForEndOfFrame();
+                _allowGameClose = false;
             }
-            
-            group.alpha = 0f;
-            canvas.enabled = false;
         }
 
         /// <summary>
@@ -266,6 +235,7 @@ namespace S1API.Internal.Patches
         internal static void ResetState()
         {
             _isWaitingForMugshots = false;
+            _allowGameClose = false;
             _hasCustomNpcTypes = ReflectionUtils.GetDerivedClasses<NPC>()
                 .Any(t => t != null && !t.IsAbstract && t.Assembly != typeof(NPC).Assembly);
         }

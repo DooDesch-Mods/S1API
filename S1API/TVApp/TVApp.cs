@@ -20,7 +20,7 @@ using S1TVApp = Il2CppScheduleOne.TV.TVApp;
 using TMPro;
 using ScheduleOne.DevUtilities;
 using S1GameInput = ScheduleOne.GameInput;
-using S1ExitAction = ScheduleOne.DevUtilities.ExitAction;
+using S1ExitAction = ScheduleOne.ExitAction;
 using S1TVHomeScreen = ScheduleOne.TV.TVHomeScreen;
 using S1TVApp = ScheduleOne.TV.TVApp;
 #endif

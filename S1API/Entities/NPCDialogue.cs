@@ -252,7 +252,7 @@ namespace S1API.Entities
             else
             {
                 // Assign database and build modules for first time
-                Handler.Database = built.Database;
+                ReflectionUtils.TrySetFieldOrProperty(Handler, "Database", built.Database);
                 RebuildRuntimeModules(built.Database);
             }
 
@@ -588,11 +588,7 @@ namespace S1API.Entities
             if (Handler == null || string.IsNullOrEmpty(containerName))
                 return false;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
             Handler.StartDialogue(containerName, enableBehaviour, entryNodeLabel);
-#else
-            Handler.InitializeDialogue(containerName, enableBehaviour, entryNodeLabel);
-#endif
             return true;
         }
 
@@ -601,11 +597,7 @@ namespace S1API.Entities
             if (Handler == null || container == null)
                 return false;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
             Handler.StartDialogue(container, enableBehaviour, entryNodeLabel);
-#else
-            Handler.InitializeDialogue(container, enableBehaviour, entryNodeLabel);
-#endif
             return true;
         }
 

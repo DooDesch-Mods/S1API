@@ -29,6 +29,7 @@ using S1API.Entities.Customer;
 using S1API.Entities.Dealer;
 using S1API.Entities.Impostors;
 using S1API.Entities.Relation;
+using S1API.Entities.Appearances.Base;
 using System.Collections.Generic;
 using S1API.Internal.Entities;
 using S1API.Internal.Utils;
@@ -103,6 +104,11 @@ namespace S1API.Entities
                 identity.Id = id;
                 identity.FirstName = firstName;
                 identity.LastName = lastName;
+                NPCDataAccess.ApplyIdentity(
+                    prefabRoot.GetComponent<S1NPCs.NPC>(),
+                    id,
+                    firstName,
+                    lastName);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
             }
@@ -127,6 +133,7 @@ namespace S1API.Entities
             {
                 var identity = EnsureIdentityComponent();
                 identity.Icon = icon;
+                NPCDataAccess.ApplyIcon(prefabRoot.GetComponent<S1NPCs.NPC>(), icon);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
             }
@@ -168,6 +175,8 @@ namespace S1API.Entities
                 settings.EyebrowRestingAngle = builder.EyebrowRestingAngle;
                 settings.HairPath = builder.HairPath ?? string.Empty;
                 settings.HairColor = builder.HairColor;
+                settings.UseCombinedLayer = false;
+                settings.CombinedLayer = null;
                 if ((builder.ImpostorSelection.Kind == AvatarImpostorSelectionKind.Texture ||
                      builder.ImpostorSelection.Kind == AvatarImpostorSelectionKind.Definition) &&
                     ImpostorTextureResolver.TryResolve(
@@ -226,6 +235,7 @@ namespace S1API.Entities
                 var identity = EnsureIdentityComponent();
                 identity.AppearanceDefaults = settings;
                 identity.AppearanceImpostorSelection = builder.ImpostorSelection;
+                NPCDataAccess.ApplyAppearance(prefabRoot.GetComponent<S1NPCs.NPC>(), settings);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
 
@@ -994,26 +1004,16 @@ namespace S1API.Entities
             if (dealSignal > 0)
             {
 #if (IL2CPPMELON || IL2CPPBEPINEX)
-                var npcTypeName = ownerType?.Name ?? "Unknown";
-                Logger.Warning($"Skipping DealSignal precreation for NPC type {npcTypeName} because NPCSignal_WaitForDelivery is not present in this IL2CPP beta build.");
+                EnsureIl2CppCustomerAttendDealBehaviour();
 #else
-                EnsurePrefabAction<S1NPCsSchedules.NPCSignal_WaitForDelivery>(count: 1, namePrefix: "DealSignal");
-
-                // Wire the deal signal to the Customer component so runtime deal handling works without relying on OnValidate
                 try
                 {
-                    var scheduleManager = EnsureScheduleManager();
-                    var signal = scheduleManager.GetComponentInChildren<S1NPCsSchedules.NPCSignal_WaitForDelivery>(true);
-                    var customer = prefabRoot.GetComponent<S1Economy.Customer>();
-                    if (signal != null && customer != null)
-                    {
-                        customer.DealSignal = signal;
-                    }
+                    NPCCustomer.EnsureDealAttendanceSupport(prefabRoot, ownerType);
                 }
                 catch (Exception ex)
                 {
                     var npcTypeName = ownerType?.Name ?? "Unknown";
-                    Logger.Warning($"Failed to wire DealSignal on prefab for NPC type {npcTypeName}: {ex.Message}");
+                    Logger.Warning($"Failed to configure customer deal attendance on prefab for NPC type {npcTypeName}: {ex.Message}");
                 }
 #endif
             }
@@ -1052,7 +1052,33 @@ namespace S1API.Entities
                 go.SetActive(false);
                 comp.enabled = false;
             }
+
         }
+
+#if (IL2CPPMELON || IL2CPPBEPINEX)
+        private void EnsureIl2CppCustomerAttendDealBehaviour()
+        {
+            var behaviourManager = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
+            if (behaviourManager == null)
+            {
+                Logger.Warning($"Cannot add CustomerAttendDealBehaviour for NPC type {ownerType?.Name ?? "Unknown"}: NPCBehaviour is missing.");
+                return;
+            }
+
+            var component = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.CustomerAttendDealBehaviour>(true);
+            if (component == null)
+            {
+                var behaviourObject = new GameObject("Customer attend deal");
+                behaviourObject.transform.SetParent(behaviourManager.transform, false);
+                component = behaviourObject.AddComponent<S1NPCsBehaviour.CustomerAttendDealBehaviour>();
+            }
+
+            ReflectionUtils.TrySetFieldOrProperty(component, "EnabledOnAwake", false);
+            ReflectionUtils.TrySetFieldOrProperty(component, "Name", "Customer attend deal");
+            ReflectionUtils.TrySetFieldOrProperty(component, "Priority", 4);
+            component.SetCanUseUmbrellaDuringBehaviour(true);
+        }
+#endif
 
         /// <summary>
         /// Sets beh (NPCBehaviour) and ensures NPCBehaviour.Npc on Behaviour instances.
@@ -1163,6 +1189,10 @@ namespace S1API.Entities
                 return this;
             }
 
+            public AvatarDefaultsBuilder WithFaceLayer<T>(string path, Color color)
+                where T : BaseFaceAppearance =>
+                WithFaceLayer(path, color);
+
             public AvatarDefaultsBuilder WithBodyLayer(string path, Color color)
             {
                 if (!string.IsNullOrEmpty(path))
@@ -1170,12 +1200,20 @@ namespace S1API.Entities
                 return this;
             }
 
+            public AvatarDefaultsBuilder WithBodyLayer<T>(string path, Color color)
+                where T : BaseBodyAppearance =>
+                WithBodyLayer(path, color);
+
             public AvatarDefaultsBuilder WithAccessoryLayer(string path, Color color)
             {
                 if (!string.IsNullOrEmpty(path))
                     AccessoryLayers.Add((path, color));
                 return this;
             }
+
+            public AvatarDefaultsBuilder WithAccessoryLayer<T>(string path, Color color)
+                where T : BaseAccessoryAppearance =>
+                WithAccessoryLayer(path, color);
 
             /// <summary>
             /// Uses an existing game-owned NPC impostor by character settings name.

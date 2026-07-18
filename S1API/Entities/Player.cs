@@ -273,16 +273,18 @@ namespace S1API.Entities
         /// <summary>
         /// The player's current avatar settings (appearance configuration).
         /// </summary>
-        public object CurrentAvatarSettings => S1Player.CurrentAvatarSettings;
+        [Obsolete("Use GetCurrentBasicAvatarSettings(). This compatibility property may be removed in a future S1API version.")]
+        public object CurrentAvatarSettings => S1Player.CurrentBasicAppearance;
 
         /// <summary>
         /// Retrieves the player's current avatar settings as an S1API <see cref="BasicAvatarSettings"/> wrapper.
-        /// Returns a new <see cref="BasicAvatarSettings"/> instance on each call when S1Player.CurrentAvatarSettings is available.
+        /// Returns a new <see cref="BasicAvatarSettings"/> instance on each call when the game exposes current appearance settings.
         /// </summary>
-        public BasicAvatarSettings? GetCurrentBasicAvatarSettings() =>
-            S1Player.CurrentAvatarSettings == null
-                ? null
-                : new BasicAvatarSettings(S1Player.CurrentAvatarSettings);
+        public BasicAvatarSettings? GetCurrentBasicAvatarSettings()
+        {
+            var settings = S1Player.CurrentBasicAppearance;
+            return settings == null ? null : new BasicAvatarSettings(settings);
+        }
 
         /// <summary>
         /// Inserts clothing into the matching player clothing slot.
@@ -330,7 +332,7 @@ namespace S1API.Entities
                 throw new ArgumentNullException(nameof(settings));
             }
 
-            S1Player.SendAppearance(settings.S1BasicAvatarSettings);
+            S1Player.SetAppearance_Server(settings.S1BasicAvatarSettings);
         }
 
         /// <summary>

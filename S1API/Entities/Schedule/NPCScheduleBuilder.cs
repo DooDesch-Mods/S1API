@@ -19,14 +19,6 @@ namespace S1API.Entities.Schedule
     /// Plan-time schedule builder used during prefab composition.
     /// Collects <see cref="IScheduleActionSpec"/> entries without requiring a live NPC instance.
     /// </summary>
-    /// <remarks>
-    /// <para><strong>IMPORTANT:</strong> Avoid scheduling multiple actions at start time 0 (midnight).
-    /// The game's action sorting comparator has a bug that can cause inconsistent sort results when
-    /// multiple non-signal actions share the same start time. This issue is most commonly encountered
-    /// at time 0 when using <see cref="EnsureDealSignal()"/> which creates a signal at time 0.</para>
-    ///
-    /// <para>To avoid this issue, schedule your first action at time 1 or later (e.g., 10 minutes = 0:10 AM).</para>
-    /// </remarks>
     public sealed class PrefabScheduleBuilder
     {
         private static readonly Log Logger = new Log("PrefabScheduleBuilder");
@@ -103,14 +95,14 @@ namespace S1API.Entities.Schedule
         }
 
         /// <summary>
-        /// Ensures that a customer deal signal exists under the schedule for handling deal interactions.
+        /// Retained for source compatibility with game versions that used a customer deal signal.
         /// </summary>
         /// <returns>This builder instance for method chaining.</returns>
         /// <remarks>
-        /// This method creates an <see cref="EnsureDealSignalSpec"/> that will be applied when the prefab is configured.
-        /// The specification ensures that a <see cref="S1NPCsSchedules.NPCSignal_WaitForDelivery"/> component
-        /// exists on the NPC's schedule manager for proper customer deal handling.
+        /// Schedule I 0.4.6 removed the deal signal. The retained specification configures the
+        /// current customer deal-attendance behaviour during prefab creation and otherwise no-ops.
         /// </remarks>
+        [System.Obsolete("NPCSignal_WaitForDelivery was removed in game version 0.4.6. Use EnsureCustomer(); deal attendance is configured automatically.")]
         public PrefabScheduleBuilder EnsureDealSignal()
         {
             _specs.Add(new EnsureDealSignalSpec());

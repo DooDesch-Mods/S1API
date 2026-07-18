@@ -1,5 +1,7 @@
 #if (IL2CPPMELON)
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
+using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
+using S1Dialogue = Il2CppScheduleOne.Dialogue;
 using S1Interaction = Il2CppScheduleOne.Interaction;
 using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1Noise = Il2CppScheduleOne.Noise;
@@ -15,9 +17,8 @@ using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1Vision = Il2CppScheduleOne.Vision;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Employees = Il2CppScheduleOne.Employees;
-using S1NPCFramework = Il2CppScheduleOne.NPCs.Framework;
-using S1Core = Il2CppScheduleOne.Core;
 using S1Combat = Il2CppScheduleOne.Combat;
+using S1Tools = Il2CppScheduleOne.Tools;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1MapBase = Il2CppScheduleOne.Map;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
@@ -26,6 +27,8 @@ using S1Money = Il2CppScheduleOne.Money;
 using ConversationCategoryList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Messaging.EConversationCategory>;
 #elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
 using S1DevUtilities = ScheduleOne.DevUtilities;
+using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
+using S1Dialogue = ScheduleOne.Dialogue;
 using S1Interaction = ScheduleOne.Interaction;
 using S1Messaging = ScheduleOne.Messaging;
 using S1Noise = ScheduleOne.Noise;
@@ -42,6 +45,7 @@ using S1Vision = ScheduleOne.Vision;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Employees = ScheduleOne.Employees;
 using S1Combat = ScheduleOne.Combat;
+using S1Tools = ScheduleOne.Tools;
 using S1Items = ScheduleOne.ItemFramework;
 using S1MapBase = ScheduleOne.Map;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
@@ -154,14 +158,7 @@ namespace S1API.Entities
             "Visibility",
             "CurrentVehicle",
             "RelationData",
-            "MSGConversation",
-            "ConversationCategories",
-            "ConversationCanBeHidden",
-            "MugshotSprite",
-            "FirstName",
-            "LastName",
-            "hasLastName",
-            "ID"
+            "MSGConversation"
         };
         private static readonly string[] ChildNpcReferenceMemberNames =
         {
@@ -176,6 +173,14 @@ namespace S1API.Entities
         };
         private static volatile bool _prefabsConfiguredForLocalProcess;
         private static bool _loggedBaseEmployeeNormalization;
+#if (MONOMELON || MONOBEPINEX)
+        private static readonly FieldInfo BehaviourOwnerField =
+            AccessTools.Field(typeof(S1Behaviour.Behaviour), "<beh>k__BackingField")
+            ?? throw new MissingFieldException(typeof(S1Behaviour.Behaviour).FullName, "<beh>k__BackingField");
+        private static readonly FieldInfo NpcBehaviourOwnerField =
+            AccessTools.Field(typeof(S1Behaviour.NPCBehaviour), "<Npc>k__BackingField")
+            ?? throw new MissingFieldException(typeof(S1Behaviour.NPCBehaviour).FullName, "<Npc>k__BackingField");
+#endif
         internal static bool PrefabsConfiguredForLocalProcess => _prefabsConfiguredForLocalProcess;
         private S1AvatarFramework.Avatar? _runtimeAvatar;
         
@@ -424,7 +429,10 @@ namespace S1API.Entities
                    ?? prefabRoot.GetComponent<S1NPCs.NPC>();
         }
 
-        private static void NormalizeBaseEmployeePrefab(GameObject prefabRoot, string sourcePrefabName, bool preferDealerComponent)
+        private static void NormalizeBaseEmployeePrefab(
+            GameObject prefabRoot,
+            string sourcePrefabName,
+            bool preferDealerComponent)
         {
             if (prefabRoot == null || sourcePrefabName != BaseEmployeePrefabName)
                 return;
@@ -478,6 +486,7 @@ namespace S1API.Entities
                 if (sourceNpc != replacementNpc)
                 {
                     CopyBaseNpcState(sourceNpc, replacementNpc);
+                    NPCDataAccess.AssignNewData(replacementNpc, preferDealerComponent);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Copied base NPC state from {DescribeComponent(sourceNpc)} to {DescribeComponent(replacementNpc)}.");
                     RemoveComponentImmediate(sourceNpc);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Removed source NPC component {DescribeComponent(sourceNpc)}.");
@@ -574,6 +583,7 @@ namespace S1API.Entities
             var existingDealer = prefabRoot.GetComponent<S1Economy.Dealer>();
             if (existingDealer != null)
             {
+                RepairDealerPrefabReferences(prefabRoot, existingDealer);
                 RepairNpcPrefabReferences(prefabRoot, existingDealer);
                 return existingDealer;
             }
@@ -584,10 +594,44 @@ namespace S1API.Entities
 
             var dealer = prefabRoot.AddComponent<S1Economy.Dealer>();
             CopyBaseNpcState(sourceNpc, dealer);
+            NPCDataAccess.AssignNewData(dealer, useDealerData: true);
 
             RewireChildNpcReferences(prefabRoot, dealer);
+            RepairDealerPrefabReferences(prefabRoot, dealer);
             RepairNpcPrefabReferences(prefabRoot, dealer);
             return dealer;
+        }
+
+        private static void RepairDealerPrefabReferences(GameObject prefabRoot, S1Economy.Dealer dealer)
+        {
+            dealer.HomeEvent ??=
+                prefabRoot.GetComponentInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true);
+
+            S1Dialogue.DialogueController_Dealer controller =
+                prefabRoot.GetComponentInChildren<S1Dialogue.DialogueController_Dealer>(true);
+            if (controller == null)
+            {
+                S1Dialogue.DialogueController source =
+                    prefabRoot.GetComponentInChildren<S1Dialogue.DialogueController>(true);
+                GameObject controllerObject = source != null
+                    ? source.gameObject
+                    : dealer.DialogueHandler.gameObject;
+
+                controller = controllerObject.AddComponent<S1Dialogue.DialogueController_Dealer>();
+                if (source != null)
+                {
+                    controller.IntObj = source.IntObj;
+                    controller.GenericDialogue = source.GenericDialogue;
+                    controller.DialogueEnabled = source.DialogueEnabled;
+                    controller.UseDialogueBehaviour = source.UseDialogueBehaviour;
+                    controller.Choices = source.Choices;
+                    controller.GreetingOverrides = source.GreetingOverrides;
+                    controller.OverrideContainer = source.OverrideContainer;
+                    RemoveComponentImmediate(source);
+                }
+            }
+
+            dealer.DialogueController = controller;
         }
 
         private static string DescribeComponent(Component? component)
@@ -702,92 +746,6 @@ namespace S1API.Entities
             {
                 Logger.Warning($"[S1API] Failed to remove Employee component(s) from {BaseEmployeePrefabName} fallback prefab: {ex.Message}");
             }
-        }
-
-        private static void DisableBaseEmployeeFallbackBehaviourStartup(GameObject prefabRoot)
-        {
-            if (prefabRoot == null)
-                return;
-
-            try
-            {
-                var behaviours = prefabRoot.GetComponentsInChildren<S1Behaviour.Behaviour>(true);
-                int disabled = 0;
-                foreach (var behaviour in behaviours)
-                {
-                    if (behaviour == null)
-                        continue;
-
-                    SetGameMember(behaviour, "EnabledOnAwake", false);
-                    SetGameMember(behaviour, "_Enabled_k__BackingField", false);
-                    SetGameMember(behaviour, "_Active_k__BackingField", false);
-                    disabled++;
-                }
-
-                var npcBehaviour = prefabRoot.GetComponent<S1Behaviour.NPCBehaviour>()
-                                   ?? prefabRoot.GetComponentInChildren<S1Behaviour.NPCBehaviour>(true);
-                int removedUnsafe = RemoveUnsafeBaseEmployeeFallbackBehaviours(prefabRoot, npcBehaviour);
-                if (npcBehaviour != null)
-                {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                    npcBehaviour.enabledBehaviours = new Il2CppSystem.Collections.Generic.List<S1Behaviour.Behaviour>();
-#else
-                    npcBehaviour.enabledBehaviours = new System.Collections.Generic.List<S1Behaviour.Behaviour>();
-#endif
-                    SetGameMember(npcBehaviour, "activeBehaviour", null);
-                    SetGameMember(npcBehaviour, "_activeBehaviour_k__BackingField", null);
-                }
-
-                if (disabled > 0)
-                    Logger.Msg($"[S1API] Disabled {disabled} BaseEmployee fallback behaviour(s) from auto-starting on custom NPC prefab.");
-                if (removedUnsafe > 0)
-                    Logger.Msg($"[S1API] Removed {removedUnsafe} inherited BaseEmployee behaviour component(s) that are unsafe on beta custom NPC prefabs.");
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[S1API] Failed to disable BaseEmployee fallback behaviour startup: {ex.Message}");
-            }
-        }
-
-        private static int RemoveUnsafeBaseEmployeeFallbackBehaviours(GameObject prefabRoot, S1Behaviour.NPCBehaviour? npcBehaviour)
-        {
-            if (prefabRoot == null)
-                return 0;
-
-            int removed = 0;
-            removed += RemoveComponentsInChildren<S1Behaviour.CustomerAttendDealBehaviour>(prefabRoot);
-            removed += RemoveComponentsInChildren<S1Behaviour.RequestProductBehaviour>(prefabRoot);
-            removed += RemoveComponentsInChildren<S1Behaviour.ConsumeProductBehaviour>(prefabRoot);
-            removed += RemoveComponentsInChildren<S1Combat.CombatBehaviour>(prefabRoot);
-
-            if (npcBehaviour != null)
-            {
-                SetGameMember(npcBehaviour, "CustomerAttendDealBehaviour", null);
-                SetGameMember(npcBehaviour, "RequestProductBehaviour", null);
-                SetGameMember(npcBehaviour, "ConsumeProductBehaviour", null);
-                SetGameMember(npcBehaviour, "CombatBehaviour", null);
-            }
-
-            return removed;
-        }
-
-        private static int RemoveComponentsInChildren<TComponent>(GameObject prefabRoot) where TComponent : Component
-        {
-            if (prefabRoot == null)
-                return 0;
-
-            int removed = 0;
-            var components = prefabRoot.GetComponentsInChildren<TComponent>(true);
-            foreach (var component in components)
-            {
-                if (component == null)
-                    continue;
-
-                RemoveComponentImmediate(component);
-                removed++;
-            }
-
-            return removed;
         }
 
         private static void RemoveComponentImmediate(Component component)
@@ -940,7 +898,6 @@ namespace S1API.Entities
                 if (sourcePrefabName == BaseEmployeePrefabName)
                 {
                     RemoveEmployeeComponentsFromBaseEmployeeFallback(prefabNO.gameObject);
-                    DisableBaseEmployeeFallbackBehaviourStartup(prefabNO.gameObject);
                 }
 
                 // If we are pre-registering without an instance owner, ensure baseline Customer exists when applicable
@@ -986,6 +943,8 @@ namespace S1API.Entities
                     }
                     catch { }
                 }
+
+                RepairBehaviourOwnership(prefabNO.gameObject, GetPreferredNpcComponent(prefabNO.gameObject));
 
                 // Register as spawnable so FishNet assigns stable behaviour indices and can network-spawn
                 try
@@ -1049,6 +1008,31 @@ namespace S1API.Entities
             // Avoid path separators, keep name concise, deterministic per type
             string typeName = npcType != null ? npcType.Name : "UnknownNPC";
             return $"S1API_{typeName}";
+        }
+
+        internal static bool TryGetConfiguredNpcId(System.Type npcType, out string id)
+        {
+            id = string.Empty;
+            if (npcType == null)
+                return false;
+
+            if (TypeToPrefab.TryGetValue(npcType, out GameObject prefab) && prefab != null)
+            {
+                var identity = prefab.GetComponent<NPCPrefabIdentity>();
+                if (!string.IsNullOrWhiteSpace(identity?.Id))
+                {
+                    id = identity.Id;
+                    return true;
+                }
+            }
+
+            return NPCPrefabIdentity.TryGetIdentityFromRegistry(
+                       GetPrefabNameForType(npcType),
+                       out id,
+                       out _,
+                       out _,
+                       out _)
+                   && !string.IsNullOrWhiteSpace(id);
         }
 
         /// <summary>
@@ -1431,6 +1415,7 @@ namespace S1API.Entities
                 return false;
             try
             {
+                NPCDataAccess.ApplyDealerDefaults(dealerComponent, data);
                 string dealerId = string.Empty;
                 try
                 {
@@ -1664,6 +1649,7 @@ namespace S1API.Entities
             if (prefabNpc == null)
                 throw new Exception("NPC template is missing the core ScheduleOne.NPCs.NPC component.");
 
+            NPCDataAccess.InitializeCurrentDataForConstruction(prefabNpc);
             S1NPC = prefabNpc;
 
             S1AvatarFramework.Avatar? runtimeAvatar = S1NPC.Avatar ?? gameObject.GetComponentInChildren<S1AvatarFramework.Avatar>(true);
@@ -1702,23 +1688,13 @@ namespace S1API.Entities
                 }
             }
 
-            EnsureFrameworkNpcDataIdentity(id, firstName, lastName);
-
-            // Apply identity values
-            if (!string.IsNullOrEmpty(id))
-                SetNpcMember("ID", id);
-            if (!string.IsNullOrEmpty(firstName))
-                SetNpcMember("FirstName", firstName);
-            if (!string.IsNullOrEmpty(lastName))
-                SetNpcMember("LastName", lastName);
-            else
-                SetNpcMember("hasLastName", false); // Ensure hasLastName is false when lastName is empty/null
+            NPCDataAccess.ApplyIdentity(S1NPC, id, firstName, lastName);
             if (icon != null)
-                SetNpcMember("MugshotSprite", icon);
+                NPCDataAccess.ApplyIcon(S1NPC, icon);
 
             // Use default icon if none was set
             if (Icon == null)
-                SetNpcMember("MugshotSprite", S1DevUtilities.PlayerSingleton<S1ContactApps.ContactsApp>.Instance.AppIcon);
+                NPCDataAccess.ApplyIcon(S1NPC, S1DevUtilities.PlayerSingleton<S1ContactApps.ContactsApp>.Instance.AppIcon);
 
             S1NPC.BakedGUID = Guid.NewGuid().ToString();
             
@@ -1735,6 +1711,7 @@ namespace S1API.Entities
             InitializeRelationshipData();
             InitializeNetworkBehaviours();
 
+            identity?.ApplyAppearanceTo(S1NPC, _runtimeAvatar);
             Appearance = new NPCAppearance(this, _runtimeAvatar);
             RestoreRuntimeAvatarAppearance();
 
@@ -1777,16 +1754,9 @@ namespace S1API.Entities
             bool hasFirstName = !string.IsNullOrEmpty(firstName);
             bool hasLastName = !string.IsNullOrEmpty(lastName);
 
-            if (hasId)
-                SetNpcMember("ID", id!);
-            if (hasFirstName)
-                SetNpcMember("FirstName", firstName!);
-            if (hasLastName)
-                SetNpcMember("LastName", lastName!);
-            else
-                SetNpcMember("hasLastName", false);
+            NPCDataAccess.ApplyIdentity(S1NPC, id, firstName, lastName);
             if (icon != null)
-                SetNpcMember("MugshotSprite", icon);
+                NPCDataAccess.ApplyIcon(S1NPC, icon);
 
             var identity = gameObject.GetComponent<NPCPrefabIdentity>();
             if (identity != null)
@@ -1804,7 +1774,7 @@ namespace S1API.Entities
             }
 
             if (Icon == null)
-                SetNpcMember("MugshotSprite", S1DevUtilities.PlayerSingleton<S1ContactApps.ContactsApp>.Instance.AppIcon);
+                NPCDataAccess.ApplyIcon(S1NPC, S1DevUtilities.PlayerSingleton<S1ContactApps.ContactsApp>.Instance.AppIcon);
 
             string displayName = FirstName;
             if (string.IsNullOrEmpty(displayName))
@@ -1874,9 +1844,10 @@ namespace S1API.Entities
             RepairNpcPrefabReferences(gameObject, S1NPC);
             // Adding a movement component when NPC is created prevents it from disabling
             if (S1NPC.Movement == null)
-                S1NPC.Movement = gameObject.GetComponent<S1NPCs.NPCMovement>();
+                SetGameMember(S1NPC, "Movement", gameObject.GetComponent<S1NPCs.NPCMovement>());
 
-            S1NPC.Movement.enabled = true;
+            if (S1NPC.Movement != null)
+                S1NPC.Movement.enabled = true;
         }
 
         #endregion
@@ -1928,8 +1899,8 @@ namespace S1API.Entities
         /// </summary>
         public string FirstName
         {
-            get => GetNpcString("FirstName");
-            set => SetNpcMember("FirstName", value);
+            get => NPCDataAccess.GetFirstName(S1NPC);
+            set => NPCDataAccess.ApplyFirstName(S1NPC, value);
         }
 
         /// <summary>
@@ -1937,8 +1908,8 @@ namespace S1API.Entities
         /// </summary>
         public string LastName
         {
-            get => GetNpcString("LastName");
-            set => SetNpcMember("LastName", value);
+            get => NPCDataAccess.GetLastName(S1NPC);
+            set => NPCDataAccess.ApplyLastName(S1NPC, value);
         }
 
         /// <summary>
@@ -1954,8 +1925,8 @@ namespace S1API.Entities
         /// </summary>
         public string ID
         {
-            get => GetNpcString("ID");
-            protected set => SetNpcMember("ID", value);
+            get => NPCDataAccess.GetId(S1NPC);
+            protected set => NPCDataAccess.ApplyId(S1NPC, value);
         }
 
         /// <summary>
@@ -1974,8 +1945,8 @@ namespace S1API.Entities
         /// </summary>
         public Sprite Icon
         {
-            get => GetGameMember<Sprite>(S1NPC, "MugshotSprite");
-            set => SetNpcMember("MugshotSprite", value);
+            get => NPCDataAccess.GetIcon(S1NPC);
+            set => NPCDataAccess.ApplyIcon(S1NPC, value);
         }
 
         /// <summary>
@@ -2057,12 +2028,6 @@ namespace S1API.Entities
         {
             var categories = GetConversationCategories();
 
-            if (categories == null)
-            {
-                categories = new ConversationCategoryList();
-                SetConversationCategories(categories);
-            }
-
             if (categories.Count == 0)
             {
                 ResetConversationCategoriesToDefaults(categories);
@@ -2074,16 +2039,7 @@ namespace S1API.Entities
         private ConversationCategoryList ResetConversationCategoriesToDefaults()
         {
             var categories = GetConversationCategories();
-
-            if (categories == null)
-            {
-                categories = new ConversationCategoryList();
-                SetConversationCategories(categories);
-            }
-            else
-            {
-                categories.Clear();
-            }
+            categories.Clear();
 
             ResetConversationCategoriesToDefaults(categories);
             return categories;
@@ -2102,6 +2058,21 @@ namespace S1API.Entities
             {
                 categories.Add(S1Messaging.EConversationCategory.Customer);
             }
+
+            SetConversationCategories(categories);
+        }
+
+        internal void SetConversationCategory(S1Messaging.EConversationCategory category)
+        {
+            var categories = new ConversationCategoryList();
+            categories.Add(category);
+            SetConversationCategories(categories);
+
+            if (S1NPC.MSGConversation == null)
+                return;
+
+            S1NPC.MSGConversation.SetCategories(categories);
+            S1NPC.MSGConversation.EnsureUIExists();
         }
 
         private bool ShouldUseDealerCategory()
@@ -2217,7 +2188,7 @@ namespace S1API.Entities
         {
             try
             {
-                string id = GetNpcString("ID");
+                string id = NPCDataAccess.GetId(S1NPC);
                 if (!string.IsNullOrEmpty(id))
                     return id;
             }
@@ -2243,39 +2214,6 @@ namespace S1API.Entities
             SetGameMember(S1NPC, memberName, value);
         }
 
-        private void EnsureFrameworkNpcDataIdentity(string? id, string? firstName, string? lastName)
-        {
-#if IL2CPPMELON
-            if (S1NPC == null)
-                return;
-
-            if (string.IsNullOrWhiteSpace(id) && string.IsNullOrWhiteSpace(firstName))
-                return;
-
-            try
-            {
-                var npcData = S1NPC.NPCData ?? new S1NPCFramework.NPCData();
-                var basicInfo = npcData.BasicInfo ?? new S1NPCFramework.BasicInfo();
-
-                if (!string.IsNullOrWhiteSpace(id))
-                    basicInfo.ID = id;
-                if (!string.IsNullOrWhiteSpace(firstName))
-                    basicInfo.FirstName = firstName;
-
-                bool hasLastName = !string.IsNullOrWhiteSpace(lastName);
-                basicInfo.HasLastName = hasLastName;
-                basicInfo.LastName = hasLastName ? lastName : string.Empty;
-
-                npcData._basicInfo = new S1Core.ValueOrReference<S1NPCFramework.BasicInfo, S1NPCFramework.BasicInfoPreset>(basicInfo);
-                SetGameMember(S1NPC, "NPCData", npcData);
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[S1API][NPCIdentity] Failed to initialize framework NPCData identity for '{id ?? firstName ?? "<unknown>"}': {ex.Message}");
-            }
-#endif
-        }
-
         private string GetNpcFullName()
         {
             var fullName = GetGameMember<string>(S1NPC, "fullName");
@@ -2289,29 +2227,25 @@ namespace S1API.Entities
                 : $"{firstName} {lastName}".Trim();
         }
 
-        private ConversationCategoryList? GetConversationCategories()
+        private ConversationCategoryList GetConversationCategories()
         {
-            return GetGameMember(S1NPC, "ConversationCategories") as ConversationCategoryList;
+            var categories = new ConversationCategoryList();
+            foreach (S1Messaging.EConversationCategory category in NPCDataAccess.GetConversationCategories(S1NPC))
+                categories.Add(category);
+            return categories;
         }
 
         private void SetConversationCategories(ConversationCategoryList categories)
         {
-            SetGameMember(S1NPC, "ConversationCategories", categories);
+            var values = new System.Collections.Generic.List<S1Messaging.EConversationCategory>(categories.Count);
+            for (int i = 0; i < categories.Count; i++)
+                values.Add(categories[i]);
+            NPCDataAccess.ApplyConversationCategories(S1NPC, values);
         }
 
         private static UnityEvent? GetInventoryContentsChanged(S1NPCs.NPCInventory? inventory)
         {
             return GetGameMember(inventory, "onContentsChanged") as UnityEvent;
-        }
-
-        private S1Interaction.InteractableObject? GetNpcInteractable()
-        {
-            return GetGameMember(S1NPC, "intObj") as S1Interaction.InteractableObject;
-        }
-
-        private void SetNpcInteractable(S1Interaction.InteractableObject interactable)
-        {
-            SetGameMember(S1NPC, "intObj", interactable);
         }
 
         private static S1Interaction.InteractableObject? GetInventoryPickpocketInteractable(S1NPCs.NPCInventory? inventory)
@@ -2534,8 +2468,9 @@ namespace S1API.Entities
         {
             try
             {
-                GetConversationCategories()?.Clear();
-                S1NPC.MSGConversation?.Categories?.Clear();
+                var categories = new ConversationCategoryList();
+                SetConversationCategories(categories);
+                S1NPC.MSGConversation?.SetCategories(categories);
             }
             catch (Exception ex)
             {
@@ -2721,8 +2656,8 @@ namespace S1API.Entities
         /// </summary>
         public bool ConversationCanBeHidden
         {
-            get => GetGameMember<bool>(S1NPC, "ConversationCanBeHidden");
-            set => SetNpcMember("ConversationCanBeHidden", value);
+            get => NPCDataAccess.GetConversationCanBeHidden(S1NPC);
+            set => NPCDataAccess.ApplyConversationCanBeHidden(S1NPC, value);
         }
 
         /// <summary>
@@ -2884,9 +2819,10 @@ namespace S1API.Entities
 
         private void InitializeHealthComponent()
         {
-            S1NPC.Health = S1NPC.Health ?? gameObject.GetComponent<S1NPCs.NPCHealth>();
             if (S1NPC.Health == null)
-                S1NPC.Health = gameObject.AddComponent<S1NPCs.NPCHealth>();
+                SetGameMember(S1NPC, "Health", gameObject.GetComponent<S1NPCs.NPCHealth>());
+            if (S1NPC.Health == null)
+                SetGameMember(S1NPC, "Health", gameObject.AddComponent<S1NPCs.NPCHealth>());
 
             if (S1NPC.Health.onDie == null)
                 S1NPC.Health.onDie = new UnityEvent();
@@ -2901,12 +2837,12 @@ namespace S1API.Entities
         {
             if (S1NPC.Awareness == null)
             {
-                S1NPC.Awareness = gameObject.GetComponentInChildren<S1NPCs.NPCAwareness>(true);
+                SetGameMember(S1NPC, "Awareness", gameObject.GetComponentInChildren<S1NPCs.NPCAwareness>(true));
                 if (S1NPC.Awareness == null)
                 {
                     GameObject awarenessObject = new GameObject("NPCAwareness");
                     awarenessObject.transform.SetParent(gameObject.transform, false);
-                    S1NPC.Awareness = awarenessObject.AddComponent<S1NPCs.NPCAwareness>();
+                    SetGameMember(S1NPC, "Awareness", awarenessObject.AddComponent<S1NPCs.NPCAwareness>());
                 }
             }
 
@@ -2932,12 +2868,12 @@ namespace S1API.Entities
 
             if (S1NPC.Responses == null)
             {
-                S1NPC.Responses = gameObject.GetComponentInChildren<S1Responses.NPCResponses>(true);
+                SetGameMember(S1NPC, "Responses", gameObject.GetComponentInChildren<S1Responses.NPCResponses>(true));
                 if (S1NPC.Responses == null)
                 {
                     GameObject responsesObject = new GameObject("NPCResponses");
                     responsesObject.transform.SetParent(gameObject.transform, false);
-                    S1NPC.Responses = responsesObject.AddComponent<S1Responses.NPCResponses_Civilian>();
+                    SetGameMember(S1NPC, "Responses", responsesObject.AddComponent<S1Responses.NPCResponses_Civilian>());
                 }
             }
 
@@ -2950,7 +2886,7 @@ namespace S1API.Entities
                     if (S1NPC.Responses != null)
                         UnityEngine.Object.Destroy(S1NPC.Responses);
                     var civilian = respGO.AddComponent<S1Responses.NPCResponses_Civilian>();
-                    S1NPC.Responses = civilian;
+                    SetGameMember(S1NPC, "Responses", civilian);
                 }
                 catch { }
             }
@@ -2965,13 +2901,18 @@ namespace S1API.Entities
 
         private void InitializeBehaviourComponents()
         {
-            bool suppressUnsafeBetaBehaviours = ShouldSuppressUnsafeBetaBehaviours();
-
             if (S1NPC.Behaviour == null)
             {
-                GameObject behaviourObject = new GameObject("NPCBehaviour");
-                behaviourObject.transform.SetParent(gameObject.transform, false);
-                S1NPC.Behaviour = behaviourObject.AddComponent<S1Behaviour.NPCBehaviour>();
+                S1Behaviour.NPCBehaviour existing =
+                    gameObject.GetComponentInChildren<S1Behaviour.NPCBehaviour>(true);
+                if (existing == null)
+                {
+                    GameObject behaviourObject = new GameObject("NPCBehaviour");
+                    behaviourObject.transform.SetParent(gameObject.transform, false);
+                    existing = behaviourObject.AddComponent<S1Behaviour.NPCBehaviour>();
+                }
+
+                SetGameMember(S1NPC, "Behaviour", existing);
             }
 
             // Ensure NPCActions exists so Responses can trigger behaviours like CallPolice/Face/Combat
@@ -2984,7 +2925,7 @@ namespace S1API.Entities
                     actionsObject.transform.SetParent(gameObject.transform, false);
                     existing = actionsObject.AddComponent<S1NPCs.Actions.NPCActions>();
                 }
-                S1NPC.Actions = existing;
+                SetGameMember(S1NPC, "Actions", existing);
             }
 
             if (S1NPC.Behaviour.CoweringBehaviour == null)
@@ -2999,6 +2940,9 @@ namespace S1API.Entities
 
                 S1NPC.Behaviour.CoweringBehaviour = existing;
             }
+
+            S1NPC.Behaviour.HeavyFlinchBehaviour =
+                S1NPC.Behaviour.GetComponentInChildren<S1Behaviour.HeavyFlinchBehaviour>(true);
 
             if (S1NPC.Behaviour.FleeBehaviour == null)
             {
@@ -3026,7 +2970,7 @@ namespace S1API.Entities
                 S1NPC.Behaviour.GenericDialogueBehaviour = existing;
             }
 
-            if (!suppressUnsafeBetaBehaviours && S1NPC.Behaviour.RequestProductBehaviour == null)
+            if (S1NPC.Behaviour.RequestProductBehaviour == null)
             {
                 var existing = S1NPC.Behaviour.GetComponentInChildren<S1Behaviour.RequestProductBehaviour>(true);
                 if (existing == null)
@@ -3050,7 +2994,7 @@ namespace S1API.Entities
                 S1NPC.Behaviour.CallPoliceBehaviour = existing;
             }
 
-            if (!suppressUnsafeBetaBehaviours && S1NPC.Behaviour.CombatBehaviour == null)
+            if (S1NPC.Behaviour.CombatBehaviour == null)
             {
                 var existing = S1NPC.Behaviour.GetComponentInChildren<S1Combat.CombatBehaviour>(true);
                 if (existing == null)
@@ -3060,6 +3004,14 @@ namespace S1API.Entities
                     existing = go.AddComponent<S1Combat.CombatBehaviour>();
                 }
                 S1NPC.Behaviour.CombatBehaviour = existing;
+            }
+
+            if (S1NPC.Behaviour.CombatBehaviour != null)
+            {
+                S1NPC.Behaviour.CombatBehaviour.TargetVelocityTracker ??=
+                    gameObject.GetComponentInChildren<S1Tools.SmoothedVelocityCalculator>(true);
+                S1NPC.Behaviour.CombatBehaviour.VirtualPunchWeapon ??=
+                    gameObject.GetComponentInChildren<S1AvatarEquipping.AvatarMeleeWeapon>(true);
             }
 
             if (S1NPC.Behaviour.StationaryBehaviour == null)
@@ -3086,7 +3038,7 @@ namespace S1API.Entities
                 S1NPC.Behaviour.FaceTargetBehaviour = existing;
             }
 
-            if (!suppressUnsafeBetaBehaviours && S1NPC.Behaviour.ConsumeProductBehaviour == null)
+            if (S1NPC.Behaviour.ConsumeProductBehaviour == null)
             {
                 var existing = S1NPC.Behaviour.GetComponentInChildren<S1Behaviour.ConsumeProductBehaviour>(true);
                 if (existing == null)
@@ -3097,6 +3049,10 @@ namespace S1API.Entities
                 }
                 S1NPC.Behaviour.ConsumeProductBehaviour = existing;
             }
+
+
+            if (S1NPC.Behaviour.ConsumeProductBehaviour.onConsumeDone == null)
+                S1NPC.Behaviour.ConsumeProductBehaviour.onConsumeDone = new UnityEvent();
 
             // UnconsciousBehaviour and DeadBehaviour are required by NPC.IsConscious
             // which is checked during pickpocketing and other interactions
@@ -3124,68 +3080,79 @@ namespace S1API.Entities
                 S1NPC.Behaviour.DeadBehaviour = existing;
             }
 
-            TryRegisterBehaviourEventLinks();
+            RepairBehaviourOwnership(gameObject, S1NPC);
+
+            foreach (S1Behaviour.Behaviour behaviour in
+                     S1NPC.Behaviour.GetComponentsInChildren<S1Behaviour.Behaviour>(true))
+            {
+                if (behaviour == null)
+                    continue;
+
+                behaviour.onEnable ??= new UnityEvent();
+                behaviour.onDisable ??= new UnityEvent();
+                behaviour.onBegin ??= new UnityEvent();
+                behaviour.onEnd ??= new UnityEvent();
+            }
+
+            RefreshBehaviourStack();
         }
 
-        private bool ShouldSuppressUnsafeBetaBehaviours()
+        private static void RepairBehaviourOwnership(GameObject prefabRoot, S1NPCs.NPC npc)
         {
-#if (IL2CPPMELON)
-            try
-            {
-                return IsCustomNPC
-                       && (gameObject.GetComponent<NPCPrefabIdentity>() != null
-                           || (gameObject.name ?? string.Empty).StartsWith("S1API_", StringComparison.OrdinalIgnoreCase)
-                           || S1NPC?.GetComponent<NPCPrefabIdentity>() != null);
-            }
-            catch
-            {
-                return IsCustomNPC;
-            }
+            if (prefabRoot == null || npc == null)
+                return;
+
+            S1Behaviour.NPCBehaviour behaviourManager =
+                prefabRoot.GetComponentInChildren<S1Behaviour.NPCBehaviour>(true);
+            if (behaviourManager == null)
+                return;
+
+            SetGameMember(npc, "Behaviour", behaviourManager);
+
+#if (IL2CPPMELON || IL2CPPBEPINEX)
+            behaviourManager.Npc = npc;
 #else
-            return false;
+            NpcBehaviourOwnerField.SetValue(behaviourManager, npc);
 #endif
+
+            foreach (S1Behaviour.Behaviour behaviour in
+                     behaviourManager.GetComponentsInChildren<S1Behaviour.Behaviour>(true))
+            {
+                if (behaviour == null)
+                    continue;
+
+#if (IL2CPPMELON || IL2CPPBEPINEX)
+                behaviour.beh = behaviourManager;
+#else
+                BehaviourOwnerField.SetValue(behaviour, behaviourManager);
+#endif
+            }
         }
 
-        private void TryRegisterBehaviourEventLinks()
+        private void RefreshBehaviourStack()
         {
-            try
+            var behaviours = S1NPC.Behaviour.GetComponentsInChildren<S1Behaviour.Behaviour>(true);
+#if (IL2CPPMELON || IL2CPPBEPINEX)
+            var ordered = new System.Collections.Generic.List<S1Behaviour.Behaviour>();
+            foreach (S1Behaviour.Behaviour behaviour in behaviours)
             {
-                var beh = S1NPC.Behaviour;
-                if (beh == null)
-                    return;
-
-                var behaviours = beh.GetComponentsInChildren<S1Behaviour.Behaviour>(true);
-
-                var addMethod = AccessTools.Method(typeof(S1Behaviour.NPCBehaviour), "AddEnabledBehaviour");
-                var removeMethod = AccessTools.Method(typeof(S1Behaviour.NPCBehaviour), "RemoveEnabledBehaviour");
-
-                for (int i = 0; i < behaviours.Length; i++)
-                {
-                    var b = behaviours[i];
-                    if (b == null)
-                        continue;
-
-                    try
-                    {
-                        Action enableAction = () =>
-                        {
-                            try { addMethod?.Invoke(beh, new object[] { b }); } catch { }
-                        };
-                        EventHelper.AddListener(enableAction, b.onEnable);
-                    }
-                    catch { }
-                    try
-                    {
-                        Action disableAction = () =>
-                        {
-                            try { removeMethod?.Invoke(beh, new object[] { b }); } catch { }
-                        };
-                        EventHelper.AddListener(disableAction, b.onDisable);
-                    }
-                    catch { }
-                }
+                if (behaviour != null)
+                    ordered.Add(behaviour);
             }
-            catch { }
+
+            ordered.Sort((left, right) => right.Priority.CompareTo(left.Priority));
+            var stack = new Il2CppSystem.Collections.Generic.List<S1Behaviour.Behaviour>();
+            foreach (S1Behaviour.Behaviour behaviour in ordered)
+                stack.Add(behaviour);
+            S1NPC.Behaviour.behaviourStack = stack;
+#else
+            var stack = new System.Collections.Generic.List<S1Behaviour.Behaviour>(
+                behaviours.Where(behaviour => behaviour != null).OrderByDescending(behaviour => behaviour.Priority));
+
+            FieldInfo stackField = AccessTools.Field(typeof(S1Behaviour.NPCBehaviour), "behaviourStack")
+                ?? throw new MissingFieldException(typeof(S1Behaviour.NPCBehaviour).FullName, "behaviourStack");
+            stackField.SetValue(S1NPC.Behaviour, stack);
+#endif
         }
 
         private void InitializeVisionComponents()
@@ -3244,28 +3211,14 @@ namespace S1API.Entities
 
         private void InitializeInteractables()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-            if (GetNpcInteractable() == null)
-            {
-                S1Interaction.InteractableObject interactable = gameObject.GetComponentInChildren<S1Interaction.InteractableObject>(true) ??
-                    gameObject.AddComponent<S1Interaction.InteractableObject>();
-                SetNpcInteractable(interactable);
-            }
-#elif (MONOMELON || MONOBEPINEX)
-            FieldInfo intObjField = AccessTools.Field(typeof(S1NPCs.NPC), "intObj");
-            if (intObjField.GetValue(S1NPC) == null)
-            {
-                S1Interaction.InteractableObject interactable = gameObject.GetComponentInChildren<S1Interaction.InteractableObject>(true) ??
-                    gameObject.AddComponent<S1Interaction.InteractableObject>();
-                intObjField.SetValue(S1NPC, interactable);
-            }
-#endif
+            if (gameObject.GetComponentInChildren<S1Interaction.InteractableObject>(true) == null)
+                gameObject.AddComponent<S1Interaction.InteractableObject>();
         }
 
         private void InitializeInventoryComponent()
         {
             if (S1NPC.Inventory == null)
-                S1NPC.Inventory = gameObject.GetComponentInChildren<S1NPCs.NPCInventory>(true) ?? gameObject.AddComponent<S1NPCs.NPCInventory>();
+                SetGameMember(S1NPC, "Inventory", gameObject.GetComponentInChildren<S1NPCs.NPCInventory>(true) ?? gameObject.AddComponent<S1NPCs.NPCInventory>());
 
             if (GetInventoryPickpocketInteractable(S1NPC.Inventory) == null)
             {
@@ -3524,14 +3477,7 @@ namespace S1API.Entities
 
         private S1Interaction.InteractableObject? GetPrimaryInteractable()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-            return GetNpcInteractable();
-#elif (MONOMELON || MONOBEPINEX)
-            FieldInfo intObjField = AccessTools.Field(typeof(S1NPCs.NPC), "intObj");
-            return intObjField.GetValue(S1NPC) as S1Interaction.InteractableObject;
-#else
-            return null;
-#endif
+            return gameObject.GetComponentInChildren<S1Interaction.InteractableObject>(true);
         }
 
         private void InitializeNetworkBehaviours()
@@ -3558,7 +3504,7 @@ namespace S1API.Entities
             if (_runtimeAvatar == null)
                 return;
 
-            S1NPC.Avatar = _runtimeAvatar;
+            SetGameMember(S1NPC, "Avatar", _runtimeAvatar);
             Appearance.ApplyToAvatar(_runtimeAvatar);
         }
 
@@ -3625,6 +3571,8 @@ namespace S1API.Entities
         {
             try
             {
+                NPCDataAccess.PrepareForRuntime(S1NPC);
+
                 var customer = gameObject.GetComponent<S1Economy.Customer>();
                 if (customer != null)
                 {
@@ -4080,7 +4028,6 @@ namespace S1API.Entities
                 string[] known = new string[]
                 {
                     "NPCSignal_WalkToLocation",
-                    "NPCSignal_WaitForDelivery",
                     "NPCSignal_UseVendingMachine",
                     "NPCSignal_UseATM",
                     "NPCSignal_DriveToCarPark",

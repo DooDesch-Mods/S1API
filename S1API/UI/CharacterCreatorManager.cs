@@ -118,18 +118,10 @@ namespace S1API.UI
                 initialSettings = GetPlayerAvatarSettings();
             }
 
-            // Register as active UI element BEFORE opening to prevent dialogue from restoring camera
-            if (showUI && S1DevUtilities.PlayerSingleton<S1PlayerScripts.PlayerCamera>.InstanceExists)
-            {
-                S1DevUtilities.PlayerSingleton<S1PlayerScripts.PlayerCamera>.Instance.AddActiveUIElement(_s1Creator.name);
-            }
-
             var s1Settings = initialSettings?.S1BasicAvatarSettings;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
             _s1Creator.Open(s1Settings);
-#else
-            _s1Creator.Open(s1Settings, showUI);
-#endif
+            if (!showUI && _s1Creator.Canvas != null)
+                _s1Creator.Canvas.enabled = false;
 
             try
             {
@@ -442,15 +434,15 @@ namespace S1API.UI
                     return null;
                 }
 
-                var playerSettings = localPlayer.S1Player.CurrentAvatarSettings;
-                if (playerSettings == null)
+                var currentSettings = localPlayer.GetCurrentBasicAvatarSettings();
+                if (currentSettings == null)
                 {
                     Logger.Msg("Player has no current avatar settings, using default");
                     return null;
                 }
 
                 // Create a copy to avoid modifying the original
-                var copy = Object.Instantiate(playerSettings);
+                var copy = Object.Instantiate(currentSettings.S1BasicAvatarSettings);
                 return new BasicAvatarSettings(copy);
             }
             catch (Exception ex)

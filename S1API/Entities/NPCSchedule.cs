@@ -2,16 +2,10 @@
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
-using S1Economy = Il2CppScheduleOne.Economy;
-using Il2CppFishNet;
-using Il2CppFishNet.Object;
 #elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
 using S1NPCs = ScheduleOne.NPCs;
 using S1GameTime = ScheduleOne.GameTime;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
-using S1Economy = ScheduleOne.Economy;
-using FishNet;
-using FishNet.Object;
 #endif
 
 using System;
@@ -33,7 +27,7 @@ namespace S1API.Entities
     public sealed class NPCSchedule
     {
         internal readonly NPC NPC;
-        private static bool _loggedDealSignalTypeMissing;
+        private static bool _loggedRemovedDealSignal;
 
         internal NPCSchedule(NPC npc)
         {
@@ -168,96 +162,23 @@ namespace S1API.Entities
         }
 
         /// <summary>
-        /// Ensures that a deal-wait signal exists under the schedule manager for customer handover functionality.
+        /// Retained for source compatibility with game versions that used a deal-wait schedule signal.
         /// </summary>
         /// <remarks>
-        /// This method ensures that a <see cref="S1NPCsSchedules.NPCSignal_WaitForDelivery"/> component
-        /// exists on the NPC's schedule manager. This signal is required for customer NPCs to
-        /// properly handle deal interactions and handovers with the player.
-        /// 
-        /// If the signal already exists, it will be properly initialized and wired to the
-        /// customer component. If it doesn't exist, a warning will be logged indicating that
-        /// it should be added via <see cref="NPC.ConfigurePrefab"/>.
-        /// 
-        /// The deal signal allows the NPC to wait for deliveries and toggle customer handover states.
+        /// Schedule I 0.4.6 removed <c>NPCSignal_WaitForDelivery</c>. Customer deal attendance is
+        /// configured automatically by <see cref="NPCPrefabBuilder.EnsureCustomer"/>. This method
+        /// now performs no runtime work and logs one compatibility warning per process.
         /// </remarks>
+        [Obsolete("NPCSignal_WaitForDelivery was removed in game version 0.4.6. Customer deal attendance is configured automatically by EnsureCustomer().")]
         public void EnsureDealSignal()
         {
-            var manager = Manager;
-            if (manager == null)
-            {
-                EnsureManager();
-                manager = Manager;
-                if (manager == null)
-                    return;
-            }
-
-            var existing = FindDealSignal(manager);
-            if (existing != null)
-            {
-                TryNetworkInitialize(existing);
-                // Also reflect into Customer so base game logic can reference it consistently
-                TryWireCustomerDealSignal(existing);
-                TryAssignDealSignalField(existing);
+            if (_loggedRemovedDealSignal)
                 return;
-            }
-            // Do not create new network behaviours at runtime; require prefab declaration
-            UnityEngine.Debug.LogWarning("[S1API] DealSignal missing on prefab. Please add via NPC.ConfigurePrefab(builder.EnsureDealSignal()).");
-        }
 
-        private static Type? GetDealSignalType()
-        {
-            return ReflectionUtils.GetTypeByName("ScheduleOne.NPCs.Schedules.NPCSignal_WaitForDelivery")
-                   ?? ReflectionUtils.GetTypeByName("Il2CppScheduleOne.NPCs.Schedules.NPCSignal_WaitForDelivery");
-        }
-
-        private Component? FindDealSignal(S1NPCs.NPCScheduleManager manager)
-        {
-            var dealSignalType = GetDealSignalType();
-            if (dealSignalType == null)
-            {
-                if (!_loggedDealSignalTypeMissing)
-                {
-                    _loggedDealSignalTypeMissing = true;
-                    UnityEngine.Debug.LogWarning("[S1API] DealSignal type is not available in this game build. Customer deal signal wiring was skipped.");
-                }
-
-                return null;
-            }
-
-            var components = manager.GetComponentsInChildren<Component>(true);
-            for (int i = 0; i < components.Length; i++)
-            {
-                var component = components[i];
-                if (component != null && dealSignalType.IsInstanceOfType(component))
-                    return component;
-            }
-
-            return null;
-        }
-
-        private void TryWireCustomerDealSignal(object signal)
-        {
-            try
-            {
-                var customer = NPC.gameObject.GetComponent<S1Economy.Customer>();
-                if (customer == null) return;
-                ReflectionUtils.TrySetFieldOrProperty(customer, "DealSignal", signal);
-            }
-            catch { /* ignore */ }
-        }
-
-        private void TryAssignDealSignalField(object signal)
-        {
-            try
-            {
-                var customer = NPC.gameObject.GetComponent<S1Economy.Customer>();
-                if (customer == null || signal == null)
-                    return;
-
-                ReflectionUtils.TrySetFieldOrProperty(customer, "DealSignal", signal);
-            }
-            catch { /* ignore */ }
+            _loggedRemovedDealSignal = true;
+            UnityEngine.Debug.LogWarning(
+                "[S1API] EnsureDealSignal is obsolete in Schedule I 0.4.6. " +
+                "Customer deal attendance is configured automatically; this call is now a compatibility no-op.");
         }
 
 
@@ -343,43 +264,6 @@ namespace S1API.Entities
         /// INTERNAL: The owning NPC instance.
         /// </summary>
         internal NPC Owner => NPC;
-
-        /// <summary>
-        /// INTERNAL: Warm FishNet caches on a dynamically added NetworkBehaviour.
-        /// </summary>
-        private void TryNetworkInitialize(object behaviour)
-        {
-            if (behaviour == null)
-                return;
-            try
-            {
-                var networkObject = NPC.gameObject.GetComponent<NetworkObject>();
-                var transportManager = InstanceFinder.TransportManager;
-                if (networkObject == null || transportManager == null)
-                    return;
-
-                SetNonPublicInstanceField(behaviour, "_networkObjectCache", networkObject);
-                SetNonPublicInstanceField(behaviour, "_transportManagerCache", transportManager);
-            }
-            catch { }
-        }
-
-        private static void SetNonPublicInstanceField(object target, string fieldName, object value)
-        {
-            try
-            {
-                if (target == null || string.IsNullOrEmpty(fieldName)) return;
-                var type = target.GetType();
-                System.Reflection.FieldInfo field = null;
-                while (type != null && field == null)
-                {
-                    field = type.GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                    type = type.BaseType;
-                }
-                field?.SetValue(target, value);
-            }
-            catch { }
-        }
     }
 }
 

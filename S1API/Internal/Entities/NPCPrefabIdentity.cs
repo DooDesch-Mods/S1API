@@ -2,8 +2,6 @@
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Economy = Il2CppScheduleOne.Economy;
-using S1Core = Il2CppScheduleOne.Core;
-using S1NPCFramework = Il2CppScheduleOne.NPCs.Framework;
 using Il2CppInterop.Runtime.Attributes;
 #elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
@@ -608,29 +606,9 @@ namespace S1API.Internal.Entities
             EnsureRelationshipDataFromRegistry();
             EnsureDealerHomeBuildingNameFromRegistry();
 
-            try {
-                if (!string.IsNullOrEmpty(FirstName))
-                    TrySetNpcMember(npc, "FirstName", FirstName);
-            }
-            catch { }
-            try
-            {
-                if (!string.IsNullOrEmpty(LastName))
-                    TrySetNpcMember(npc, "LastName", LastName);
-            }
-            catch { }
-            try
-            {
-                if (!string.IsNullOrEmpty(Id))
-                    TrySetNpcMember(npc, "ID", Id);
-            }
-            catch { }
-            try
-            {
-                if (Icon != null)
-                    TrySetNpcMember(npc, "MugshotSprite", Icon);
-            }
-            catch { }
+            NPCDataAccess.ApplyIdentity(npc, Id, FirstName, LastName);
+            if (Icon != null)
+                NPCDataAccess.ApplyIcon(npc, Icon);
 
             try
             {
@@ -865,7 +843,6 @@ namespace S1API.Internal.Entities
 
         private void EnsureFrameworkNpcDataIdentity(S1NPCs.NPC npc)
         {
-#if IL2CPPMELON
             if (npc == null)
                 return;
 
@@ -874,26 +851,30 @@ namespace S1API.Internal.Entities
 
             try
             {
-                var npcData = npc.NPCData ?? new S1NPCFramework.NPCData();
-                var basicInfo = npcData.BasicInfo ?? new S1NPCFramework.BasicInfo();
-
-                if (!string.IsNullOrWhiteSpace(Id))
-                    basicInfo.ID = Id;
-                if (!string.IsNullOrWhiteSpace(FirstName))
-                    basicInfo.FirstName = FirstName;
-
-                bool hasLastName = !string.IsNullOrWhiteSpace(LastName);
-                basicInfo.HasLastName = hasLastName;
-                basicInfo.LastName = hasLastName ? LastName : string.Empty;
-
-                npcData._basicInfo = new S1Core.ValueOrReference<S1NPCFramework.BasicInfo, S1NPCFramework.BasicInfoPreset>(basicInfo);
-                TrySetNpcMember(npc, "NPCData", npcData);
+                NPCDataAccess.ApplyIdentity(npc, Id, FirstName, LastName);
+                NPCDataAccess.ApplyIcon(npc, Icon);
+                NPCDataAccess.ApplyAppearance(npc, AppearanceDefaults);
             }
             catch (Exception ex)
             {
                 Logger.Warning($"[NPCPrefabIdentity] Failed to initialize framework NPCData identity before Awake for '{Id ?? FirstName ?? "<unknown>"}': {ex.Message}");
             }
-#endif
+        }
+
+        internal bool ApplyAppearanceTo(S1NPCs.NPC npc, S1AvatarFramework.Avatar avatar)
+        {
+            if (npc == null || avatar == null)
+                return false;
+
+            TryRestoreFromRegistry();
+            EnsureAppearanceDefaults();
+            if (AppearanceDefaults == null)
+                return false;
+
+            EnsureAppearanceImpostorTexture(npc.ID ?? PrefabName ?? gameObject.name);
+            NPCDataAccess.ApplyAppearance(npc, AppearanceDefaults);
+            avatar.LoadAvatarSettings(AppearanceDefaults);
+            return true;
         }
 
 #if IL2CPPMELON
@@ -1202,6 +1183,8 @@ namespace S1API.Internal.Entities
             settings.HairPath = data.HairPath ?? string.Empty;
             settings.HairColor = data.HairColor;
             settings.ImpostorTexture = data.ImpostorTexture;
+            settings.UseCombinedLayer = false;
+            settings.CombinedLayer = null;
             settings.LeftEyeRestingState = new S1AvatarFramework.Eye.EyeLidConfiguration
             {
                 topLidOpen = data.LeftEye.TopLidOpen,

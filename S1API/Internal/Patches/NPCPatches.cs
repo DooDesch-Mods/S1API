@@ -82,9 +82,6 @@ namespace S1API.Internal.Patches
         // Pending inventory loads for custom dealers - stored until NPCInventory.Awake creates slots
         private static readonly System.Collections.Generic.Dictionary<string, S1Datas.DeserializedItemSet> _pendingInventoryLoads
             = new System.Collections.Generic.Dictionary<string, S1Datas.DeserializedItemSet>();
-        private static bool _loggedSkippedUnsafeRequestProductActivate;
-        private static bool _loggedSkippedUnsafeCombatStart;
-        private static bool _loggedSkippedUnsafeDealerStart;
 
         private static object? GetInventoryMember(S1NPCs.NPCInventory inventory, string memberName)
         {
@@ -395,6 +392,12 @@ namespace S1API.Internal.Patches
             for (int i = 0; i < _pendingCustomNpcTypes.Count; i++)
             {
                 var type = _pendingCustomNpcTypes[i];
+                if (!NPC.TryGetConfiguredNpcId(type, out string configuredId)
+                    || !configuredId.Equals(npcId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 NPC? customNPC = null;
                 try
                 {
@@ -408,23 +411,43 @@ namespace S1API.Internal.Patches
                 if (customNPC == null)
                     continue;
 
-                string defaultId = null;
-                try { defaultId = customNPC.S1NPC?.ID; } catch { }
+                _pendingCustomNpcTypes.RemoveAt(i);
+                RegisterCustomNpcForNetworking(customNPC);
+                return customNPC;
+            }
 
-                bool idMatches = !string.IsNullOrEmpty(npcId)
-                                 && !string.IsNullOrEmpty(defaultId)
-                                 && defaultId.Equals(npcId, StringComparison.OrdinalIgnoreCase);
+            // Constructor-only identity is obsolete but remains supported for older mods.
+            // Probe only types that did not provide prefab metadata, never every configured type.
+            for (int i = 0; i < _pendingCustomNpcTypes.Count; i++)
+            {
+                var type = _pendingCustomNpcTypes[i];
+                if (NPC.TryGetConfiguredNpcId(type, out _))
+                    continue;
 
-                if (idMatches)
+                NPC? customNPC = null;
+                try
+                {
+                    customNPC = (NPC)Activator.CreateInstance(type, true)!;
+                }
+                catch (Exception ex)
+                {
+                    LogCustomNpcInstantiationException(type, $"for save ID '{npcId}'", ex);
+                }
+
+                if (customNPC == null)
+                    continue;
+
+                string defaultId = customNPC.S1NPC?.ID;
+                if (!string.IsNullOrEmpty(defaultId)
+                    && defaultId.Equals(npcId, StringComparison.OrdinalIgnoreCase))
                 {
                     _pendingCustomNpcTypes.RemoveAt(i);
                     RegisterCustomNpcForNetworking(customNPC);
                     return customNPC;
                 }
 
-                // Cleanup non-matching instance to avoid registry pollution
-                try { NPC.All.Remove(customNPC); } catch { }
-                try { UnityEngine.Object.DestroyImmediate(customNPC.gameObject); } catch { }
+                NPC.All.Remove(customNPC);
+                UnityEngine.Object.DestroyImmediate(customNPC.gameObject);
             }
 
             return null;
@@ -777,82 +800,6 @@ namespace S1API.Internal.Patches
             }
         }
 
-        /// <summary>
-        /// Refresh behaviourStack from GetComponentsInChildren so dynamically added behaviours (e.g. SmokeBreakBehaviour,
-        /// GraffitiBehaviour from NPCPrefabBuilder) are included. Also ensures each Behaviour has beh and Npc set
-        /// (Enable_Server requires beh; prefab build may run before Awake so these can be null on spawn).
-        /// </summary>
-        [HarmonyPatch(typeof(S1NPCsBehaviour.NPCBehaviour), "Awake")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool NPCBehaviour_Awake_Prefix(S1NPCsBehaviour.NPCBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            if (IsS1ApiCustomNpcComponent(__instance))
-            {
-                Logger.Msg("NPCBehaviour_Awake_Prefix: Suppressed beta NPCBehaviour.Awake for S1API custom NPC.");
-                return false;
-            }
-#endif
-            return true;
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.NPCBehaviour), "Start")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool NPCBehaviour_Start_Prefix(S1NPCsBehaviour.NPCBehaviour __instance)
-        {
-            bool isCustomNpcBehaviour = IsS1ApiCustomNpcComponent(__instance);
-            if (isCustomNpcBehaviour)
-            {
-                Logger.Msg("NPCBehaviour_Start_Prefix: Suppressed beta BaseEmployee behaviour startup for S1API custom NPC.");
-                return false;
-            }
-
-            try
-            {
-                var behaviours = __instance.GetComponentsInChildren<S1NPCsBehaviour.Behaviour>(true);
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                var ordered = new System.Collections.Generic.List<S1NPCsBehaviour.Behaviour>();
-                for (int i = 0; i < behaviours.Length; i++)
-                {
-                    var behaviour = behaviours[i];
-                    if (behaviour != null)
-                        ordered.Add(behaviour);
-                }
-                ordered.Sort((left, right) => left.Priority.CompareTo(right.Priority));
-
-                var list = new Il2CppSystem.Collections.Generic.List<S1NPCsBehaviour.Behaviour>();
-                for (int i = 0; i < ordered.Count; i++)
-                    list.Add(ordered[i]);
-#else
-                var list = new System.Collections.Generic.List<S1NPCsBehaviour.Behaviour>(behaviours.Where(b => b != null).OrderBy(b => b.Priority));
-#endif
-                ReflectionUtils.TrySetFieldOrProperty(__instance, "behaviourStack", list);
-
-                var npc = __instance.Npc;
-                if (npc == null)
-                    npc = __instance.GetComponentInParent<S1NPCs.NPC>(true);
-                if (npc != null)
-                    ReflectionUtils.TrySetFieldOrProperty(__instance, "Npc", npc);
-
-                for (int i = 0; i < list.Count; i++)
-                {
-                    var b = list[i];
-                    if (b == null) continue;
-                    var existingBeh = ReflectionUtils.TryGetFieldOrProperty(b, "beh");
-                    if (existingBeh == null)
-                        ReflectionUtils.TrySetFieldOrProperty(b, "beh", __instance);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"NPCBehaviour_Start_Prefix: Failed to refresh behaviourStack: {ex.Message}");
-            }
-
-            return true;
-        }
-
         [HarmonyPatch(typeof(S1NPCs.NPC), "Awake")]
         [HarmonyPrefix]
         [HarmonyPriority(Priority.First)]
@@ -864,10 +811,6 @@ namespace S1API.Internal.Patches
                 if (identity != null)
                 {
                     identity.ApplyCriticalIdentityBeforeAwake(__instance);
-#if (IL2CPPMELON)
-                    Logger.Msg("NPC_Awake_Prefix: Suppressed beta NPC.Awake for S1API custom NPC.");
-                    return false;
-#endif
                 }
             }
             catch (Exception ex)
@@ -883,7 +826,6 @@ namespace S1API.Internal.Patches
         [HarmonyPriority(Priority.First)]
         private static bool Dealer_Awake_Prefix(S1Economy.Dealer __instance)
         {
-#if (IL2CPPMELON)
             if (IsS1ApiCustomNpcComponent(__instance))
             {
                 try
@@ -895,151 +837,8 @@ namespace S1API.Internal.Patches
                 {
                     Logger.Warning($"Dealer_Awake_Prefix: Failed to apply S1API identity before Awake: {ex.Message}");
                 }
-
-                Logger.Msg("Dealer_Awake_Prefix: Suppressed beta Dealer.Awake for S1API custom NPC.");
-                return false;
             }
-#endif
             return true;
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.NPCBehaviour), "Update")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool NPCBehaviour_Update_Prefix(S1NPCsBehaviour.NPCBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1Combat.CombatBehaviour), "Awake")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool CombatBehaviour_Awake_Prefix(S1Combat.CombatBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.CustomerAttendDealBehaviour), "Awake")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool CustomerAttendDealBehaviour_Awake_Prefix(S1NPCsBehaviour.CustomerAttendDealBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1Combat.CombatBehaviour), "Start")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool CombatBehaviour_Start_Prefix(S1Combat.CombatBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            if (IsS1ApiCustomNpcComponent(__instance) || HasMissingBehaviourOwner(__instance))
-            {
-                LogOnce(ref _loggedSkippedUnsafeCombatStart, "CombatBehaviour_Start_Prefix: Suppressed beta CombatBehaviour.Start because the behaviour owner is not initialized.");
-                return false;
-            }
-#endif
-            return true;
-        }
-
-        [HarmonyPatch(typeof(S1Economy.Dealer), "Start")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool Dealer_Start_Prefix(S1Economy.Dealer __instance)
-        {
-#if (IL2CPPMELON)
-            if (IsS1ApiCustomNpcComponent(__instance))
-            {
-                LogOnce(ref _loggedSkippedUnsafeDealerStart, "Dealer_Start_Prefix: Suppressed beta Dealer.Start for S1API custom NPC.");
-                return false;
-            }
-#endif
-            return true;
-        }
-
-        [HarmonyPatch(typeof(S1NPCsActions.NPCActions), "Start")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool NPCActions_Start_Prefix(S1NPCsActions.NPCActions __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.ConsumeProductBehaviour), "Start")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool ConsumeProductBehaviour_Start_Prefix(S1NPCsBehaviour.ConsumeProductBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.RequestProductBehaviour), "SetUpDialogue")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool RequestProductBehaviour_SetUpDialogue_Prefix(S1NPCsBehaviour.RequestProductBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            return !IsS1ApiCustomNpcComponent(__instance);
-#else
-            return true;
-#endif
-        }
-
-        [HarmonyPatch(typeof(S1NPCsBehaviour.RequestProductBehaviour), "Activate")]
-        [HarmonyPrefix]
-        [HarmonyPriority(Priority.First)]
-        private static bool RequestProductBehaviour_Activate_Prefix(S1NPCsBehaviour.RequestProductBehaviour __instance)
-        {
-#if (IL2CPPMELON)
-            LogOnce(ref _loggedSkippedUnsafeRequestProductActivate, "RequestProductBehaviour_Activate_Prefix: Suppressed beta RequestProductBehaviour.Activate globally for IL2CPP beta stability.");
-            return false;
-#else
-            return true;
-#endif
-        }
-
-        private static bool HasMissingBehaviourOwner(S1NPCsBehaviour.Behaviour behaviour)
-        {
-            if (behaviour == null)
-                return true;
-
-            try
-            {
-                return behaviour.Npc == null || behaviour.beh == null;
-            }
-            catch
-            {
-                return true;
-            }
-        }
-
-        private static void LogOnce(ref bool flag, string message)
-        {
-            if (flag)
-                return;
-
-            flag = true;
-            Logger.Msg(message);
         }
 
         private static bool IsS1ApiCustomNpcComponent(Component component)

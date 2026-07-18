@@ -119,7 +119,7 @@ namespace S1API.Input
         /// Gets the current mouse scroll wheel delta.
         /// Positive values indicate scrolling up, negative values indicate scrolling down.
         /// </summary>
-        public static float MouseScrollDelta => S1GameInput.MouseWheelAxis;
+        public static float MouseScrollDelta => S1GameInput.MouseScrollDelta;
 
         /// <summary>
         /// Gets the currently active input device type (Keyboard/Mouse or Gamepad).
