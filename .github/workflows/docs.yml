@@ -186,6 +186,14 @@ jobs:
             echo "✓ Using fresh assemblies from repository"
           fi
 
+      # Save only verified non-empty assembly caches.
+      - name: Save Game Assemblies to Cache
+        uses: actions/cache/save@v4
+        if: always() && steps.cache-assemblies.outputs.cache-hit != 'true' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != '' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs')))
+        with:
+          path: S1API/ScheduleOneAssemblies
+          key: game-assemblies-v3-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
+
       - name: Create CI Build Properties
         run: |
           cat > ci.build.props << 'EOF'
@@ -194,11 +202,12 @@ jobs:
                   <AutomateLocalDeployment>false</AutomateLocalDeployment>
 
                   <!-- CI Assembly Paths (relative to S1API/S1API.csproj) -->
-                  <MelonLoaderAssembliesPath>../ScheduleOneAssemblies/MelonLoader</MelonLoaderAssembliesPath>
+                  <MelonLoaderAssembliesPath>$(MSBuildThisFileDirectory)S1API/ScheduleOneAssemblies/MelonLoader</MelonLoaderAssembliesPath>
+                  <MelonLoaderMonoAssembliesPath>$(MSBuildThisFileDirectory)S1API/ScheduleOneAssemblies/MelonLoader</MelonLoaderMonoAssembliesPath>
 
                   <!-- Mono Configuration -->
                   <LocalMonoDeploymentPath>null</LocalMonoDeploymentPath>
-                  <MonoAssembliesPath>../ScheduleOneAssemblies/Managed</MonoAssembliesPath>
+                  <MonoAssembliesPath>$(MSBuildThisFileDirectory)S1API/ScheduleOneAssemblies/Managed</MonoAssembliesPath>
               </PropertyGroup>
           </Project>
           EOF
@@ -257,15 +266,6 @@ jobs:
         with:
           path: ./S1API/_site
         if: github.event_name != 'pull_request' && github.ref != 'refs/heads/beta'
-
-      # Save cache even if build fails (to enable beta cache priming)
-      # Save on PR events AND on pushes to main branches (to update cache after assembly updates)
-      - name: Save Game Assemblies to Cache
-        uses: actions/cache/save@v4
-        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs'))) && steps.cache-assemblies.outputs.cache-hit != 'true'
-        with:
-          path: S1API/ScheduleOneAssemblies
-          key: game-assemblies-v3-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
 
   deploy:
     environment:

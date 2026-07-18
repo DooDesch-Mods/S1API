@@ -276,6 +276,14 @@ jobs:
             echo "✓ Using fresh IL2CPP assemblies from repository"
           fi
 
+      # Save only verified non-empty assembly caches.
+      - name: Save IL2CPP Game Assemblies to Cache
+        uses: actions/cache/save@v4
+        if: always() && steps.cache-il2cpp-assemblies.outputs.cache-hit != 'true' && hashFiles('S1API/ScheduleOneAssemblies/Il2CppAssemblies/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/Il2CppInterop.Runtime.dll') != '' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs')))
+        with:
+          path: S1API/ScheduleOneAssemblies
+          key: il2cpp-game-assemblies-${{ env.IL2CPP_ASSEMBLIES_CACHE_VERSION }}-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
+
       - name: Create CI Build Properties
         run: |
           cat > ci.build.props << 'EOF'
@@ -402,15 +410,6 @@ jobs:
         with:
           name: S1API-Il2Cpp
           path: S1API/bin/Il2CppMelon/net6.0/S1API.dll
-
-      # Save cache even if build fails (to enable beta cache priming)
-      # Save on PR events AND on pushes to main branches (to update cache after assembly updates)
-      - name: Save IL2CPP Game Assemblies to Cache
-        uses: actions/cache/save@v4
-        if: always() && (github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs'))) && steps.cache-il2cpp-assemblies.outputs.cache-hit != 'true'
-        with:
-          path: S1API/ScheduleOneAssemblies
-          key: il2cpp-game-assemblies-${{ env.IL2CPP_ASSEMBLIES_CACHE_VERSION }}-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
 
       - name: Build Summary
         if: always()

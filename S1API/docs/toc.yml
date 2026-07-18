@@ -110,6 +110,8 @@
       href: quests-complete-example.md
     - name: Custom Items
       href: item-registration-basics.md
+    - name: Mixing Ingredients & Effects
+      href: mixing-ingredients.md
     - name: Phone App
       href: phone-app.md
     - name: TV App
