@@ -385,7 +385,7 @@ jobs:
               body: notes.data.body,
               draft: false,
               prerelease,
-              make_latest: prerelease ? false : "legacy"
+              make_latest: prerelease ? "false" : "legacy"
             };
 
             let existingRelease = null;
