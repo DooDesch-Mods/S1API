@@ -86,6 +86,9 @@ namespace S1API.Entities
         /// </summary>
         internal void GenerateMugshot()
         {
+            if (NPC.HasExplicitIcon)
+                return;
+
             // Enqueue serialized mugshot generation to avoid shared rig race conditions
             var generator = S1AvatarFramework.MugshotGenerator.Instance;
             if (generator == null || generator.MugshotRig == null)
@@ -163,6 +166,9 @@ namespace S1API.Entities
                     yield return null;
                     continue;
                 }
+
+                if (next.NPC.HasExplicitIcon)
+                    continue;
 
                 // Refresh references in case they became stale
                 generator = S1AvatarFramework.MugshotGenerator.Instance;
@@ -274,8 +280,7 @@ namespace S1API.Entities
                         generatedMugshot.Apply();
                         Rect cropRect = new Rect(0, 0, generatedMugshot.width, generatedMugshot.height);
                         Sprite iconSprite = Sprite.Create(generatedMugshot, cropRect, Vector2.zero);
-                        next.NPC.Icon = iconSprite;
-                        next.NPC.RefreshMessagingIcons();
+                        next.NPC.ApplyGeneratedIcon(iconSprite);
 
                         // Update any map POI icons that reference this NPC
                         UpdatePoiIcons(next.NPC.S1NPC, iconSprite);

@@ -183,6 +183,9 @@ namespace S1API.Entities
 #endif
         internal static bool PrefabsConfiguredForLocalProcess => _prefabsConfiguredForLocalProcess;
         private S1AvatarFramework.Avatar? _runtimeAvatar;
+        private bool _hasExplicitIcon;
+
+        internal bool HasExplicitIcon => _hasExplicitIcon;
         
         #region Template Prefab Helpers
 
@@ -1690,7 +1693,10 @@ namespace S1API.Entities
 
             NPCDataAccess.ApplyIdentity(S1NPC, id, firstName, lastName);
             if (icon != null)
+            {
                 NPCDataAccess.ApplyIcon(S1NPC, icon);
+                _hasExplicitIcon = true;
+            }
 
             // Use default icon if none was set
             if (Icon == null)
@@ -1756,7 +1762,10 @@ namespace S1API.Entities
 
             NPCDataAccess.ApplyIdentity(S1NPC, id, firstName, lastName);
             if (icon != null)
+            {
                 NPCDataAccess.ApplyIcon(S1NPC, icon);
+                _hasExplicitIcon = true;
+            }
 
             var identity = gameObject.GetComponent<NPCPrefabIdentity>();
             if (identity != null)
@@ -1839,7 +1848,11 @@ namespace S1API.Entities
         /// </remarks>
         protected override void OnCreated()
         {
-            Appearance.GenerateMugshot();
+            if (_hasExplicitIcon)
+                RefreshMessagingIcons();
+            else
+                Appearance.GenerateMugshot();
+
             RestoreRuntimeAvatarAppearance();
             RepairNpcPrefabReferences(gameObject, S1NPC);
             // Adding a movement component when NPC is created prevents it from disabling
@@ -1946,7 +1959,21 @@ namespace S1API.Entities
         public Sprite Icon
         {
             get => NPCDataAccess.GetIcon(S1NPC);
-            set => NPCDataAccess.ApplyIcon(S1NPC, value);
+            set
+            {
+                _hasExplicitIcon = value != null;
+                NPCDataAccess.ApplyIcon(S1NPC, value);
+                RefreshMessagingIcons();
+            }
+        }
+
+        internal void ApplyGeneratedIcon(Sprite icon)
+        {
+            if (_hasExplicitIcon)
+                return;
+
+            NPCDataAccess.ApplyIcon(S1NPC, icon);
+            RefreshMessagingIcons();
         }
 
         /// <summary>
