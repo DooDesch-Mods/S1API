@@ -50,10 +50,7 @@ namespace S1API.Internal.Patches
 
         private static Type? ResolveChemistryStationUiType()
         {
-            return AccessTools.TypeByName("Il2CppScheduleOne.UI.Stations.ChemistryStationInterface")
-                   ?? AccessTools.TypeByName("Il2CppScheduleOne.UI.Stations.ChemistryStationCanvas")
-                   ?? AccessTools.TypeByName("ScheduleOne.UI.Stations.ChemistryStationInterface")
-                   ?? AccessTools.TypeByName("ScheduleOne.UI.Stations.ChemistryStationCanvas");
+            return typeof(S1UIStations.ChemistryStationInterface);
         }
 
         private static IEnumerable<MethodBase> ResolveChemistryStationUiMethods(string methodName)
