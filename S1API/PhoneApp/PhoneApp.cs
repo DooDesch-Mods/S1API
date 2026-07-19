@@ -51,18 +51,10 @@ namespace S1API.PhoneApp
         /// app canvas structure in the game's Unity hierarchy.
         /// </summary>
         private GameObject? _appPanel;
+        private GameObject? _appContainer;
         private bool _isDestroying;
 
         internal bool IsDestroying => _isDestroying;
-
-        /// <summary>
-        /// Indicates whether the application UI has been successfully created and initialized.
-        /// </summary>
-        /// <remarks>
-        /// This variable is used internally to track the state of the application's UI.
-        /// When set to true, it denotes that the app UI panel has been created and configured.
-        /// </remarks>
-        private bool _appCreated;
 
         /// <summary>
         /// Indicates whether the phone application icon has been modified.
@@ -201,7 +193,8 @@ namespace S1API.PhoneApp
                 _appPanel = null;
             }
 
-            _appCreated = false;
+            _appContainer = null;
+
             _iconModified = false;
             _iconImage = null;
             _pendingIconSprite = null;
@@ -256,9 +249,8 @@ namespace S1API.PhoneApp
 
         /// <summary>
         /// Generates and initializes the UI panel for the application within the in-game phone system.
-        /// This method locates the parent container in the UI hierarchy, clones a template panel if needed,
-        /// clears its content, and then invokes the implementation-specific OnCreatedUI method
-        /// for further customization of the UI panel.
+        /// This method locates the parent container in the UI hierarchy, creates an independent app panel,
+        /// and then invokes the implementation-specific OnCreatedUI method for further customization.
         /// </summary>
         internal void SpawnUI(HomeScreen homeScreenInstance)
         {
@@ -279,35 +271,15 @@ namespace S1API.PhoneApp
             }
             else
             {
-                Transform templateApp = appsCanvas.transform.Find("ProductManagerApp");
-                if (templateApp == null)
-                {
-                    Logger.Error("Template ProductManagerApp not found.");
-                    return;
-                }
-
-                _appPanel = Object.Instantiate(templateApp.gameObject, appsCanvas.transform);
-                _appPanel.name = AppName;
-
-                Transform containerTransform = _appPanel.transform.Find("Container");
-                if (containerTransform != null)
-                {
-                    GameObject container = containerTransform.gameObject;
-                    ClearContainer(container);
-                    OnCreatedUI(container);
-                }
-
-                _appCreated = true;
+                _appPanel = CreateFullStretchObject(AppName, appsCanvas.transform);
+                _appContainer = CreateAppContainer(_appPanel.transform);
             }
 
             _appPanel.SetActive(true);
             
             // Add button handler component to detect physical button clicks
-            if (_appPanel.GetComponent<PhoneAppButtonHandler>() == null)
-            {
-                var buttonHandler = _appPanel.AddComponent<PhoneAppButtonHandler>();
-                buttonHandler.phoneApp = this;
-            }
+            var buttonHandler = _appPanel.GetComponent<PhoneAppButtonHandler>() ?? _appPanel.AddComponent<PhoneAppButtonHandler>();
+            buttonHandler.phoneApp = this;
             
             // Subscribe to phone close apps event and register exit handler like native apps
             if (Phone.InstanceExists)
@@ -482,13 +454,7 @@ namespace S1API.PhoneApp
 
                 // Set as active app and activate panel
                 Phone.ActiveApp = _appPanel;
-                if (_appPanel != null)
-                {
-                    var containerTransform = _appPanel.transform.Find("Container");
-                    var container = containerTransform != null ? containerTransform.gameObject : null;
-                    if (container != null)
-                        container.SetActive(true);
-                }
+                _appContainer?.SetActive(true);
             }
             else
             {
@@ -506,46 +472,62 @@ namespace S1API.PhoneApp
                 }
 
                 // Deactivate container
-                if (_appPanel != null)
-                {
-                    var containerTransform = _appPanel.transform.Find("Container");
-                    var container = containerTransform != null ? containerTransform.gameObject : null;
-                    if (container != null)
-                        container.SetActive(false);
-                }
+                _appContainer?.SetActive(false);
             }
         }
 
         /// <summary>
-        /// Configures an existing app panel by clearing and rebuilding its UI elements if necessary.
+        /// Configures an existing app panel by replacing its content with one S1API-owned container.
         /// </summary>
         /// <param name="panel">The app panel to configure, represented as a GameObject.</param>
         private void SetupExistingAppPanel(GameObject panel)
         {
-            Transform containerTransform = panel.transform.Find("Container");
-            if (containerTransform != null)
+            panel.SetActive(false);
+
+            for (int i = panel.transform.childCount - 1; i >= 0; i--)
             {
-                GameObject container = containerTransform.gameObject;
-                if (container.transform.childCount < 2)
-                {
-                    ClearContainer(container);
-                    OnCreatedUI(container);
-                }
+                Transform child = panel.transform.GetChild(i);
+                child.gameObject.SetActive(false);
+                child.SetParent(null, false);
+                Object.Destroy(child.gameObject);
             }
 
-            _appCreated = true;
+            ConfigureFullStretch(panel.GetComponent<RectTransform>() ?? panel.AddComponent<RectTransform>());
+            _appContainer = CreateAppContainer(panel.transform);
         }
 
         /// <summary>
-        /// Removes all child objects from the specified container to clear its contents.
+        /// Creates the full-screen container exposed to custom phone apps.
         /// </summary>
-        /// <param name="container">The parent GameObject whose child objects will be destroyed.</param>
-        private void ClearContainer(GameObject container)
+        private GameObject CreateAppContainer(Transform parent)
         {
-            for (int i = container.transform.childCount - 1; i >= 0; i--)
-                Object.Destroy(container.transform.GetChild(i).gameObject);
-
+            GameObject container = CreateFullStretchObject("Container", parent);
+            OnCreatedUI(container);
             container.SetActive(false);
+            return container;
+        }
+
+        /// <summary>
+        /// Creates a UI object that fills its parent RectTransform.
+        /// </summary>
+        private static GameObject CreateFullStretchObject(string name, Transform parent)
+        {
+            GameObject gameObject = new GameObject(name);
+            RectTransform rectTransform = gameObject.AddComponent<RectTransform>();
+            rectTransform.SetParent(parent, false);
+            ConfigureFullStretch(rectTransform);
+            gameObject.layer = parent.gameObject.layer;
+            return gameObject;
+        }
+
+        private static void ConfigureFullStretch(RectTransform rectTransform)
+        {
+            rectTransform.anchorMin = Vector2.zero;
+            rectTransform.anchorMax = Vector2.one;
+            rectTransform.offsetMin = Vector2.zero;
+            rectTransform.offsetMax = Vector2.zero;
+            rectTransform.localRotation = Quaternion.identity;
+            rectTransform.localScale = Vector3.one;
         }
 
         /// <summary>
