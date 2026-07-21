@@ -7,7 +7,7 @@ using S1API.Internal.Lifecycle;
 using S1API.Lifecycle;
 using S1API.Map;
 
-[assembly: MelonInfo(typeof(S1API.S1API), "S1API (Forked by Bars)", "3.1.0-beta.3", "KaBooMa")]
+[assembly: MelonInfo(typeof(S1API.S1API), "S1API (Forked by Bars)", "3.1.0-beta.4", "KaBooMa")]
 [assembly: MelonPriority(Int32.MinValue)]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace S1API
@@ -29,6 +29,7 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            MapPOIManager.RemoveAll();
             UnityExceptionTraceHook.Remove();
         }
 
@@ -43,6 +44,11 @@ namespace S1API
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
             SceneStateCleaner.ResetForSceneChange(sceneName, afterUnload: true);
+
+            if (sceneName == "Main" || sceneName == "Tutorial")
+            {
+                MapPOIManager.ResetForSceneChange();
+            }
 
             if (sceneName == "Main")
             {

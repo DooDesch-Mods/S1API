@@ -48,6 +48,8 @@
       href: dialogue-injection.md
     - name: Quests
       href: quests-system.md
+    - name: Map POIs
+      href: map-pois.md
     - name: Products
       items:
         - name: Overview
