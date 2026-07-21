@@ -706,8 +706,14 @@ namespace S1API.Entities
                         {
                             foreach (var t in all)
                             {
-                                var prefab = ReflectionUtils.TryGetFieldOrProperty(t, "_sprayPaintPrefab") as S1AvatarFramework.Equipping.AvatarEquippable;
-                                if (prefab == null) continue;
+                                var prefabObject = ReflectionUtils.TryGetFieldOrProperty(t, "_sprayPaintPrefab");
+                                if (prefabObject == null
+                                    || !CrossType.Is<S1AvatarFramework.Equipping.AvatarEquippable>(prefabObject, out var prefab)
+                                    || prefab == null)
+                                {
+                                    continue;
+                                }
+
                                 sprayEquippable = prefab;
                                 break;
                             }
@@ -715,8 +721,6 @@ namespace S1API.Entities
                     }
                     catch { /* ignore */ }
                 }
-                if (sprayEquippable == null)
-                    Logger.Warning($"EnsureGraffiti: Could not load spray paint equippable at '{path}'. Spray painting may not work. Supply a valid path or register via AvatarEquippableRegistry.");
 
                 var npcBehaviour = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
                 if (npcBehaviour == null)
@@ -744,11 +748,26 @@ namespace S1API.Entities
                     sprayPaint = spGo.AddComponent<S1NPCsOther.SprayPaint>();
                 }
 
+                if (sprayEquippable == null)
+                {
+                    var configuredPrefab = ReflectionUtils.TryGetFieldOrProperty(sprayPaint, "_sprayPaintPrefab");
+                    if (configuredPrefab != null
+                        && CrossType.Is<S1AvatarFramework.Equipping.AvatarEquippable>(configuredPrefab, out var inheritedPrefab)
+                        && inheritedPrefab != null)
+                    {
+                        sprayEquippable = inheritedPrefab;
+                    }
+                }
+
+                if (sprayEquippable == null)
+                    Logger.Warning($"EnsureGraffiti: Could not load spray paint equippable at '{path}'. Spray painting may not work. Supply a valid path or register via AvatarEquippableRegistry.");
+
                 var baseNpc = prefabRoot.GetComponent<S1NPCs.NPC>();
 
                 ReflectionUtils.TrySetFieldOrProperty(graffiti, "_sprayPaint", sprayPaint);
                 ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_npc", baseNpc);
-                ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_sprayPaintPrefab", sprayEquippable);
+                if (sprayEquippable != null)
+                    ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_sprayPaintPrefab", sprayEquippable);
                 SetBehaviourRefs(graffiti, npcBehaviour, baseNpc);
                 var gradient = new Gradient();
                 gradient.SetKeys(

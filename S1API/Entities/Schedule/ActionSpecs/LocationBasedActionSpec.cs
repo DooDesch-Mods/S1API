@@ -279,10 +279,13 @@ namespace S1API.Entities.Schedule
                 return;
             }
 
-            var graffitiBehaviour = behaviour as S1NPCsBehaviour.GraffitiBehaviour;
+            if (!CrossType.Is<S1NPCsBehaviour.GraffitiBehaviour>(behaviour, out var graffitiBehaviour)
+                || graffitiBehaviour == null)
+                graffitiBehaviour = npcBehaviour.GetComponentInChildren<S1NPCsBehaviour.GraffitiBehaviour>(true);
+
             if (graffitiBehaviour == null)
             {
-                Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour could not be cast to the concrete type.");
+                Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour could not be resolved as the concrete type.");
                 return;
             }
 
