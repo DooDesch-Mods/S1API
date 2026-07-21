@@ -19,6 +19,7 @@ using System.Reflection;
 using HarmonyLib;
 using MelonLoader;
 using S1API.Entities;
+using S1API.Internal.Entities;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using UnityEngine;
@@ -43,9 +44,9 @@ namespace S1API.Internal.Patches
             if (circle == null)
                 return null;
 
-            return ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC_ID") as string
-                   ?? ReflectionUtils.TryGetFieldOrProperty(circle, "NPCId") as string
-                   ?? (ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC") as S1NPCs.NPC)?.ID;
+            return (ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC") as S1NPCs.NPC)?.ID
+                   ?? ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC_ID") as string
+                   ?? ReflectionUtils.TryGetFieldOrProperty(circle, "NPCId") as string;
         }
 
         private static void SetAssignedNpc(S1Relations.RelationCircle circle, S1NPCs.NPC npc)
@@ -53,10 +54,12 @@ namespace S1API.Internal.Patches
             if (circle == null || npc == null)
                 return;
 
-            if (!ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC_ID", npc.ID))
-            {
-                ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC", npc);
-            }
+            var dataObject = NPCDataAccess.GetDataObject(npc);
+            if (dataObject != null)
+                ReflectionUtils.TrySetFieldOrProperty(circle, "NPC", dataObject);
+
+            ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC_ID", npc.ID);
+            ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC", npc);
         }
 
         /// <summary>
@@ -99,39 +102,24 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Intercepts ContactsApp.Start to wait for custom NPCs before initialization.
+        /// Schedules custom Contacts app initialization after the native app lifecycle has completed.
         /// </summary>
-        [HarmonyPrefix]
+        [HarmonyPostfix]
         [HarmonyPatch(typeof(S1ContactsApp.ContactsApp), "Start")]
-        private static bool ContactsApp_Start_Prefix(S1ContactsApp.ContactsApp __instance)
+        private static void ContactsApp_Start_Postfix(S1ContactsApp.ContactsApp __instance)
         {
             // skip patch if in the tutorial
             if (SceneManager.GetActiveScene().name == "Tutorial")
-                return true;
+                return;
 
-            // If no custom NPCs exist, allow original Start to run normally
-            var hasCustomTypes = HasCustomNpcTypes();
-
-            if (!hasCustomTypes)
-                return true;
-
-            if (NPCPatches.CustomNpcsReady)
-            {
-                var allNPCs = NPC.All.ToList();
-                var customNPCs = allNPCs.Where(n => n.IsCustomNPC).ToList();
-                var physicalCustomNPCs = customNPCs.Where(n => n.IsPhysical).ToList();
-                if (physicalCustomNPCs.Count == 0)
-                    return true;
-            }
+            if (!HasCustomNpcTypes())
+                return;
 
             if (!_startCalled)
             {
                 _startCalled = true;
                 MelonCoroutines.Start(WaitForNPCs(__instance));
-                return false;
             }
-            
-            return true;
         }
 
         /// <summary>
@@ -150,28 +138,10 @@ namespace S1API.Internal.Patches
             var allNPCs = NPC.All.ToList();
             var customNPCs = allNPCs.Where(n => n.IsCustomNPC && n.IsPhysical).ToList();
 
-            var startMethod = typeof(S1ContactsApp.ContactsApp)
-                .GetMethod("Start", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-
-            if (startMethod == null)
-            {
-                Logger.Error("Couldn't find ContactsApp.Start method via reflection");
-                yield break;
-            }
-            
-            // Safety check: if no physical custom NPCs exist after waiting, skip relation circles logic
+            // Safety check: if no physical custom NPCs exist after waiting, skip relation circles logic.
+            // Native Start has already completed in the postfix, so no lifecycle work is deferred here.
             if (customNPCs.Count == 0)
-            {
-                try
-                {
-                    startMethod.Invoke(contactsApp, null);
-                }
-                catch (System.Exception ex)
-                {
-                    Logger.Error($"Error invoking Start: {ex}");
-                }
                 yield break;
-            }
             
             yield return new WaitUntil((Func<bool>)(() =>
             {
@@ -200,17 +170,7 @@ namespace S1API.Internal.Patches
             // This ensures HeadshotImg.sprite gets the correct mugshot, not the default icon
             yield return new WaitUntil((Func<bool>)(() => NPCAppearance.MugshotsProcessingComplete));
 
-            // Run Start() FIRST so it doesn't call LoadNPCData() on our custom circles
-            try
-            {
-                startMethod.Invoke(contactsApp, null);
-            }
-            catch (System.Exception ex)
-            {
-                Logger.Error($"Error invoking Start: {ex}");
-            }
-
-            // Add our circles AFTER Start() so they aren't processed by LoadNPCData()
+            // Add circles after native Start so they are not processed as serialized native circles.
             AddRelationCircles(contactsApp);
         }
 

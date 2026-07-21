@@ -246,7 +246,7 @@ namespace S1API.Internal.Entities
             return true;
         }
 
-        private static S1NPCFramework.BaseNPCDataObject? GetDataObject(S1NPCs.NPC npc)
+        internal static S1NPCFramework.BaseNPCDataObject? GetDataObject(S1NPCs.NPC npc)
         {
 #if IL2CPPMELON
             return npc._npcData;
