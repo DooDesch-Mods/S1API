@@ -173,6 +173,7 @@ namespace S1API.Entities
         };
         private static volatile bool _prefabsConfiguredForLocalProcess;
         private static bool _loggedBaseEmployeeNormalization;
+        private static int _clientNetworkSpawnHydrationDepth;
 #if (MONOMELON || MONOBEPINEX)
         private static readonly FieldInfo BehaviourOwnerField =
             AccessTools.Field(typeof(S1Behaviour.Behaviour), "<beh>k__BackingField")
@@ -489,7 +490,7 @@ namespace S1API.Entities
                 if (sourceNpc != replacementNpc)
                 {
                     CopyBaseNpcState(sourceNpc, replacementNpc);
-                    NPCDataAccess.AssignNewData(replacementNpc, preferDealerComponent);
+                    NPCDataAccess.AssignNewData(replacementNpc, preferDealerComponent, sourceNpc);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Copied base NPC state from {DescribeComponent(sourceNpc)} to {DescribeComponent(replacementNpc)}.");
                     RemoveComponentImmediate(sourceNpc);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Removed source NPC component {DescribeComponent(sourceNpc)}.");
@@ -597,7 +598,7 @@ namespace S1API.Entities
 
             var dealer = prefabRoot.AddComponent<S1Economy.Dealer>();
             CopyBaseNpcState(sourceNpc, dealer);
-            NPCDataAccess.AssignNewData(dealer, useDealerData: true);
+            NPCDataAccess.AssignNewData(dealer, useDealerData: true, sourceNpc);
 
             RewireChildNpcReferences(prefabRoot, dealer);
             RepairDealerPrefabReferences(prefabRoot, dealer);
@@ -1190,7 +1191,18 @@ namespace S1API.Entities
                 wrapper._runtimeAvatar = runtimeAvatar;
                 wrapper.Appearance = new NPCAppearance(wrapper, runtimeAvatar);
                 wrapper.RestoreRuntimeAvatarAppearance();
+
+                var identity = baseNpc.gameObject?.GetComponent<NPCPrefabIdentity>();
+                if (identity != null)
+                {
+                    // Connections are prefab configuration, not replicated relationship state.
+                    // Rebuild only the graph locally so save-loaded delta/unlock state remains intact.
+                    identity.ApplyRelationshipConnectionsTo(baseNpc);
+                    wrapper._hasExplicitIcon = identity.Icon != null;
+                }
+
                 wrapper.RefreshMessagingIcons();
+                wrapper._relationshipDataAppliedFromPrefab = identity != null && baseNpc.RelationData != null;
 
                 try
                 {
@@ -2638,13 +2650,28 @@ namespace S1API.Entities
         /// <param name="network">Whether this should propagate to all players or not.</param>
         public void SendTextMessage(string message, Response[]? responses = null, float responseDelay = 1f, bool network = true)
         {
+            bool effectiveNetwork = network && _clientNetworkSpawnHydrationDepth == 0;
+
             if (S1NPC.MSGConversation == null)
             {
                 Logger.Warning($"SendTextMessage: MSGConversation null before send for '{GetSafeNpcId()}'. Trying to ensure.");
                 EnsureMessageConversationReady(resetDefaults: false);
             }
 
-            S1NPC.SendTextMessage(message);
+            if (S1NPC.MSGConversation == null)
+            {
+                Logger.Warning($"SendTextMessage: Conversation is unavailable for '{GetSafeNpcId()}'.");
+                return;
+            }
+
+            S1NPC.MSGConversation.SendMessage(
+                new S1Messaging.Message(
+                    message,
+                    S1Messaging.Message.ESenderType.Other,
+                    true,
+                    UnityEngine.Random.Range(int.MinValue, int.MaxValue)),
+                notify: true,
+                network: effectiveNetwork);
             if (responses == null || responses.Length == 0)
             {
                 if (S1NPC.MSGConversation == null)
@@ -2674,7 +2701,7 @@ namespace S1API.Entities
             S1NPC.MSGConversation.ShowResponses(
                 responsesList,
                 responseDelay,
-                network
+                effectiveNetwork
             );
         }
 
@@ -2828,6 +2855,19 @@ namespace S1API.Entities
             }
 
             base.CreateInternal();
+        }
+
+        internal void CreateFromClientNetworkSpawn()
+        {
+            _clientNetworkSpawnHydrationDepth++;
+            try
+            {
+                CreateInternal();
+            }
+            finally
+            {
+                _clientNetworkSpawnHydrationDepth--;
+            }
         }
 
         internal override void SaveInternal(string folderPath, ref List<string> extraSaveables)
@@ -3837,7 +3877,7 @@ namespace S1API.Entities
         /// Checks if all custom NPCs have been finalized and sets the CustomNpcsReady flag.
         /// This is called from FinalizeNetworkSpawn to signal when all custom NPCs are ready.
         /// </summary>
-        private static void CheckAndSetCustomNpcsReady()
+        internal static void CheckAndSetCustomNpcsReady()
         {
             // If already ready, no need to check again
             if (CustomNpcsReady)
@@ -3937,6 +3977,12 @@ namespace S1API.Entities
 
         private void ClearDealerRecommendationHooks()
         {
+            // Joined-client wrappers are created without running mod constructors so the
+            // constructor cannot spawn a duplicate GameObject. Their field initializers are
+            // therefore absent, and cleanup must tolerate an uninitialized subscription list.
+            if (_recommendationSubscriptions == null)
+                return;
+
             for (int i = 0; i < _recommendationSubscriptions.Count; i++)
             {
                 var subscription = _recommendationSubscriptions[i];

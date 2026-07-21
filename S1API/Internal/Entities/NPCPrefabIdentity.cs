@@ -861,6 +861,31 @@ namespace S1API.Internal.Entities
             }
         }
 
+        /// <summary>
+        /// Rebuilds the prefab-defined relationship graph without overwriting mutable
+        /// relationship state received by a joining client.
+        /// </summary>
+        internal void ApplyRelationshipConnectionsTo(S1NPCs.NPC npc)
+        {
+            if (npc?.RelationData == null)
+                return;
+
+            EnsureRelationshipDataFromRegistry();
+            if (_connectionIds == null || _connectionIds.Count == 0)
+                return;
+
+            try
+            {
+                var builder = new NPCRelationshipDataBuilder();
+                builder.WithConnectionsById(_connectionIds);
+                builder.ApplyTo(npc.RelationData, npc, preserveUnlockState: true);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[Relationship Data] ApplyRelationshipConnectionsTo: Exception applying connections to NPC '{npc.ID ?? "<null>"}': {ex.Message}");
+            }
+        }
+
         internal bool ApplyAppearanceTo(S1NPCs.NPC npc, S1AvatarFramework.Avatar avatar)
         {
             if (npc == null || avatar == null)

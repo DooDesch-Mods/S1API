@@ -919,7 +919,13 @@ namespace S1API.Internal.Patches
             {
                 // Ensure conversation exists before CreateInternal() tries to access it
                 apiNpc.EnsureMessageConversationReady(resetDefaults: false);
-                apiNpc.CreateInternal();
+                if (InstanceFinder.IsServer)
+                    apiNpc.CreateInternal();
+                else
+                {
+                    apiNpc.CreateFromClientNetworkSpawn();
+                    NPC.CheckAndSetCustomNpcsReady();
+                }
                 
                 // Ensure visibility is set correctly on clients based on IsPhysical
                 // On server, this is handled in FinalizeNetworkSpawn(), but clients need it here

@@ -37,7 +37,10 @@ namespace S1API.Internal.Entities
             ?? throw new MissingFieldException(typeof(S1NPCs.NPC).FullName, "<NPCData>k__BackingField");
 #endif
 
-        internal static void AssignNewData(S1NPCs.NPC npc, bool useDealerData)
+        internal static void AssignNewData(
+            S1NPCs.NPC npc,
+            bool useDealerData,
+            S1NPCs.NPC? sourceNpc = null)
         {
             if (npc == null)
                 throw new ArgumentNullException(nameof(npc));
@@ -53,6 +56,7 @@ namespace S1API.Internal.Entities
             dataObject.Initialize();
             S1NPCFramework.NPCData data = dataObject.GetOriginalData();
             PrepareData(data);
+            EnsureDialogueDatabase(data, sourceNpc);
             SetDataObject(npc, dataObject);
             SetCurrentData(npc, data);
         }
@@ -193,24 +197,7 @@ namespace S1API.Internal.Entities
                 ?? throw new InvalidOperationException("The beta NPC has no framework data before network spawn.");
 
             PrepareData(data);
-            if (data.Dialogue.DialogueDatabase == null)
-            {
-                S1Dialogue.DialogueManager manager =
-                    S1DevUtilities.Singleton<S1Dialogue.DialogueManager>.Instance;
-                if (manager != null)
-                    data.Dialogue.DialogueDatabase = manager.DefaultDatabase;
-            }
-
-            if (data.Dialogue.DialogueDatabase == null)
-            {
-                S1Dialogue.DialogueDatabase[] databases =
-                    Resources.FindObjectsOfTypeAll<S1Dialogue.DialogueDatabase>();
-                if (databases.Length > 0)
-                    data.Dialogue.DialogueDatabase = databases[0];
-            }
-
-            if (data.Dialogue.DialogueDatabase == null)
-                throw new InvalidOperationException("No 0.4.6 dialogue database is loaded for the custom NPC.");
+            EnsureDialogueDatabase(data);
 
             if (data is S1NPCFramework.DealerNPCData dealerData)
                 PopulateDealerDialogueDefaults(dealerData);
@@ -292,6 +279,40 @@ namespace S1API.Internal.Entities
             data.Inventory.StartingInventoryItems ??= Array.Empty<ScheduleOne.ItemFramework.ItemDefinition>();
             data.Messaging.ConversationCategories ??= Array.Empty<ScheduleOne.Messaging.EConversationCategory>();
 #endif
+        }
+
+        private static void EnsureDialogueDatabase(
+            S1NPCFramework.NPCData data,
+            S1NPCs.NPC? sourceNpc = null)
+        {
+            if (data.Dialogue == null)
+                throw new InvalidOperationException("The beta NPC data has no dialogue settings.");
+
+            if (data.Dialogue.DialogueDatabase != null)
+                return;
+
+            S1NPCFramework.NPCData? sourceData = GetOriginalData(sourceNpc) ?? GetCurrentData(sourceNpc);
+            if (sourceData?.Dialogue?.DialogueDatabase != null)
+                data.Dialogue.DialogueDatabase = sourceData.Dialogue.DialogueDatabase;
+
+            if (data.Dialogue.DialogueDatabase == null)
+            {
+                S1Dialogue.DialogueManager manager =
+                    S1DevUtilities.Singleton<S1Dialogue.DialogueManager>.Instance;
+                if (manager != null)
+                    data.Dialogue.DialogueDatabase = manager.DefaultDatabase;
+            }
+
+            if (data.Dialogue.DialogueDatabase == null)
+            {
+                S1Dialogue.DialogueDatabase[] databases =
+                    Resources.FindObjectsOfTypeAll<S1Dialogue.DialogueDatabase>();
+                if (databases.Length > 0)
+                    data.Dialogue.DialogueDatabase = databases[0];
+            }
+
+            if (data.Dialogue.DialogueDatabase == null)
+                throw new InvalidOperationException("No 0.4.6 dialogue database is loaded for the custom NPC.");
         }
 
         private static void PopulateDealerDialogueDefaults(S1NPCFramework.DealerNPCData dealerData)
