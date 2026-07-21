@@ -146,7 +146,7 @@ namespace S1API.PhoneApp
 
         /// <summary>
         /// Gets the orientation of the phone app (Horizontal or Vertical).
-        /// Determines how the phone is rotated when the app is opened.
+        /// Determines both the phone rotation and the initial layout of the app panel.
         /// </summary>
         protected virtual EOrientation Orientation => EOrientation.Horizontal;
 
@@ -271,7 +271,7 @@ namespace S1API.PhoneApp
             }
             else
             {
-                _appPanel = CreateFullStretchObject(AppName, appsCanvas.transform);
+                _appPanel = CreateAppPanel(AppName, appsCanvas.transform);
                 _appContainer = CreateAppContainer(_appPanel.transform);
             }
 
@@ -492,8 +492,47 @@ namespace S1API.PhoneApp
                 Object.Destroy(child.gameObject);
             }
 
-            ConfigureFullStretch(panel.GetComponent<RectTransform>() ?? panel.AddComponent<RectTransform>());
+            ConfigureAppPanel(panel.GetComponent<RectTransform>() ?? panel.AddComponent<RectTransform>());
             _appContainer = CreateAppContainer(panel.transform);
+        }
+
+        /// <summary>
+        /// Creates an app panel whose layout matches the configured phone orientation.
+        /// </summary>
+        private GameObject CreateAppPanel(string name, Transform parent)
+        {
+            GameObject panel = CreateFullStretchObject(name, parent);
+            ConfigureAppPanel(panel.GetComponent<RectTransform>());
+            return panel;
+        }
+
+        /// <summary>
+        /// Applies the native phone app layout for the configured orientation.
+        /// </summary>
+        private void ConfigureAppPanel(RectTransform rectTransform)
+        {
+            if (Orientation == EOrientation.Horizontal)
+            {
+                ConfigureFullStretch(rectTransform);
+                return;
+            }
+
+            RectTransform? parentRectTransform = rectTransform.parent?.GetComponent<RectTransform>();
+            if (parentRectTransform == null)
+            {
+                Logger.Warning($"Cannot configure vertical layout for {AppName}: parent is not a RectTransform.");
+                ConfigureFullStretch(rectTransform);
+                return;
+            }
+
+            Vector2 center = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMin = center;
+            rectTransform.anchorMax = center;
+            rectTransform.pivot = center;
+            rectTransform.anchoredPosition = Vector2.zero;
+            rectTransform.sizeDelta = new Vector2(parentRectTransform.rect.height, parentRectTransform.rect.width);
+            rectTransform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            rectTransform.localScale = Vector3.one;
         }
 
         /// <summary>
@@ -524,6 +563,7 @@ namespace S1API.PhoneApp
         {
             rectTransform.anchorMin = Vector2.zero;
             rectTransform.anchorMax = Vector2.one;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
             rectTransform.offsetMin = Vector2.zero;
             rectTransform.offsetMax = Vector2.zero;
             rectTransform.localRotation = Quaternion.identity;

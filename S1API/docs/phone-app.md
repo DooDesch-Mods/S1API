@@ -35,7 +35,7 @@ public class HelloWorldApp : PhoneApp
     }
 
     // OnCreatedUI is called when the app's UI panel is created and needs content.
-    // S1API clones a template app panel (e.g., "ProductManagerApp") and provides it as the 'container'.
+    // S1API provides a full-size container configured for the app's Orientation.
     // An internal PhoneAppButtonHandler component is automatically added to the app panel to manage button interactions.
     protected override void OnCreatedUI(GameObject container)
     {
@@ -70,7 +70,15 @@ Registration is automatic:
 
 ## Orientation
 
-Override `Orientation` to `Vertical` for portrait-style apps. S1API adjusts phone rotation and camera offset accordingly.
+`Orientation` is the single source of truth for both the physical phone and the app panel layout. Horizontal apps use the full landscape canvas. Vertical apps keep the phone in portrait orientation and receive a rotated panel with dimensions derived from the phone canvas.
+
+Override `Orientation` to create a portrait-style app:
+
+```csharp
+protected override EOrientation Orientation => EOrientation.Vertical;
+```
+
+Build UI beneath the provided `container` with anchors and layout components so it resizes to the selected orientation. Treat `Orientation` as fixed for the lifetime of the app UI; S1API does not rebuild child controls for runtime orientation changes.
 
 ## Icons
 
