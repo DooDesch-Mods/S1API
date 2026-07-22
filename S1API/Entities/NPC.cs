@@ -91,10 +91,12 @@ using S1API.Entities.Interfaces;
 using S1API.Entities.Schedule;
 using S1API.Entities.Customer;
 using S1API.Entities.Dealer;
+using S1API.Entities.Supplier;
 using S1API.Entities.Relation;
 using S1API.Internal;
 using S1API.Internal.Abstraction;
 using S1API.Internal.Entities;
+using S1API.Internal.Utils;
 using S1API.Map;
 using S1API.Messaging;
 using S1API.Logging;
@@ -128,9 +130,12 @@ namespace S1API.Entities
         private static readonly System.Collections.Generic.Dictionary<System.Type, System.Action<RandomInventoryItemsBuilder>> TypeToRandomInventoryDefaults = new System.Collections.Generic.Dictionary<System.Type, System.Action<RandomInventoryItemsBuilder>>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, System.Action<DealerDataBuilder>> TypeToDealerDefaults = new System.Collections.Generic.Dictionary<System.Type, System.Action<DealerDataBuilder>>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, DealerDataBuilder.DealerConfigData> TypeToBuiltDealerDefaults = new System.Collections.Generic.Dictionary<System.Type, DealerDataBuilder.DealerConfigData>();
+        private static readonly System.Collections.Generic.Dictionary<System.Type, System.Action<SupplierDataBuilder>> TypeToSupplierDefaults = new System.Collections.Generic.Dictionary<System.Type, System.Action<SupplierDataBuilder>>();
+        private static readonly System.Collections.Generic.Dictionary<System.Type, SupplierDataBuilder.SupplierConfigData> TypeToBuiltSupplierDefaults = new System.Collections.Generic.Dictionary<System.Type, SupplierDataBuilder.SupplierConfigData>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, (Vector3 position, Quaternion rotation)> TypeToSpawnPosition = new System.Collections.Generic.Dictionary<System.Type, (Vector3, Quaternion)>();
         private static readonly System.Collections.Generic.HashSet<System.Type> CustomerTypes = new System.Collections.Generic.HashSet<System.Type>();
         private static readonly System.Collections.Generic.HashSet<System.Type> DealerTypes = new System.Collections.Generic.HashSet<System.Type>();
+        private static readonly System.Collections.Generic.HashSet<System.Type> SupplierTypes = new System.Collections.Generic.HashSet<System.Type>();
         private const float DefaultRelationDelta = 2f;
         private const string DealerPrefabName = "Dealer";
         private const string CivilianNpcPrefabName = "CivilianNPC";
@@ -307,15 +312,24 @@ namespace S1API.Entities
                    && prefabRoot.name.StartsWith("S1API_", StringComparison.OrdinalIgnoreCase);
         }
 
-        private static NetworkObject? ResolveNpcSpawnablePrefab(PrefabObjects spawnablePrefabs, int count, bool isDealerType)
+        private static NetworkObject? ResolveNpcSpawnablePrefab(PrefabObjects spawnablePrefabs, int count, NpcRootRole rootRole)
         {
-            if (isDealerType)
+            if (rootRole == NpcRootRole.Dealer)
             {
                 NetworkObject? dealerPrefab = FindSpawnablePrefabByName(spawnablePrefabs, count, DealerPrefabName)
                     ?? FindSpawnablePrefabWithComponent<S1Economy.Dealer>(spawnablePrefabs, count);
 
                 if (dealerPrefab != null)
                     return dealerPrefab;
+            }
+
+            if (rootRole == NpcRootRole.Supplier)
+            {
+                NetworkObject? supplierPrefab =
+                    FindSpawnablePrefabWithComponent<S1Economy.Supplier>(spawnablePrefabs, count);
+
+                if (supplierPrefab != null)
+                    return supplierPrefab;
             }
 
             return FindSpawnablePrefabByName(
@@ -428,15 +442,16 @@ namespace S1API.Entities
 
         private static S1NPCs.NPC? GetPreferredNpcComponent(GameObject prefabRoot)
         {
-            return FindPlainNpcComponent(prefabRoot)
+            return prefabRoot.GetComponent<S1Economy.Supplier>()
                    ?? prefabRoot.GetComponent<S1Economy.Dealer>()
+                   ?? FindPlainNpcComponent(prefabRoot)
                    ?? prefabRoot.GetComponent<S1NPCs.NPC>();
         }
 
         private static void NormalizeBaseEmployeePrefab(
             GameObject prefabRoot,
             string sourcePrefabName,
-            bool preferDealerComponent)
+            NpcRootRole rootRole)
         {
             if (prefabRoot == null || sourcePrefabName != BaseEmployeePrefabName)
                 return;
@@ -447,12 +462,14 @@ namespace S1API.Entities
             if (sourceNpc == null && existingPlainNpc != null)
             {
                 RepairNpcPrefabReferences(prefabRoot, existingPlainNpc);
-                if (preferDealerComponent)
+                if (rootRole == NpcRootRole.Dealer)
                     EnsureDealerComponentOnPrefab(prefabRoot);
+                else if (rootRole == NpcRootRole.Supplier)
+                    EnsureSupplierComponentOnPrefab(prefabRoot);
                 return;
             }
 
-            if (sourceNpc == null && preferDealerComponent && existingDealer != null)
+            if (sourceNpc == null && rootRole == NpcRootRole.Dealer && existingDealer != null)
             {
                 S1NPCs.NPC coreNpc = existingPlainNpc ?? existingDealer;
                 RewireChildNpcReferences(prefabRoot, coreNpc);
@@ -471,17 +488,28 @@ namespace S1API.Entities
             {
                 LogBaseEmployeeComponentState("before plain NPC AddComponent", prefabRoot);
 
-                S1NPCs.NPC replacementNpc = preferDealerComponent
-                    ? prefabRoot.GetComponent<S1Economy.Dealer>()
-                    : existingPlainNpc;
+                S1NPCs.NPC replacementNpc = rootRole switch
+                {
+                    NpcRootRole.Dealer => prefabRoot.GetComponent<S1Economy.Dealer>(),
+                    NpcRootRole.Supplier => prefabRoot.GetComponent<S1Economy.Supplier>(),
+                    _ => existingPlainNpc
+                };
 
                 if (replacementNpc == null)
                 {
-                    Type replacementType = preferDealerComponent ? typeof(S1Economy.Dealer) : typeof(S1NPCs.NPC);
+                    Type replacementType = rootRole switch
+                    {
+                        NpcRootRole.Dealer => typeof(S1Economy.Dealer),
+                        NpcRootRole.Supplier => typeof(S1Economy.Supplier),
+                        _ => typeof(S1NPCs.NPC)
+                    };
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Adding {replacementType.FullName} to cloned prefab '{prefabRoot.name}'. Source={DescribeComponent(sourceNpc)}");
-                    replacementNpc = preferDealerComponent
-                        ? prefabRoot.AddComponent<S1Economy.Dealer>()
-                        : prefabRoot.AddComponent<S1NPCs.NPC>();
+                    replacementNpc = rootRole switch
+                    {
+                        NpcRootRole.Dealer => prefabRoot.AddComponent<S1Economy.Dealer>(),
+                        NpcRootRole.Supplier => prefabRoot.AddComponent<S1Economy.Supplier>(),
+                        _ => prefabRoot.AddComponent<S1NPCs.NPC>()
+                    };
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] AddComponent returned {DescribeComponent(replacementNpc)}. IsPlain={IsPlainNpcComponent(replacementNpc)}, IsEmployee={IsEmployeeNpcComponent(replacementNpc)}");
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Immediate FindPlainNpcComponent returned {DescribeComponent(FindPlainNpcComponent(prefabRoot))}");
                     LogBaseEmployeeComponentState("after plain NPC AddComponent", prefabRoot);
@@ -490,7 +518,7 @@ namespace S1API.Entities
                 if (sourceNpc != replacementNpc)
                 {
                     CopyBaseNpcState(sourceNpc, replacementNpc);
-                    NPCDataAccess.AssignNewData(replacementNpc, preferDealerComponent, sourceNpc);
+                    NPCDataAccess.AssignNewData(replacementNpc, rootRole, sourceNpc);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Copied base NPC state from {DescribeComponent(sourceNpc)} to {DescribeComponent(replacementNpc)}.");
                     RemoveComponentImmediate(sourceNpc);
                     LogBetaNpcPrefabDiagnostic($"[S1API][BaseEmployeeFallback] Removed source NPC component {DescribeComponent(sourceNpc)}.");
@@ -598,12 +626,47 @@ namespace S1API.Entities
 
             var dealer = prefabRoot.AddComponent<S1Economy.Dealer>();
             CopyBaseNpcState(sourceNpc, dealer);
-            NPCDataAccess.AssignNewData(dealer, useDealerData: true, sourceNpc);
+            NPCDataAccess.AssignNewData(dealer, NpcRootRole.Dealer, sourceNpc);
 
             RewireChildNpcReferences(prefabRoot, dealer);
             RepairDealerPrefabReferences(prefabRoot, dealer);
             RepairNpcPrefabReferences(prefabRoot, dealer);
             return dealer;
+        }
+
+        private static S1Economy.Supplier? EnsureSupplierComponentOnPrefab(GameObject prefabRoot)
+        {
+            if (prefabRoot == null)
+                return null;
+
+            SupplierRuntimeCoordinator.EnsurePrefabInfrastructure(prefabRoot);
+
+            var existingSupplier = prefabRoot.GetComponent<S1Economy.Supplier>();
+            if (existingSupplier != null)
+            {
+                // Unity clones ScriptableObject references by identity. Always replace a donor supplier's
+                // framework data so custom identity/listings never mutate a vanilla or sibling asset.
+                NPCDataAccess.AssignNewData(existingSupplier, NpcRootRole.Supplier, existingSupplier);
+                SupplierRuntimeCoordinator.BindPrefabInfrastructure(existingSupplier);
+                RepairNpcPrefabReferences(prefabRoot, existingSupplier);
+                return existingSupplier;
+            }
+
+            S1NPCs.NPC? sourceNpc = GetPreferredNpcComponent(prefabRoot);
+            if (sourceNpc == null)
+                return null;
+
+            var supplier = prefabRoot.AddComponent<S1Economy.Supplier>();
+            CopyBaseNpcState(sourceNpc, supplier);
+            NPCDataAccess.AssignNewData(supplier, NpcRootRole.Supplier, sourceNpc);
+            RewireChildNpcReferences(prefabRoot, supplier);
+            SupplierRuntimeCoordinator.BindPrefabInfrastructure(supplier);
+            RepairNpcPrefabReferences(prefabRoot, supplier);
+
+            if (sourceNpc != supplier)
+                RemoveComponentImmediate(sourceNpc);
+
+            return supplier;
         }
 
         private static void RepairDealerPrefabReferences(GameObject prefabRoot, S1Economy.Dealer dealer)
@@ -771,6 +834,7 @@ namespace S1API.Entities
 
             if (TypeToPrefab.TryGetValue(npcType, out var cached) && cached != null)
             {
+                FinalizeSupplierPrefabIfNeeded(npcType, cached);
                 MarkPrefabsConfigured();
                 return cached;
             }
@@ -779,6 +843,7 @@ namespace S1API.Entities
             {
                 if (TypeToPrefab.TryGetValue(npcType, out cached) && cached != null)
                 {
+                    FinalizeSupplierPrefabIfNeeded(npcType, cached);
                     MarkPrefabsConfigured();
                     return cached;
                 }
@@ -795,21 +860,8 @@ namespace S1API.Entities
                 NetworkObject chosen = null;
                 int count = spawnablePrefabs.GetObjectCount();
                 
-                // Check if this NPC type is a dealer type by checking the IsDealer property
-                bool isDealerType = false;
-                try
-                {
-                    // Create a temporary instance to check IsDealer property
-                    NPC tempInstance = (NPC)FormatterServices.GetUninitializedObject(npcType);
-                    isDealerType = tempInstance.IsDealer;
-                }
-                catch
-                {
-                    // Fallback to checking if already registered as dealer type
-                    isDealerType = IsDealerType(npcType);
-                }
-                
-                chosen = ResolveNpcSpawnablePrefab(spawnablePrefabs, count, isDealerType);
+                NpcRootRole rootRole = GetDeclaredRootRole(npcType);
+                chosen = ResolveNpcSpawnablePrefab(spawnablePrefabs, count, rootRole);
 
                 if (chosen == null)
                 {
@@ -817,7 +869,7 @@ namespace S1API.Entities
                 }
 
                 string sourcePrefabName = chosen.gameObject != null ? chosen.gameObject.name : string.Empty;
-                LogBetaNpcPrefabDiagnostic($"[S1API][NPCPrefabSelection] Type={npcType.FullName}, IsDealer={isDealerType}, SourcePrefab='{sourcePrefabName}', Source={DescribeComponent(chosen)}");
+                LogBetaNpcPrefabDiagnostic($"[S1API][NPCPrefabSelection] Type={npcType.FullName}, RootRole={rootRole}, SourcePrefab='{sourcePrefabName}', Source={DescribeComponent(chosen)}");
                 if (chosen.gameObject != null)
                     LogBaseEmployeeComponentState("selected source prefab before clone", chosen.gameObject);
 
@@ -837,6 +889,9 @@ namespace S1API.Entities
                 try
                 {
                     prefabNO = UnityEngine.Object.Instantiate<NetworkObject>(chosen);
+                    // Keep every component added during normalization dormant. Identity-dependent
+                    // supplier resources are finalized only after ConfigurePrefab has supplied the ID.
+                    prefabNO.gameObject?.SetActive(false);
                     LogBetaNpcPrefabDiagnostic($"[S1API][NPCPrefabSelection] Cloned source '{sourcePrefabName}' into '{prefabNO.gameObject?.name ?? "<null>"}' for type {npcType.FullName}.");
                     if (prefabNO.gameObject != null)
                         LogBaseEmployeeComponentState("cloned prefab before normalization", prefabNO.gameObject);
@@ -847,7 +902,7 @@ namespace S1API.Entities
                         chosen.gameObject.SetActive(chosenWasActive);
                 }
 
-                NormalizeBaseEmployeePrefab(prefabNO.gameObject, sourcePrefabName, isDealerType);
+                NormalizeBaseEmployeePrefab(prefabNO.gameObject, sourcePrefabName, rootRole);
                 prefabNO.gameObject.name = prefabName;
 
                 // Ensure template prefab does not execute runtime logic or remain in NPC registry
@@ -892,6 +947,29 @@ namespace S1API.Entities
                     InvokeConfigurePrefabWithoutInstance(npcType, builder);
                 }
 
+                // ConfigurePrefab may declare a specialized root role even when the virtual property was not overridden.
+                rootRole = GetDeclaredRootRole(npcType);
+                switch (rootRole)
+                {
+                    case NpcRootRole.Dealer:
+                    {
+                        var dealerComponent = EnsureDealerComponentOnPrefab(prefabNO.gameObject);
+                        var dealerDefaults = BuildDealerDefaultsForType(npcType);
+                        if (dealerComponent != null && dealerDefaults != null)
+                            TryApplyDealerDefaults(dealerComponent, dealerDefaults);
+                        break;
+                    }
+                    case NpcRootRole.Supplier:
+                    {
+                        var supplierComponent = EnsureSupplierComponentOnPrefab(prefabNO.gameObject);
+                        var supplierDefaults = BuildSupplierDefaultsForType(npcType);
+                        if (supplierComponent != null && supplierDefaults != null)
+                            TryApplySupplierDefaults(supplierComponent, supplierDefaults);
+                        SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabNO.gameObject);
+                        break;
+                    }
+                }
+
                 // Ensure schedule actions exist on the template so NetworkBehaviour indices are stable
                 try
                 {
@@ -927,23 +1005,6 @@ namespace S1API.Entities
                             }
                         }
                         
-                        // Handle dealer conversion: if dealer type, check if we already have a Dealer component
-                        if (IsDealerType(npcType))
-                        {
-                            var dealerComponent = EnsureDealerComponentOnPrefab(prefabNO.gameObject);
-                            if (dealerComponent != null)
-                            {
-                                var dealerDefaults = BuildDealerDefaultsForType(npcType);
-                                if (dealerDefaults != null)
-                                {
-                                    TryApplyDealerDefaults(dealerComponent, dealerDefaults);
-                                }
-                            }
-                            else
-                            {
-                                Logger.Warning($"[S1API] NPC {npcType.Name} requested dealer functionality, but no Dealer component could be created for source prefab '{sourcePrefabName}'. Dealer defaults will be skipped for this prefab.");
-                            }
-                        }
                     }
                     catch { }
                 }
@@ -983,6 +1044,56 @@ namespace S1API.Entities
                 MarkPrefabsConfigured();
                 return prefabNO.gameObject;
             }
+        }
+
+        private static void FinalizeSupplierPrefabIfNeeded(System.Type npcType, GameObject prefabRoot)
+        {
+            if (prefabRoot == null || GetDeclaredRootRole(npcType) != NpcRootRole.Supplier)
+                return;
+
+            SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabRoot);
+        }
+
+        private static NpcRootRole GetDeclaredRootRole(System.Type npcType)
+        {
+            bool isDealer = IsDealerType(npcType);
+            bool isSupplier = IsSupplierType(npcType);
+            bool isPhysical = false;
+
+            try
+            {
+                NPC tempInstance = (NPC)FormatterServices.GetUninitializedObject(npcType);
+                isDealer |= tempInstance.IsDealer;
+                isSupplier |= tempInstance.IsSupplier;
+                isPhysical = tempInstance.IsPhysical;
+            }
+            catch
+            {
+            }
+
+            if (isDealer && isSupplier)
+            {
+                throw new InvalidOperationException(
+                    $"Custom NPC type '{npcType.FullName}' cannot be both a dealer and a supplier root.");
+            }
+
+            if (isSupplier)
+            {
+                if (!isPhysical)
+                {
+                    throw new InvalidOperationException(
+                        $"Custom supplier type '{npcType.FullName}' must override IsPhysical to return true.");
+                }
+
+                RegisterSupplierType(npcType);
+                return NpcRootRole.Supplier;
+            }
+            if (isDealer)
+            {
+                RegisterDealerType(npcType);
+                return NpcRootRole.Dealer;
+            }
+            return NpcRootRole.Plain;
         }
 
         private static void InvokeConfigurePrefabWithoutInstance(System.Type npcType, NPCPrefabBuilder builder)
@@ -1322,6 +1433,7 @@ namespace S1API.Entities
 
                 var baseType = typeof(NPC);
                 var baseAssembly = baseType.Assembly;
+                var candidateTypes = new System.Collections.Generic.List<System.Type>();
                 var asms = AppDomain.CurrentDomain.GetAssemblies();
                 for (int ai = 0; ai < asms.Length; ai++)
                 {
@@ -1338,11 +1450,19 @@ namespace S1API.Entities
                             // Skip internal S1API NPC wrappers; only pre-register mod-defined types
                             if (t.Assembly == baseAssembly)
                                 continue;
-
-                            PreRegisterPrefabForType(t);
+                            candidateTypes.Add(t);
                         }
                     }
                 }
+
+                foreach (System.Type type in candidateTypes.OrderBy(
+                             candidate => candidate.FullName,
+                             StringComparer.Ordinal))
+                {
+                    PreRegisterPrefabForType(type);
+                }
+
+                SupplierRuntimeCoordinator.EnsureAllDeliveryPrefabsRegistered();
 
                 // Prefabs are configured for this process once registration has been attempted with spawnables present
                 MarkPrefabsConfigured();
@@ -1539,6 +1659,13 @@ namespace S1API.Entities
         {
             if (npcType == null)
                 return;
+
+            if (SupplierTypes.Contains(npcType))
+            {
+                throw new InvalidOperationException(
+                    $"Custom NPC type '{npcType.FullName}' cannot be both a dealer and a supplier root.");
+            }
+
             DealerTypes.Add(npcType);
         }
 
@@ -1591,6 +1718,76 @@ namespace S1API.Entities
                 TypeToBuiltDealerDefaults[npcType] = built;
 
             return built;
+        }
+
+        internal static void RegisterSupplierDefaultsForType(
+            System.Type npcType,
+            System.Action<SupplierDataBuilder> configure)
+        {
+            if (npcType == null || configure == null)
+                return;
+
+            // Validate the complete callback before replacing a previously valid configuration.
+            // Invalid supplier data must fail prefab configuration at its source, not be retained
+            // and invoked a second time later during runtime construction.
+            var builder = new SupplierDataBuilder();
+            configure(builder);
+            SupplierDataBuilder.SupplierConfigData built = builder.BuildInternal();
+
+            TypeToSupplierDefaults[npcType] = configure;
+            TypeToBuiltSupplierDefaults[npcType] = built;
+        }
+
+        internal static void RegisterSupplierType(System.Type npcType)
+        {
+            if (npcType == null)
+                return;
+
+            if (DealerTypes.Contains(npcType))
+            {
+                throw new InvalidOperationException(
+                    $"Custom NPC type '{npcType.FullName}' cannot be both a dealer and a supplier root.");
+            }
+
+            SupplierTypes.Add(npcType);
+        }
+
+        internal static bool IsSupplierType(System.Type npcType)
+        {
+            return npcType != null && SupplierTypes.Contains(npcType);
+        }
+
+        internal static SupplierDataBuilder.SupplierConfigData BuildSupplierDefaultsForType(System.Type npcType)
+        {
+            if (npcType == null)
+                return null;
+
+            if (TypeToBuiltSupplierDefaults.TryGetValue(npcType, out var cached) && cached != null)
+                return cached;
+
+            if (!TypeToSupplierDefaults.TryGetValue(npcType, out var configure) || configure == null)
+                return null;
+
+            var builder = new SupplierDataBuilder();
+            configure(builder);
+            var built = builder.BuildInternal();
+            TypeToBuiltSupplierDefaults[npcType] = built;
+            return built;
+        }
+
+        internal static bool TryApplySupplierDefaults(
+            S1Economy.Supplier supplierComponent,
+            SupplierDataBuilder.SupplierConfigData data)
+        {
+            try
+            {
+                return NPCDataAccess.ApplySupplierDefaults(supplierComponent, data);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[NPC] Failed to apply supplier defaults: {ex.Message}");
+                return false;
+            }
         }
 
         internal static void RegisterRandomInventoryDefaultsForType(System.Type npcType, System.Action<RandomInventoryItemsBuilder> configure)
@@ -2044,6 +2241,15 @@ namespace S1API.Entities
         /// </remarks>
         public virtual bool IsDealer => false;
 
+        /// <summary>
+        /// Determines whether this NPC uses the native supplier root and supplier framework data.
+        /// </summary>
+        /// <remarks>
+        /// Supplier NPCs can provide dead-drop orders, meetings, delivery unlocks, and debt tracking.
+        /// A custom NPC cannot be both a dealer and a supplier.
+        /// </remarks>
+        public virtual bool IsSupplier => false;
+
         internal void EnsureMessageConversationReady(bool resetDefaults)
         {
             try
@@ -2089,7 +2295,11 @@ namespace S1API.Entities
             if (categories == null)
                 return;
 
-            if (ShouldUseDealerCategory())
+            if (ShouldUseSupplierCategory())
+            {
+                categories.Add(S1Messaging.EConversationCategory.Supplier);
+            }
+            else if (ShouldUseDealerCategory())
             {
                 categories.Add(S1Messaging.EConversationCategory.Dealer);
             }
@@ -2138,6 +2348,32 @@ namespace S1API.Entities
             }
 
             return useDealer;
+        }
+
+        private bool ShouldUseSupplierCategory()
+        {
+            bool useSupplier = false;
+
+            try
+            {
+                useSupplier = IsSupplier;
+            }
+            catch
+            {
+            }
+
+            if (!useSupplier)
+            {
+                try
+                {
+                    useSupplier = IsSupplierType(GetType());
+                }
+                catch
+                {
+                }
+            }
+
+            return useSupplier;
         }
 
         private void EnsureMessageConversationInstance(ConversationCategoryList categories)
@@ -2634,6 +2870,11 @@ namespace S1API.Entities
         /// Access to the dealer system for NPCs that act as product distributors.
         /// </summary>
         public NPCDealer Dealer => _dealer ?? (_dealer = new NPCDealer(this));
+
+        /// <summary>
+        /// Access to the supplier system for NPCs that provide dead drops and supplier meetings.
+        /// </summary>
+        public NPCSupplier Supplier => _supplier ?? (_supplier = new NPCSupplier(this));
 
         /// <summary>
         /// Access to the relationship system for social connections and relationships with the player.
@@ -3596,6 +3837,7 @@ namespace S1API.Entities
         private NPCInventory _inventory;
         private NPCCustomer _customer;
         private NPCDealer _dealer;
+        private NPCSupplier _supplier;
         private NPCRelationship _relationship;
         private NPCSmoking _smoking;
         private NPCSprayPainting _sprayPainting;
@@ -3645,10 +3887,20 @@ namespace S1API.Entities
                 {
                     Customer.EnsureCustomer();
                 }
+
+                var supplier = gameObject.GetComponent<S1Economy.Supplier>();
+                if (supplier != null && IsSupplierType(GetType()))
+                {
+                    var defaults = BuildSupplierDefaultsForType(GetType());
+                    if (defaults != null)
+                        TryApplySupplierDefaults(supplier, defaults);
+
+                    SupplierRuntimeCoordinator.EnsureReady(supplier, ID, defaults);
+                }
             }
             catch (Exception ex)
             {
-                Logger.Warning($"[S1API] Failed to prepare customer data before spawn: {ex.Message}");
+                Logger.Warning($"[S1API] Failed to prepare NPC runtime data before spawn: {ex.Message}");
             }
         }
 
@@ -3703,6 +3955,18 @@ namespace S1API.Entities
                 catch (Exception ex)
                 {
                     Logger.Warning($"[S1API] Failed to ensure Dealer on NPC: {ex.Message}");
+                }
+
+                try
+                {
+                    if (IsCustomNPC && IsSupplierType(GetType()))
+                    {
+                        Supplier.EnsureSupplier();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"[S1API] Failed to ensure Supplier on NPC: {ex.Message}");
                 }
 
                 // Apply any planned schedule specs for this NPC type now that the instance exists
@@ -3861,6 +4125,16 @@ namespace S1API.Entities
                 catch (Exception ex)
                 {
                     Logger.Warning($"[S1API] Failed to apply spawn position: {ex.Message}");
+                }
+
+                try
+                {
+                    if (CrossType.Is(S1NPC, out S1Economy.Supplier supplier))
+                        SupplierRuntimeCoordinator.ReconcileDeliveryUnlock(supplier);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"[S1API] Failed to restore supplier delivery state: {ex.Message}");
                 }
 
                 // Check if all custom NPCs are now ready (finalized)

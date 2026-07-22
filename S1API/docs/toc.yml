@@ -40,10 +40,14 @@
           href: dialogue-system.md
         - name: Customer Behavior
           href: customer-behavior.md
+        - name: Supplier NPCs
+          href: supplier-system.md
         - name: Relationship Management
           href: relationship-management.md
     - name: Dealers
       href: dealer-system.md
+    - name: Deliveries
+      href: delivery-system.md
     - name: Dialogue Injection
       href: dialogue-injection.md
     - name: Quests

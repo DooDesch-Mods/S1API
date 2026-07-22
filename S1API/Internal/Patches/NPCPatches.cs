@@ -841,7 +841,7 @@ namespace S1API.Internal.Patches
             return true;
         }
 
-        private static bool IsS1ApiCustomNpcComponent(Component component)
+        internal static bool IsS1ApiCustomNpcComponent(Component component)
         {
             if (component == null)
                 return false;
@@ -1857,7 +1857,7 @@ namespace S1API.Internal.Patches
         /// Utility to find a base-game NPC by ID in a way compatible with both System and Il2Cpp lists.
         /// Also checks S1API NPC.All list as a fallback for custom NPCs that might not be in NPCRegistry yet.
         /// </summary>
-        private static S1NPCs.NPC FindBaseNpcById(string id)
+        internal static S1NPCs.NPC FindBaseNpcById(string id)
         {
             try
             {
@@ -2002,7 +2002,7 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Utility to find the S1API wrapper for a base-game NPC.
         /// </summary>
-        private static NPC FindWrapperForS1Npc(S1NPCs.NPC baseNpc)
+        internal static NPC FindWrapperForS1Npc(S1NPCs.NPC baseNpc)
         {
             try
             {
@@ -2032,7 +2032,7 @@ namespace S1API.Internal.Patches
         /// Returns true only when the active scene is exactly "Main" (case-insensitive).
         /// Custom NPC flow is restricted to this scene to avoid prologue issues.
         /// </summary>
-        private static bool IsInMainScene()
+        internal static bool IsInMainScene()
         {
             string sceneName = SceneManager.GetActiveScene().name;
             return string.Equals(sceneName, "Main", StringComparison.OrdinalIgnoreCase);

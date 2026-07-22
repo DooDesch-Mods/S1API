@@ -49,9 +49,13 @@ namespace S1API.Internal.Entities
         private static float lastStateLogTime;
         private static bool pendingSpawnBlockedLogged;
 
+        private static bool AllNetworkPrefabsReady =>
+            NPC.PrefabsConfiguredForLocalProcess
+            && SupplierRuntimeCoordinator.DeliveryPrefabsReadyForLocalProcess;
+
         public static bool ClientsReadyToSpawnNpcs =>
             mainSceneInitialized &&
-            NPC.PrefabsConfiguredForLocalProcess &&
+            AllNetworkPrefabsReady &&
             connectionObjectsReady &&
             clientsReady;
 
@@ -70,7 +74,7 @@ namespace S1API.Internal.Entities
 
         internal static void EnsurePrefabsWarmup()
         {
-            if (NPC.PrefabsConfiguredForLocalProcess)
+            if (AllNetworkPrefabsReady)
                 return;
 
             if (prefabsWarmupScheduled)
@@ -128,6 +132,8 @@ namespace S1API.Internal.Entities
                 if (spawnables != null)
                 {
                     NPC.PreRegisterAllNpcPrefabs();
+                    if (!AllNetworkPrefabsReady)
+                        EnsurePrefabsWarmup();
                 }
                 else
                 {
@@ -148,7 +154,7 @@ namespace S1API.Internal.Entities
             var start = Time.realtimeSinceStartup;
             var timeout = 20f;
 
-            while (!NPC.PrefabsConfiguredForLocalProcess && (Time.realtimeSinceStartup - start) < timeout)
+            while (!AllNetworkPrefabsReady && (Time.realtimeSinceStartup - start) < timeout)
             {
                 NetworkManager nm = null;
                 PrefabObjects spawnables = null;
@@ -164,7 +170,8 @@ namespace S1API.Internal.Entities
                     try
                     {
                         NPC.PreRegisterAllNpcPrefabs();
-                        break;
+                        if (AllNetworkPrefabsReady)
+                            break;
                     }
                     catch (Exception ex)
                     {
@@ -233,7 +240,7 @@ namespace S1API.Internal.Entities
         private static void EvaluateReadiness()
         {
             var nm = InstanceFinder.NetworkManager;
-            if (nm == null || !NPC.PrefabsConfiguredForLocalProcess)
+            if (nm == null || !AllNetworkPrefabsReady)
             {
                 clientsReady = false;
                 connectionObjectsReady = false;

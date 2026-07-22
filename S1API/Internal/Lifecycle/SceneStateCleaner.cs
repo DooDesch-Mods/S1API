@@ -88,6 +88,7 @@ namespace S1API.Internal.Lifecycle
                     DialogueChoiceListener.ResetState();
                     ContactsAppPatches.ResetState();
                     NPCPatches.ResetState();
+                    SupplierRuntimeCoordinator.CleanupForSceneChange();
                     NPCDealer.ClearStaticDelegates();
                     TimeManagerShim.Instance.ResetDelegates();
                 }

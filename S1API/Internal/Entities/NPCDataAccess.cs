@@ -22,6 +22,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using S1API.Entities.Dealer;
+using S1API.Entities.Supplier;
+using S1API.Internal.Utils;
 using UnityEngine;
 
 namespace S1API.Internal.Entities
@@ -39,15 +41,18 @@ namespace S1API.Internal.Entities
 
         internal static void AssignNewData(
             S1NPCs.NPC npc,
-            bool useDealerData,
+            NpcRootRole rootRole,
             S1NPCs.NPC? sourceNpc = null)
         {
             if (npc == null)
                 throw new ArgumentNullException(nameof(npc));
 
-            S1NPCFramework.BaseNPCDataObject dataObject = useDealerData
-                ? ScriptableObject.CreateInstance<S1NPCFramework.DealerNPCDataObject>()
-                : ScriptableObject.CreateInstance<S1NPCFramework.NPCDataObject>();
+            S1NPCFramework.BaseNPCDataObject dataObject = rootRole switch
+            {
+                NpcRootRole.Dealer => ScriptableObject.CreateInstance<S1NPCFramework.DealerNPCDataObject>(),
+                NpcRootRole.Supplier => ScriptableObject.CreateInstance<S1NPCFramework.SupplierNPCDataObject>(),
+                _ => ScriptableObject.CreateInstance<S1NPCFramework.NPCDataObject>()
+            };
 
             if (dataObject == null)
                 throw new InvalidOperationException("Failed to create the beta NPC data object.");
@@ -57,6 +62,8 @@ namespace S1API.Internal.Entities
             S1NPCFramework.NPCData data = dataObject.GetOriginalData();
             PrepareData(data);
             EnsureDialogueDatabase(data, sourceNpc);
+            if (rootRole == NpcRootRole.Supplier)
+                EnsureSupplierDialogueDatabase(data, required: false);
             SetDataObject(npc, dataObject);
             SetCurrentData(npc, data);
         }
@@ -191,6 +198,28 @@ namespace S1API.Internal.Entities
             return true;
         }
 
+        internal static bool ApplySupplierDefaults(
+            S1Economy.Supplier supplier,
+            SupplierDataBuilder.SupplierConfigData data)
+        {
+            if (supplier == null || data == null)
+                return false;
+
+            if (!CrossType.Is(GetOriginalData(supplier), out S1NPCFramework.SupplierNPCData supplierData))
+                return false;
+
+            ApplySupplierDefaults(supplierData, data);
+
+            S1NPCFramework.NPCData? currentData = GetCurrentData(supplier);
+            if (CrossType.Is(currentData, out S1NPCFramework.SupplierNPCData currentSupplierData)
+                && !ReferenceEquals(currentSupplierData, supplierData))
+            {
+                ApplySupplierDefaults(currentSupplierData, data);
+            }
+
+            return true;
+        }
+
         internal static void PrepareForRuntime(S1NPCs.NPC npc)
         {
             S1NPCFramework.NPCData data = GetOriginalData(npc)
@@ -199,8 +228,32 @@ namespace S1API.Internal.Entities
             PrepareData(data);
             EnsureDialogueDatabase(data);
 
+            if (CrossType.Is(data, out S1NPCFramework.SupplierNPCData _))
+                EnsureSupplierDialogueDatabase(data, required: true);
+
             if (data is S1NPCFramework.DealerNPCData dealerData)
                 PopulateDealerDialogueDefaults(dealerData);
+        }
+
+        private static void ApplySupplierDefaults(
+            S1NPCFramework.SupplierNPCData supplierData,
+            SupplierDataBuilder.SupplierConfigData data)
+        {
+            supplierData.MinimumDeaddropOrderLimit = data.MinimumDeaddropOrderLimit;
+            supplierData.MaximumDeaddropOrderLimit = data.MaximumDeaddropOrderLimit;
+            supplierData.SupplierRecommendMessage = data.SupplierRecommendMessage;
+            supplierData.SupplierUnlockHint = data.SupplierUnlockHint;
+
+#if IL2CPPMELON
+            var listings = new Il2CppReferenceArray<Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing>(data.DeliveryItems.Count);
+            for (int i = 0; i < data.DeliveryItems.Count; i++)
+                listings[i] = new Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing(data.DeliveryItems[i]);
+#else
+            var listings = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing[data.DeliveryItems.Count];
+            for (int i = 0; i < data.DeliveryItems.Count; i++)
+                listings[i] = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing(data.DeliveryItems[i]);
+#endif
+            supplierData.DeliveryShopListings = listings;
         }
 
         private static S1NPCFramework.NPCData? GetOriginalData(S1NPCs.NPC? npc)
@@ -274,10 +327,17 @@ namespace S1API.Internal.Entities
                 new Il2CppReferenceArray<S1ItemFramework.ItemDefinition>(0);
             data.Messaging.ConversationCategories ??=
                 new Il2CppStructArray<S1Messaging.EConversationCategory>(0);
+
+            if (CrossType.Is(data, out S1NPCFramework.SupplierNPCData supplierData))
+                supplierData.DeliveryShopListings ??=
+                    new Il2CppReferenceArray<Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing>(0);
 #else
             data.Inventory.RandomInventoryItems ??= Array.Empty<S1NPCFramework.Inventory.WeightedItem>();
             data.Inventory.StartingInventoryItems ??= Array.Empty<ScheduleOne.ItemFramework.ItemDefinition>();
             data.Messaging.ConversationCategories ??= Array.Empty<ScheduleOne.Messaging.EConversationCategory>();
+
+            if (CrossType.Is(data, out S1NPCFramework.SupplierNPCData supplierData))
+                supplierData.DeliveryShopListings ??= Array.Empty<ScheduleOne.UI.Phone.PhoneShopInterface.Listing>();
 #endif
         }
 
@@ -313,6 +373,129 @@ namespace S1API.Internal.Entities
 
             if (data.Dialogue.DialogueDatabase == null)
                 throw new InvalidOperationException("No 0.4.6 dialogue database is loaded for the custom NPC.");
+        }
+
+        private static void EnsureSupplierDialogueDatabase(
+            S1NPCFramework.NPCData data,
+            bool required)
+        {
+            S1Dialogue.DialogueDatabase? current = data.Dialogue?.DialogueDatabase;
+            if (current != null
+                && current.name.StartsWith("S1API_SupplierDialogue_", StringComparison.Ordinal)
+                && HasRequiredSupplierDialogue(current))
+            {
+                return;
+            }
+
+            S1Dialogue.DialogueDatabase? donor = Resources
+                .FindObjectsOfTypeAll<S1Dialogue.DialogueDatabase>()
+                .Where(HasRequiredSupplierDialogue)
+                .OrderBy(database => database.name, StringComparer.Ordinal)
+                .FirstOrDefault();
+
+            if (donor == null)
+            {
+                if (required)
+                {
+                    throw new InvalidOperationException(
+                        "No loaded supplier dialogue database contains the native supplier meeting entries.");
+                }
+
+                return;
+            }
+
+            S1Dialogue.DialogueDatabase clone = UnityEngine.Object.Instantiate(donor);
+            clone.name = "S1API_SupplierDialogue_" + donor.name;
+            clone.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            ApplyGenericSupplierDialogue(clone);
+            data.Dialogue.DialogueDatabase = clone;
+        }
+
+        private static bool HasRequiredSupplierDialogue(S1Dialogue.DialogueDatabase database)
+        {
+            if (database?.GenericEntries == null)
+                return false;
+
+            var requiredKeys = new HashSet<string>(StringComparer.Ordinal)
+            {
+                "supplier_unlocked",
+                "supplier_meet_confirm",
+                "supplier_meeting_greeting",
+                "meeting_order_complete",
+                "supplier_meetings_unlocked",
+                "supplier_deliveries_unlocked"
+            };
+
+            foreach (S1Dialogue.Entry entry in database.GenericEntries)
+            {
+                if (!string.IsNullOrEmpty(entry.Key))
+                    requiredKeys.Remove(entry.Key);
+            }
+
+            return requiredKeys.Count == 0;
+        }
+
+        private static void ApplyGenericSupplierDialogue(S1Dialogue.DialogueDatabase database)
+        {
+            SetSupplierDialogueLines(
+                database,
+                "supplier_unlocked",
+                "I've heard you're looking for supplies.",
+                "Send me a message when you'd like to place an order. You can pay off the balance later.");
+            SetSupplierDialogueLines(
+                database,
+                "supplier_meet_confirm",
+                "Agreed. I'll be <LOCATION> for the next 6 hours.");
+            SetSupplierDialogueLines(
+                database,
+                "supplier_meeting_greeting",
+                "Ready to look over the supplies?");
+            SetSupplierDialogueLines(
+                database,
+                "meeting_order_complete",
+                "Good doing business with you.");
+            SetSupplierDialogueLines(
+                database,
+                "supplier_meetings_unlocked",
+                "You've proven reliable, so we can now arrange in-person meetings for larger orders.",
+                "Send me a message when you'd like to meet.");
+            SetSupplierDialogueLines(
+                database,
+                "supplier_deliveries_unlocked",
+                "I can now deliver supplies directly to your properties. Use the deliveries app to place an order.");
+        }
+
+        private static void SetSupplierDialogueLines(
+            S1Dialogue.DialogueDatabase database,
+            string key,
+            params string[] values)
+        {
+            if (database?.GenericEntries == null)
+                return;
+
+            foreach (S1Dialogue.Entry entry in database.GenericEntries)
+            {
+                if (!string.Equals(entry.Key, key, StringComparison.Ordinal) || entry.Chains == null)
+                    continue;
+
+                for (int i = 0; i < entry.Chains.Length; i++)
+                {
+                    S1Dialogue.DialogueChain? chain = entry.Chains[i];
+                    if (chain == null)
+                        continue;
+
+#if IL2CPPMELON
+                    var lines = new Il2CppStringArray(values.Length);
+                    for (int lineIndex = 0; lineIndex < values.Length; lineIndex++)
+                        lines[lineIndex] = values[lineIndex];
+                    chain.Lines = lines;
+#else
+                    chain.Lines = values.ToArray();
+#endif
+                }
+
+                return;
+            }
         }
 
         private static void PopulateDealerDialogueDefaults(S1NPCFramework.DealerNPCData dealerData)

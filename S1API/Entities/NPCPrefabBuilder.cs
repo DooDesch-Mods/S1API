@@ -27,6 +27,7 @@ using UnityEngine;
 using S1API.Entities.Schedule;
 using S1API.Entities.Customer;
 using S1API.Entities.Dealer;
+using S1API.Entities.Supplier;
 using S1API.Entities.Impostors;
 using S1API.Entities.Relation;
 using S1API.Entities.Appearances.Base;
@@ -369,6 +370,22 @@ namespace S1API.Entities
         }
 
         /// <summary>
+        /// Configures this NPC type to use the native supplier root.
+        /// </summary>
+        /// <remarks>
+        /// Supplier NPCs support dead-drop orders, supplier meetings, delivery unlocks, and debt tracking.
+        /// S1API reserves a location-dialogue schedule action required by the native supplier lifecycle.
+        /// A custom NPC cannot be both a dealer and a supplier.
+        /// </remarks>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public NPCPrefabBuilder EnsureSupplier()
+        {
+            NPC.RegisterSupplierType(ownerType);
+            SupplierRuntimeCoordinator.EnsurePrefabInfrastructure(prefabRoot);
+            return this;
+        }
+
+        /// <summary>
         /// Configures customer behavior defaults using the <see cref="CustomerDataBuilder"/>. Requires <see cref="EnsureCustomer"/> to be called first.
         /// </summary>
         /// <remarks>
@@ -479,6 +496,22 @@ namespace S1API.Entities
             // Configuration will be applied when the NPC instance is created as a Dealer.
             // This is handled in NPC.cs during FinalizeNetworkSpawn or similar lifecycle methods.
             
+            return this;
+        }
+
+        /// <summary>
+        /// Configures native supplier data for this NPC type.
+        /// </summary>
+        /// <param name="configure">Action that defines order limits, delivery items, and supplier messages.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
+        public NPCPrefabBuilder WithSupplierDefaults(Action<SupplierDataBuilder> configure)
+        {
+            if (configure == null)
+                throw new ArgumentNullException(nameof(configure));
+
+            EnsureSupplier();
+            NPC.RegisterSupplierDefaultsForType(ownerType, configure);
             return this;
         }
 

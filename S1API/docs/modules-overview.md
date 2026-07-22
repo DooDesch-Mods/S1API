@@ -7,16 +7,18 @@ S1API provides **28+ major modules** covering all aspects of Schedule One moddin
 ### Entities & NPCs
 **Namespace**: `S1API.Entities`
 
-Create custom NPCs with behaviors, schedules, dialogue, and AI.
+Create custom NPCs with behaviors, schedules, dialogue, customer, dealer, and supplier roles.
 
 **Key Classes**:
 - `NPC` - Base class for custom NPCs
 - `NPCPrefabBuilder` - Configure NPC prefabs
 - `NPCSchedule` - Daily routine system
 - `NPCCustomer` - Customer behavior
-- `Dealer` - Dealer functionality
+- `NPCDealer` - Dealer functionality
+- `NPCSupplier` - Supplier state plus shop, stash, and delivery access
+- `SupplierDataBuilder` - Supplier order limits, listings, and messages
 
-**Documentation**: [Custom NPCs](custom-npcs.md) | [Dealer System](dealer-system.md) | [Scheduling System](scheduling-system.md) | [Location-Based Actions](location-based-actions.md)
+**Documentation**: [Custom NPCs](custom-npcs.md) | [Dealer System](dealer-system.md) | [Supplier NPCs](supplier-system.md) | [Scheduling System](scheduling-system.md) | [Location-Based Actions](location-based-actions.md)
 
 ---
 
@@ -191,6 +193,21 @@ Contracts, dealers, and customer systems.
 - `DealerType` - Dealer types
 
 **Documentation**: [Dealer System](dealer-system.md) | [Customer Behavior](customer-behavior.md)
+
+---
+
+### Deliveries
+**Namespace**: `S1API.Deliveries`
+
+Observe active supplier deliveries and delivery order history without exposing native runtime types.
+
+**Key Classes**:
+- `DeliveryRegistry` - Active-delivery lookups, history, and lifecycle events
+- `Delivery` - Read-only active delivery
+- `DeliveryItem` - Item and quantity snapshot
+- `DeliveryReceipt` - Immutable delivery order receipt
+
+**Documentation**: [Deliveries](delivery-system.md)
 
 ---
 
@@ -447,6 +464,7 @@ Reflection and cross-runtime utilities.
 |------|--------|---------------|
 | Custom NPC | `S1API.Entities` | [Custom NPCs](custom-npcs.md) |
 | Dealer NPC | `S1API.Entities` + `S1API.Economy` | [Dealer System](dealer-system.md) |
+| Supplier NPC | `S1API.Entities` + `S1API.Deliveries` | [Supplier NPCs](supplier-system.md) |
 | Customer NPC | `S1API.Entities` | [Customer Behavior](customer-behavior.md) |
 | Quest | `S1API.Quests` | [Quests System](quests-system.md) |
 | Item | `S1API.Items` | [Items](items.md) |
@@ -465,6 +483,7 @@ Reflection and cross-runtime utilities.
 | Appearance | `S1API.Entities.Appearances` | [Appearance Customization](appearance-customization.md) |
 | Relationships | `S1API.Entities` | [Relationship Management](relationship-management.md) |
 | Buildings & Locations | `S1API.Map` | [Building Registry](building-registry.md) |
+| Supplier Deliveries | `S1API.Deliveries` | [Deliveries](delivery-system.md) |
 | Save/Load Data | `S1API.Saveables` | [Save System](save-system.md) |
 | Cartel Status | `S1API.Cartel` | [Cartel System](cartel-system.md) |
 

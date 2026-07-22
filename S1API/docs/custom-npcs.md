@@ -1,6 +1,6 @@
 # Custom NPCs
 
-The S1API provides a comprehensive system for creating custom NPCs that integrate seamlessly with the base game's systems. This guide covers creating physical NPCs with full functionality including schedules, dialogue, customer behavior, relationships, and appearance customization.
+The S1API provides a comprehensive system for creating custom NPCs that integrate seamlessly with the base game's systems. This guide covers creating physical NPCs with full functionality including schedules, dialogue, customer, dealer, and supplier behavior, relationships, and appearance customization.
 
 ## Overview
 
@@ -8,7 +8,7 @@ Custom NPCs in S1API are built on a modular architecture that allows you to crea
 
 - **Physical NPCs**: Visible in the game world with 3D models, movement, and direct interaction
 - **Non-Physical NPCs**: Invisible contacts for messaging and phone interactions
-- **Modular Components**: Appearance, Dialogue, Schedule, Customer, and Relationship systems
+- **Modular Components**: Appearance, Dialogue, Schedule, Customer, Dealer, Supplier, and Relationship systems
 - **Save/Load Integration**: Full persistence support with the game's save system
 - **Network Compatibility**: Works in both single-player and multiplayer environments
 - **Cross-branch Compatibility**: Works in both Mono and Il2Cpp builds
@@ -27,6 +27,9 @@ The Custom NPC system is documented across multiple focused pages:
 - **[Scheduling System](scheduling-system.md)** - NPC schedules and movement patterns
 - **[Dialogue System](dialogue-system.md)** - Interactive conversations and dialogue trees
 - **[Customer Behavior](customer-behavior.md)** - NPCs as business customers
+- **[Dealer System](dealer-system.md)** - NPCs that distribute products for the player
+- **[Supplier NPCs](supplier-system.md)** - Native supplier shops, dead drops, meetings, and deliveries
+- **[Deliveries](delivery-system.md)** - Read-only active-delivery and receipt wrappers
 - **[Relationship Management](relationship-management.md)** - NPC relationships and connections
 
 ### API Reference
@@ -93,7 +96,7 @@ public sealed class MyFirstNPC : NPC
 
 - Start here: **[Basic NPC Creation](basic-npc-creation.md)**
 - Then: **[Prefab Configuration](prefab-configuration.md)** (identity, relationships, schedules, customer/dealer defaults)
-- As needed: **[Dialogue System](dialogue-system.md)**, **[Scheduling System](scheduling-system.md)**, **[Customer Behavior](customer-behavior.md)**, **[Dealer System](dealer-system.md)**
+- As needed: **[Dialogue System](dialogue-system.md)**, **[Scheduling System](scheduling-system.md)**, **[Customer Behavior](customer-behavior.md)**, **[Dealer System](dealer-system.md)**, **[Supplier NPCs](supplier-system.md)**
 
 ## Getting Help
 
