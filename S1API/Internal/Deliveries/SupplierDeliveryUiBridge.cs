@@ -51,7 +51,7 @@ namespace S1API.Internal.Deliveries
                 // DeliveryInstance.SetStatus(Arrived) assumes this reference exists. Keep the UI hidden
                 // until the peer has bound the matching networked delivery vehicle.
                 Pending[shopKey] = new PendingAvailability(app, shop, available);
-                if (Registrations.TryGetValue(shopKey, out DeliveryRegistration existingRegistration))
+            if (Registrations.TryGetValue(shopKey, out DeliveryRegistration? existingRegistration))
                     existingRegistration.Element.Button?.gameObject.SetActive(false);
                 return true;
             }
@@ -125,7 +125,7 @@ namespace S1API.Internal.Deliveries
                 return;
 
             int shopKey = shop.GetInstanceID();
-            if (!Pending.TryGetValue(shopKey, out PendingAvailability pending))
+            if (!Pending.TryGetValue(shopKey, out PendingAvailability? pending))
                 return;
 
             Pending.Remove(shopKey);
@@ -142,7 +142,7 @@ namespace S1API.Internal.Deliveries
 
             int shopKey = shop.GetInstanceID();
             Pending.Remove(shopKey);
-            if (!Registrations.TryGetValue(shopKey, out DeliveryRegistration registration))
+            if (!Registrations.TryGetValue(shopKey, out DeliveryRegistration? registration))
                 return;
 
             DestroyRegistration(registration, removeFromApp: true);

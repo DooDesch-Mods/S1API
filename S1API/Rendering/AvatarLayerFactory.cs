@@ -86,7 +86,7 @@ namespace S1API.Rendering
             catch (Exception ex)
             {
                 Logger.Error($"Failed to clone avatar layer '{sourceResourcePath}': {ex.Message}");
-                Logger.Error(ex.StackTrace);
+                Logger.Error(ex.StackTrace ?? ex.ToString());
                 return null;
             }
         }

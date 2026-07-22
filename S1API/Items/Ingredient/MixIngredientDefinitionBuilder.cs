@@ -129,7 +129,7 @@ namespace S1API.Items.Ingredient
             // Building the same ID again (e.g. from a per-load setup hook) reuses the first registration
             // instead of adding a duplicate mixing ingredient.
             var id = Definition.ID;
-            if (CustomIngredientRegistry.TryGetExisting(id, out var existing))
+            if (CustomIngredientRegistry.TryGetExisting(id, out var existing) && existing != null)
             {
                 Logger.Warning($"Mixing ingredient '{id}' is already registered; returning the existing one.");
                 return new MixIngredientDefinition(existing);
@@ -176,7 +176,7 @@ namespace S1API.Items.Ingredient
             ReflectionUtils.TrySetFieldOrProperty(storedItem, "footprintY", 1);
         }
 
-        private static S1Storage.StoredItem FindMixerStoredItem()
+        private static S1Storage.StoredItem? FindMixerStoredItem()
         {
             foreach (var id in MixerTemplateIds)
             {

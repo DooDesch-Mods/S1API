@@ -174,7 +174,7 @@ namespace S1API.Property
         public int BuildableItemCount =>
             GetCollectionCount(ReflectionUtils.TryGetFieldOrProperty(InnerProperty, "BuildableItems"), "BuildableItems");
 
-        private int GetCollectionCount(object collectionValue, string memberName)
+        private int GetCollectionCount(object? collectionValue, string memberName)
         {
             if (collectionValue == null)
                 return 0;

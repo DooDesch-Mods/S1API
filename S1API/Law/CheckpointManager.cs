@@ -195,7 +195,7 @@ namespace S1API.Law
         /// </summary>
         /// <param name="location">The checkpoint location to query.</param>
         /// <returns>A CheckpointInfo object containing state information, or null if the checkpoint is not found.</returns>
-        public static CheckpointInfo GetCheckpointInfo(CheckpointLocation location)
+        public static CheckpointInfo? GetCheckpointInfo(CheckpointLocation location)
         {
             if (Internal == null) return null;
             var checkpoint = Internal.GetCheckpoint((S1Law.CheckpointManager.ECheckpointLocation)location);

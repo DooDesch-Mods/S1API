@@ -383,7 +383,7 @@ namespace S1API.Avatar
         /// <typeparam name="T">The type of the value.</typeparam>
         /// <param name="fieldName">The name of the field.</param>
         /// <returns>The field value, or default(T) if not found.</returns>
-        public T GetValue<T>(string fieldName)
+        public T? GetValue<T>(string fieldName)
         {
             if (S1BasicAvatarSettings == null || string.IsNullOrWhiteSpace(fieldName))
                 return default(T);

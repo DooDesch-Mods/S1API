@@ -119,8 +119,8 @@ namespace S1API.Items
             LegalStatus legalStatus = LegalStatus.Legal,
             bool requiresLevelToPurchase = false,
             FullRank? requiredRank = null,
-            Sprite icon = null,
-            Equippable equippable = null)
+            Sprite? icon = null,
+            Equippable? equippable = null)
         {
             var builder = new StorableItemDefinitionBuilder()
                 .WithBasicInfo(id, name, description, category)

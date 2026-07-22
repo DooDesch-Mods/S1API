@@ -193,7 +193,7 @@ namespace S1API.Internal.Entities.Suppliers
             if (supplier.Stash != null && supplier.Stash.gameObject.name == StashObjectName)
                 return supplier.Stash;
 
-            if (OwnedStashes.TryGetValue(supplier.GetInstanceID(), out GameObject ownedStash)
+            if (OwnedStashes.TryGetValue(supplier.GetInstanceID(), out GameObject? ownedStash)
                 && ownedStash != null)
             {
                 return ownedStash.GetComponent<S1Economy.SupplierStash>();
@@ -208,7 +208,7 @@ namespace S1API.Internal.Entities.Suppliers
                 return;
 
             int supplierKey = supplier.GetInstanceID();
-            if (OwnedStashes.TryGetValue(supplierKey, out GameObject stashObject))
+            if (OwnedStashes.TryGetValue(supplierKey, out GameObject? stashObject))
             {
                 Destroy(stashObject);
                 OwnedStashes.Remove(supplierKey);

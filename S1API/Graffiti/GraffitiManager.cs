@@ -25,7 +25,7 @@ namespace S1API.Graffiti
         /// <summary>
         /// Gets the in-game GraffitiManager singleton instance.
         /// </summary>
-        private static S1Graffiti.GraffitiManager Instance
+        private static S1Graffiti.GraffitiManager? Instance
         {
             get
             {
@@ -142,7 +142,7 @@ namespace S1API.Graffiti
         /// </summary>
         /// <param name="guid">The surface GUID.</param>
         /// <returns>The raw WorldSpraySurface, or null if not found.</returns>
-        internal static S1Graffiti.WorldSpraySurface FindSurfaceByGuid(System.Guid guid)
+        internal static S1Graffiti.WorldSpraySurface? FindSurfaceByGuid(System.Guid guid)
         {
             var instance = Instance;
             if (instance?.WorldSpraySurfaces == null)
@@ -201,13 +201,13 @@ namespace S1API.Graffiti
         /// </summary>
         /// <param name="position">Search from this position.</param>
         /// <returns>The nearest available raw WorldSpraySurface, or null.</returns>
-        internal static S1Graffiti.WorldSpraySurface FindNearestAvailableForNPC(Vector3 position)
+        internal static S1Graffiti.WorldSpraySurface? FindNearestAvailableForNPC(Vector3 position)
         {
             var instance = Instance;
             if (instance?.WorldSpraySurfaces == null)
                 return null;
 
-            S1Graffiti.WorldSpraySurface nearest = null;
+            S1Graffiti.WorldSpraySurface? nearest = null;
             float nearestDist = float.MaxValue;
 
 #if (IL2CPPMELON)

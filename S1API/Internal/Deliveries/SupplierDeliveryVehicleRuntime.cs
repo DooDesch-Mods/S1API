@@ -61,7 +61,7 @@ namespace S1API.Internal.Deliveries
 
                 foreach (string stableId in RegisteredSupplierIds)
                 {
-                    if (!Prefabs.TryGetValue(stableId, out FishNetNetworkObject prefab)
+            if (!Prefabs.TryGetValue(stableId, out FishNetNetworkObject? prefab)
                         || prefab == null
                         || !IsRegistered(prefab))
                     {
@@ -179,7 +179,7 @@ namespace S1API.Internal.Deliveries
 
             int supplierKey = supplier.GetInstanceID();
             ScheduledBindings.Remove(supplierKey);
-            if (!OwnedVehicles.TryGetValue(supplierKey, out GameObject vehicleObject))
+            if (!OwnedVehicles.TryGetValue(supplierKey, out GameObject? vehicleObject))
                 return;
 
             DestroyVehicle(vehicleObject);
@@ -197,7 +197,7 @@ namespace S1API.Internal.Deliveries
 
         private static bool EnsurePrefab(string stableId)
         {
-            if (Prefabs.TryGetValue(stableId, out FishNetNetworkObject existing) && existing != null)
+            if (Prefabs.TryGetValue(stableId, out FishNetNetworkObject? existing) && existing != null)
                 return EnsureRegistered(existing);
 
             var networkManager = FishNetInstanceFinder.NetworkManager;

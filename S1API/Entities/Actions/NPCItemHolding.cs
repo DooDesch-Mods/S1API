@@ -30,7 +30,7 @@ namespace S1API.Entities.Actions
             NPC = npc;
         }
 
-        private S1Other.HoldItem GetComponent()
+        private S1Other.HoldItem? GetComponent()
         {
             return NPC?.S1NPC?.GetComponentInChildren<S1Other.HoldItem>(true);
         }

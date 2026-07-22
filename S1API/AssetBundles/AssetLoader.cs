@@ -30,7 +30,7 @@ namespace S1API.AssetBundles
         /// <returns>The loaded Il2CppAssetBundle, or throws on failure.</returns>
         public static WrappedAssetBundle GetAssetBundleFromStream(string fullResourceName, Assembly overrideAssembly)
         {
-            if (_cachedAssetBundles.TryGetValue(fullResourceName, out WrappedAssetBundle cachedWrappedAssetBundle))
+            if (_cachedAssetBundles.TryGetValue(fullResourceName, out WrappedAssetBundle? cachedWrappedAssetBundle))
                 return cachedWrappedAssetBundle;
 
             // Attempt to find the embedded resource in the executing assembly

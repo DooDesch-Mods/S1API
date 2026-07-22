@@ -16,10 +16,10 @@ namespace S1API.Internal.Diagnostics
         private static readonly object Sync = new object();
 #if IL2CPPMELON
         private static readonly System.Action<string, string, LogType> ManagedCallback = OnUnityLogMessageReceived;
-        private static readonly Application.LogCallback Callback = DelegateSupport.ConvertDelegate<Application.LogCallback>(ManagedCallback);
+        private static readonly Application.LogCallback Callback = DelegateSupport.ConvertDelegate<Application.LogCallback>(ManagedCallback) ?? ManagedCallback;
 #endif
 
-        private static string _lastExceptionSignature;
+        private static string? _lastExceptionSignature;
         private static DateTime _lastExceptionAtUtc;
         private static bool _installed;
 

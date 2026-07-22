@@ -14,7 +14,7 @@ namespace S1API.Properties.Tokens
         private readonly int _tier;
         private readonly float _addictiveness;
 
-        protected PropertyToken(string id, string unityName = null, string displayName = null, string description = null, int tier = 1, float addictiveness = 0f)
+        protected PropertyToken(string id, string? unityName = null, string? displayName = null, string? description = null, int tier = 1, float addictiveness = 0f)
         {
             _id = id ?? string.Empty;
             _unityName = unityName ?? id ?? string.Empty;

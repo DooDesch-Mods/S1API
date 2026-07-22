@@ -92,7 +92,7 @@ namespace S1API.Items
             catch (System.Exception ex)
             {
                 _logger.Error($"Exception loading AvatarEquippable from bundle: {ex.Message}");
-                _logger.Error(ex.StackTrace);
+                _logger.Error(ex.StackTrace ?? ex.ToString());
                 return false;
             }
         }
@@ -105,7 +105,7 @@ namespace S1API.Items
         /// <param name="assetPath">The Resources path to register (e.g., "Equippables/MyItem").</param>
         /// <param name="assemblyOverride">Optional assembly to load the bundle from. If null, uses executing assembly.</param>
         /// <returns>True if loading and registration were successful.</returns>
-        public static bool LoadAndRegisterFromEmbeddedBundle(string bundleName, string prefabName, string assetPath, System.Reflection.Assembly assemblyOverride = null)
+        public static bool LoadAndRegisterFromEmbeddedBundle(string bundleName, string prefabName, string assetPath, System.Reflection.Assembly? assemblyOverride = null)
         {
             try
             {
@@ -116,7 +116,7 @@ namespace S1API.Items
             catch (System.Exception ex)
             {
                 _logger.Error($"Exception loading AvatarEquippable from embedded bundle '{bundleName}': {ex.Message}");
-                _logger.Error(ex.StackTrace);
+                _logger.Error(ex.StackTrace ?? ex.ToString());
                 return false;
             }
         }
@@ -136,7 +136,7 @@ namespace S1API.Items
         /// </summary>
         /// <param name="assetPath">The Resources path.</param>
         /// <returns>The registered prefab, or null if not found.</returns>
-        public static GameObject GetRegisteredPrefab(string assetPath)
+        public static GameObject? GetRegisteredPrefab(string assetPath)
         {
             return RuntimeResourceRegistry.GetRegisteredAsset<GameObject>(assetPath);
         }

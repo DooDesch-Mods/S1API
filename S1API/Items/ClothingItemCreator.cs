@@ -60,7 +60,7 @@ namespace S1API.Items
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(string sourceItemId)
+        public static ClothingItemDefinitionBuilder? CloneFrom(string sourceItemId)
         {
             var sourceDefinition = S1.Registry.GetItem(sourceItemId);
             if (sourceDefinition == null)
@@ -93,7 +93,7 @@ namespace S1API.Items
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(ClothingItemDefinition source)
+        public static ClothingItemDefinitionBuilder? CloneFrom(ClothingItemDefinition source)
         {
             if (source == null)
             {

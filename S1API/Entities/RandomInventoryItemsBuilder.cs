@@ -89,7 +89,7 @@ namespace S1API.Entities
         /// </summary>
         internal sealed class InventoryDefaultsData
         {
-            public List<string> StartupItems { get; set; }
+            public List<string> StartupItems { get; set; } = new List<string>();
             public int? RandomCashMin { get; set; }
             public int? RandomCashMax { get; set; }
             public bool? ClearInventoryEachNight { get; set; }

@@ -207,7 +207,7 @@ namespace S1API.Vehicles
         /// <summary>
         /// Trunk space
         /// </summary>
-        public StorageInstance Storage { get { return _storage; } }
+        public StorageInstance? Storage { get { return _storage; } }
 
         #endregion
         
@@ -219,7 +219,7 @@ namespace S1API.Vehicles
         /// </summary>
         internal S1Vehicles.LandVehicle S1LandVehicle = null!;
         internal bool _isDeferredByName = false;
-        internal StorageInstance _storage;
+        internal StorageInstance? _storage;
 
         /// <summary>
         /// INTERNAL: Creates a LandVehicle instance from an in-game land vehicle instance.

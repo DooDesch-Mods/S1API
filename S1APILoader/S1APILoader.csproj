@@ -11,6 +11,8 @@
         <Configurations>Il2CppMelon;MonoMelon</Configurations>
         <Platforms>AnyCPU</Platforms>
         <RootNamespace>S1APILoader</RootNamespace>
+        <!-- MelonLoader intentionally ships framework-targeted assets for its cross-runtime bootstrap API. -->
+        <NoWarn>$(NoWarn);NU1701</NoWarn>
     </PropertyGroup>
     
     <ItemGroup>

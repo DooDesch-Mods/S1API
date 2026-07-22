@@ -96,12 +96,6 @@ namespace S1API.Entities
             {
                 EnsureCustomerData(Component);
                 
-                S1Economy.CustomerData verifyData = null;
-#if MONOMELON
-                verifyData = (S1Economy.CustomerData)customerDataField?.GetValue(Component);
-#else
-                verifyData = Component.CustomerData;
-#endif
                 WireCoreReferences(Component);
                 InitializeRuntimeState(Component);
                 EnsureUnityEvents(Component);
@@ -220,7 +214,7 @@ namespace S1API.Entities
         /// <summary>
         /// Requests a product from the specified player (or local player if null).
         /// </summary>
-        public void RequestProduct(Player player = null)
+        public void RequestProduct(Player? player = null)
         {
             if (Component == null)
                 return;
@@ -311,7 +305,7 @@ namespace S1API.Entities
             {
                 var dataViaProperty = customer.CustomerData;
                 
-                S1Economy.CustomerData data = null;
+                S1Economy.CustomerData? data = null;
 #if MONOMELON
                 
                 if (customerDataField == null)
@@ -321,7 +315,7 @@ namespace S1API.Entities
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                 }
                 
-                data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                 data = customer.CustomerData;
 #endif
@@ -366,8 +360,7 @@ namespace S1API.Entities
                     }
                     else
                     {
-                        Logger.Warning($"Attempting manual field setting");
-                        customerDataField.SetValue(customer, data);
+                        Logger.Warning("Unable to assign customer data because the backing field was not found.");
                     }
                     
                     // Initialize currentAffinityData immediately when creating CustomerData
@@ -385,6 +378,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated
                     if (newAffinity.ProductAffinities == null || newAffinity.ProductAffinities.Count == 0)
                     {
+                        newAffinity.ProductAffinities ??= new();
                         Array drugTypesForAffinity = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypesForAffinity)
                         {
@@ -409,6 +403,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated
                     if (newAffinity.ProductAffinities == null || newAffinity.ProductAffinities.Count == 0)
                     {
+                        newAffinity.ProductAffinities ??= new();
                         Array drugTypesForAffinity = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypesForAffinity)
                         {
@@ -434,9 +429,9 @@ namespace S1API.Entities
         {
             try
             {
-                S1Economy.CustomerData data;
+                S1Economy.CustomerData? data;
 #if MONOMELON
-                data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                 data = customer.CustomerData;
 #endif
@@ -444,7 +439,7 @@ namespace S1API.Entities
                 {
                     EnsureCustomerData(customer);
 #if MONOMELON
-                    data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                    data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                     data = customer.CustomerData;
 #endif
@@ -494,6 +489,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated even if CopyTo didn't work
                     if (currentAffinity.ProductAffinities == null || currentAffinity.ProductAffinities.Count == 0)
                     {
+                        currentAffinity.ProductAffinities ??= new();
                         // Initialize with all drug types at neutral affinity
                         Array drugTypes = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypes)
@@ -520,6 +516,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated even if CopyTo didn't work
                     if (currentAffinity.ProductAffinities == null || currentAffinity.ProductAffinities.Count == 0)
                     {
+                        currentAffinity.ProductAffinities ??= new();
                         // Initialize with all drug types at neutral affinity
                         Array drugTypes = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypes)
@@ -567,10 +564,11 @@ namespace S1API.Entities
                     if (ReflectionUtils.TryGetFieldOrProperty(customer, "DefaultDeliveryLocation") == null)
                     {
                         var map = S1DevUtilities.Singleton<S1Map.Map>.Instance;
-                        if (map != null)
+                        var runtimeNpc = NPC?.S1NPC;
+                        if (map is not null && runtimeNpc is not null)
                         {
-                            var regionData = map.GetRegionData(NPC.S1NPC.Region);
-                            var loc = (regionData != null) ? regionData.GetRandomUnscheduledDeliveryLocation() : null;
+                            var regionData = map.GetRegionData(runtimeNpc.Region);
+                            var loc = regionData is not null ? regionData.GetRandomUnscheduledDeliveryLocation() : null;
                             if (loc != null)
                             {
                                 ReflectionUtils.TrySetFieldOrProperty(customer, "DefaultDeliveryLocation", loc);
@@ -583,7 +581,7 @@ namespace S1API.Entities
                 // Ensure the deal-attendance implementation used by this game version is present.
                 try
                 {
-                    EnsureDealAttendanceSupport(NPC.gameObject, NPC.GetType());
+                    EnsureDealAttendanceSupport(NPC?.gameObject, NPC?.GetType());
                 }
                 catch { /* ignore */ }
             }
@@ -593,7 +591,7 @@ namespace S1API.Entities
             }
         }
 
-        internal static bool EnsureDealAttendanceSupport(GameObject prefabRoot, Type ownerType = null)
+        internal static bool EnsureDealAttendanceSupport(GameObject? prefabRoot, Type? ownerType = null)
         {
             if (prefabRoot == null)
                 return false;
@@ -750,7 +748,7 @@ namespace S1API.Entities
             }
         }
 
-        private UnityEvent GetCustomerUnityEvent(string memberName, bool createIfMissing)
+        private UnityEvent? GetCustomerUnityEvent(string memberName, bool createIfMissing)
         {
             if (Component == null)
                 return null;
@@ -780,6 +778,9 @@ namespace S1API.Entities
                 var contractType = typeof(S1Quests.Contract);
                 var unityActionType = typeof(UnityAction<>).MakeGenericType(contractType);
                 var method = GetType().GetMethod(nameof(HandleContractAssigned), BindingFlags.NonPublic | BindingFlags.Instance);
+                if (method == null)
+                    return false;
+
                 var del = Delegate.CreateDelegate(unityActionType, this, method);
                 var addListener = evt.GetType().GetMethod("AddListener", new[] { unityActionType });
                 addListener?.Invoke(evt, new object[] { del });
@@ -816,9 +817,9 @@ namespace S1API.Entities
             }
         }
 
-        private Action<float, int, int, int> _onContractAssigned;
-        private Delegate _contractAssignedBridge;
-        private object _contractAssignedUnityEvent;
+        private Action<float, int, int, int>? _onContractAssigned;
+        private Delegate? _contractAssignedBridge;
+        private object? _contractAssignedUnityEvent;
 
         // Maps Contract to safe primitives for modders
         private void HandleContractAssigned(object contract)
@@ -895,7 +896,7 @@ namespace S1API.Entities
 #else
         // In IL2CPP, currentAffinityData is a property, not a field
 #endif
-        private MethodInfo setupDialogueMethod = typeof(S1Economy.Customer).GetMethod("SetUpDialogue",
+        private MethodInfo? setupDialogueMethod = typeof(S1Economy.Customer).GetMethod("SetUpDialogue",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
         /// <summary>
@@ -930,7 +931,7 @@ namespace S1API.Entities
                     foreach (var dt in allDrugTypes)
                     {
                         var drugType = (S1Product.EDrugType)dt;
-                        S1Economy.ProductTypeAffinity existing = null;
+                        S1Economy.ProductTypeAffinity? existing = null;
                         foreach (var item in currentAffinity.ProductAffinities)
                         {
                             if (item != null && item.DrugType == drugType)
@@ -964,7 +965,7 @@ namespace S1API.Entities
                     foreach (var dt in allDrugTypes)
                     {
                         var drugType = (S1Product.EDrugType)dt;
-                        S1Economy.ProductTypeAffinity existing = null;
+                        S1Economy.ProductTypeAffinity? existing = null;
                         foreach (var item in customer.currentAffinityData.ProductAffinities)
                         {
                             if (item != null && item.DrugType == drugType)
@@ -1086,9 +1087,9 @@ namespace S1API.Entities
             }
         }
 
-        private static S1PlayerScripts.Player GetClosestPlayer(Vector3 position, out float distance)
+        private static S1PlayerScripts.Player? GetClosestPlayer(Vector3 position, out float distance)
         {
-            S1PlayerScripts.Player closestPlayer = null;
+            S1PlayerScripts.Player? closestPlayer = null;
             distance = float.MaxValue;
 
             var players = S1PlayerScripts.Player.PlayerList;
@@ -1110,13 +1111,13 @@ namespace S1API.Entities
             return closestPlayer;
         }
 
-        private static void SetNonPublicInstanceField(object target, string fieldName, object value)
+        private static void SetNonPublicInstanceField(object target, string fieldName, object? value)
         {
             try
             {
                 if (target == null || string.IsNullOrEmpty(fieldName)) return;
                 var type = target.GetType();
-                FieldInfo field = null;
+                FieldInfo? field = null;
                 while (type != null && field == null)
                 {
                     field = type.GetField(fieldName, BindingFlags.Instance | System.Reflection.BindingFlags.Public | BindingFlags.NonPublic);

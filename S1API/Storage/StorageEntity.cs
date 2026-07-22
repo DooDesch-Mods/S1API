@@ -40,12 +40,12 @@ namespace S1API.Storage
         /// <summary>
         /// INTERNAL: Reference to the placeable storage entity (if this is placeable storage).
         /// </summary>
-        internal readonly S1ObjectScripts.PlaceableStorageEntity S1PlaceableStorageEntity;
+        internal readonly S1ObjectScripts.PlaceableStorageEntity? S1PlaceableStorageEntity;
 
         /// <summary>
         /// INTERNAL: Constructor for wrapping storage entities.
         /// </summary>
-        internal StorageEntity(S1Storage.StorageEntity storageEntity, S1ObjectScripts.PlaceableStorageEntity placeableStorage = null)
+        internal StorageEntity(S1Storage.StorageEntity storageEntity, S1ObjectScripts.PlaceableStorageEntity? placeableStorage = null)
         {
             S1StorageEntity = storageEntity ?? throw new ArgumentNullException(nameof(storageEntity));
             S1PlaceableStorageEntity = placeableStorage;
@@ -121,7 +121,7 @@ namespace S1API.Storage
         /// The item instance this storage is part of (e.g., the storage rack item).
         /// Returns null if this storage is not placeable.
         /// </summary>
-        public ItemInstance ItemInstance
+        public ItemInstance? ItemInstance
         {
             get
             {
@@ -137,7 +137,7 @@ namespace S1API.Storage
         /// Convenience property for filtering by storage type.
         /// Returns null if this storage is not placeable.
         /// </summary>
-        public string ItemId =>
+        public string? ItemId =>
             S1PlaceableStorageEntity?.ItemInstance?.Definition?.ID;
 
         /// <summary>
@@ -156,7 +156,7 @@ namespace S1API.Storage
         /// CustomName reflects the user-editable name shown in the clipboard UI.
         /// When a player renames storage via the clipboard, this property is updated.
         /// </remarks>
-        public string CustomName
+        public string? CustomName
         {
             get => S1PlaceableStorageEntity?.Configuration?.Name?.Value;
             set
@@ -186,7 +186,7 @@ namespace S1API.Storage
         {
             if (HasCustomName)
             {
-                Name = CustomName;
+                Name = CustomName ?? string.Empty;
             }
         }
 

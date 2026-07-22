@@ -86,7 +86,7 @@ namespace S1API.Rendering
         /// );
         /// </code>
         /// </example>
-        public static Material CreateMetallicVariant(
+        public static Material? CreateMetallicVariant(
             Material baseMaterial,
             Color metalColor,
             float metallic = 0.8f,

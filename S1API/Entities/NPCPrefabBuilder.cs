@@ -798,7 +798,7 @@ namespace S1API.Entities
             {
                 var path = sprayPaintEquippablePath ?? "Weapons/SprayPaint/SprayPaint_AvatarEquippable";
                 var sprayPrefab = Resources.Load<GameObject>(path);
-                S1AvatarFramework.Equipping.AvatarEquippable sprayEquippable = null;
+            S1AvatarFramework.Equipping.AvatarEquippable? sprayEquippable = null;
                 if (sprayPrefab != null)
                     sprayEquippable = sprayPrefab.GetComponent<S1AvatarFramework.Equipping.AvatarEquippable>()
                         ?? sprayPrefab.GetComponentInChildren<S1AvatarFramework.Equipping.AvatarEquippable>(true);
@@ -1111,9 +1111,11 @@ namespace S1API.Entities
                     case DriveToCarParkSpec:
                         driveToCarPark++;
                         break;
+#pragma warning disable CS0618 // Compatibility spec retained for older compiled mods.
                     case EnsureDealSignalSpec:
                         dealSignal = Math.Max(dealSignal, 1);
                         break;
+#pragma warning restore CS0618
                     case UseATMSpec:
                         useATM++;
                         break;

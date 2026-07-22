@@ -226,13 +226,16 @@ namespace S1API.Internal.Entities
             if (supplier == null || data == null)
                 return false;
 
-            if (!CrossType.Is(GetOriginalData(supplier), out S1NPCFramework.SupplierNPCData supplierData))
+            S1NPCFramework.NPCData? originalData = GetOriginalData(supplier);
+            if (originalData == null
+                || !CrossType.Is(originalData, out S1NPCFramework.SupplierNPCData supplierData))
                 return false;
 
             ApplySupplierDefaults(supplierData, data);
 
             S1NPCFramework.NPCData? currentData = GetCurrentData(supplier);
-            if (CrossType.Is(currentData, out S1NPCFramework.SupplierNPCData currentSupplierData)
+            if (currentData != null
+                && CrossType.Is(currentData, out S1NPCFramework.SupplierNPCData currentSupplierData)
                 && !ReferenceEquals(currentSupplierData, supplierData))
             {
                 ApplySupplierDefaults(currentSupplierData, data);
@@ -400,7 +403,16 @@ namespace S1API.Internal.Entities
             S1NPCFramework.NPCData data,
             bool required)
         {
-            S1Dialogue.DialogueDatabase? current = data.Dialogue?.DialogueDatabase;
+            var dialogue = data.Dialogue;
+            if (dialogue == null)
+            {
+                if (required)
+                    throw new InvalidOperationException("The beta supplier NPC data has no dialogue settings.");
+
+                return;
+            }
+
+            S1Dialogue.DialogueDatabase? current = dialogue.DialogueDatabase;
             if (current != null
                 && current.name.StartsWith("S1API_SupplierDialogue_", StringComparison.Ordinal)
                 && HasRequiredSupplierDialogue(current))
@@ -429,7 +441,7 @@ namespace S1API.Internal.Entities
             clone.name = "S1API_SupplierDialogue_" + donor.name;
             clone.hideFlags = HideFlags.DontUnloadUnusedAsset;
             ApplyGenericSupplierDialogue(clone);
-            data.Dialogue.DialogueDatabase = clone;
+            dialogue.DialogueDatabase = clone;
         }
 
         private static bool HasRequiredSupplierDialogue(S1Dialogue.DialogueDatabase database)

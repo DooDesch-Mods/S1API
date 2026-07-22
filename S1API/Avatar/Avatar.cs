@@ -33,7 +33,7 @@ namespace S1API.Avatar
         /// <summary>
         /// The GameObject associated with this avatar.
         /// </summary>
-        public GameObject GameObject =>
+        public GameObject? GameObject =>
             S1Avatar?.gameObject;
 
         /// <summary>

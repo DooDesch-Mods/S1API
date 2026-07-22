@@ -35,7 +35,7 @@ namespace S1API.Entities.Actions
             NPC = npc;
         }
 
-        private S1Other.SmokeCigarette GetComponent()
+        private S1Other.SmokeCigarette? GetComponent()
         {
             return NPC?.S1NPC?.GetComponentInChildren<S1Other.SmokeCigarette>(true);
         }

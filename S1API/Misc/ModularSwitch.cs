@@ -124,7 +124,7 @@ namespace S1API.Misc
 
             if (!_hoverListenerAdded)
             {
-                S1Interaction.InteractableObject intObj = (S1Interaction.InteractableObject)Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_switch, "intObj");
+            S1Interaction.InteractableObject? intObj = Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_switch, "intObj") as S1Interaction.InteractableObject;
                 if (intObj != null)
                 {
                     Action hoverHandler = () =>

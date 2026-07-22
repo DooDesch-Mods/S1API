@@ -659,7 +659,7 @@ namespace S1API.PhoneApp
 #endif
     internal class PhoneAppButtonHandler : MonoBehaviour
     {
-        internal PhoneApp phoneApp;
+        internal PhoneApp? phoneApp;
 
         private void Update()
         {

@@ -39,7 +39,7 @@ namespace S1API.Law
         /// <summary>
         /// Gets the patrol route this group is following.
         /// </summary>
-        public FootPatrolRoute Route
+        public FootPatrolRoute? Route
         {
             get
             {

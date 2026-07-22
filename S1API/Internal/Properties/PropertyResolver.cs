@@ -55,7 +55,7 @@ namespace S1API.Internal.Properties
             return results;
         }
 
-        private static S1Properties.Effect FindByIdOrName(string id, string unityName)
+        private static S1Properties.Effect? FindByIdOrName(string id, string unityName)
         {
             var idNorm = (id ?? string.Empty).Trim();
             var nameNorm = (unityName ?? string.Empty).Trim();

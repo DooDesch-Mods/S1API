@@ -67,7 +67,7 @@ namespace S1API.Items.Storable
             new Dictionary<int, S1StationFramework.StationItem>();
 
         internal static readonly HashSet<int> WarnedStationItemModuleMissing = new HashSet<int>();
-        internal static GameObject _stationItemRoot;
+        internal static GameObject? _stationItemRoot;
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ namespace S1API.Items.Storable
         private static HashSet<int> WarnedStationItemModuleMissing =>
             StorableItemDefinitionBuilderState.WarnedStationItemModuleMissing;
 
-        private static GameObject StationItemRoot
+        private static GameObject? StationItemRoot
         {
             get => StorableItemDefinitionBuilderState._stationItemRoot;
             set  => StorableItemDefinitionBuilderState._stationItemRoot = value;

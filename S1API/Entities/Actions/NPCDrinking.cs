@@ -29,7 +29,7 @@ namespace S1API.Entities.Actions
             NPC = npc;
         }
 
-        private S1Other.DrinkItem GetComponent()
+        private S1Other.DrinkItem? GetComponent()
         {
             return NPC?.S1NPC?.GetComponentInChildren<S1Other.DrinkItem>(true);
         }

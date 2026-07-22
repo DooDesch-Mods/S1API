@@ -140,7 +140,7 @@ namespace S1API.Internal.Patches
                 Rect contentRect = content.rect;
 
                 // Get parent's rect to determine viewport size
-                RectTransform parentRT = originalParent as RectTransform;
+            RectTransform? parentRT = originalParent as RectTransform;
                 Rect parentRect = parentRT != null ? parentRT.rect : new Rect(0, 0, 800, 200);
 
                 // Create scroll view - stretch to fill parent horizontally, use content height
@@ -245,7 +245,7 @@ namespace S1API.Internal.Patches
         /// </summary>
         internal static bool SkipInterfaceClose { get; set; }
 
-        static MethodBase TargetMethod()
+        static MethodBase? TargetMethod()
         {
             return AccessTools.GetDeclaredMethods(typeof(TVHomeScreen))
                 .Find(method => method.Name == "Close" || method.Name == "OnClose");

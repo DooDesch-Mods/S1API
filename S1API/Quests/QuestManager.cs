@@ -146,7 +146,7 @@ namespace S1API.Quests
             return null;
         }
 
-        private static string TryGetNameFromIdentifier(Type t)
+        private static string? TryGetNameFromIdentifier(Type t)
         {
             try
             {

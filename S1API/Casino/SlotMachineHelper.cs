@@ -36,11 +36,16 @@ namespace S1API.Casino
 
         private sealed class ActiveSpin
         {
-            public S1Casino.SlotMachine Machine { get; set; }
+            internal ActiveSpin(S1Casino.SlotMachine machine)
+            {
+                Machine = machine;
+            }
+
+            public S1Casino.SlotMachine Machine { get; }
 #if (IL2CPPMELON)
-            public object CoroutineHandle { get; set; }
+            public object? CoroutineHandle { get; set; }
 #else
-            public Coroutine CoroutineHandle { get; set; }
+            public Coroutine? CoroutineHandle { get; set; }
 #endif
         }
 
@@ -303,10 +308,7 @@ namespace S1API.Casino
                     symbols[i] = S1Casino.SlotMachine.GetRandomSymbol();
                 }
 
-                var activeSpin = new ActiveSpin
-                {
-                    Machine = machine
-                };
+                var activeSpin = new ActiveSpin(machine);
 
 #if (IL2CPPMELON)
                 activeSpin.CoroutineHandle = MelonCoroutines.Start(SpinSlotMachineForNPC(npc, machine, symbols, betAmount, activeSpin));
@@ -340,7 +342,7 @@ namespace S1API.Casino
         /// <param name="position">The position to search from.</param>
         /// <param name="maxDistance">Maximum distance to search.</param>
         /// <returns>The nearest slot machine, or null if none found.</returns>
-        public static S1Casino.SlotMachine FindNearestSlotMachine(Vector3 position, float maxDistance)
+        public static S1Casino.SlotMachine? FindNearestSlotMachine(Vector3 position, float maxDistance)
         {
             try
             {
@@ -348,7 +350,7 @@ namespace S1API.Casino
                 if (machines == null || machines.Length == 0)
                     return null;
 
-                S1Casino.SlotMachine nearest = null;
+                S1Casino.SlotMachine? nearest = null;
                 float nearestDistance = float.MaxValue;
 
                 foreach (var machine in machines)
@@ -539,7 +541,7 @@ namespace S1API.Casino
             }
         }
 
-        private static bool ShouldAbortSpin(NPC npc, S1Casino.SlotMachine machine)
+        private static bool ShouldAbortSpin(NPC? npc, S1Casino.SlotMachine? machine)
         {
             if (_isSceneChangeInProgress)
                 return true;
@@ -574,7 +576,7 @@ namespace S1API.Casino
             }
         }
 
-        private static void SetMachineSpinning(S1Casino.SlotMachine machine, bool isSpinning)
+        private static void SetMachineSpinning(S1Casino.SlotMachine? machine, bool isSpinning)
         {
             if (machine == null)
                 return;
@@ -598,9 +600,9 @@ namespace S1API.Casino
                 var method = typeof(S1Casino.SlotMachine).GetMethod("EvaluateOutcome", 
                     System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 
-                if (method != null)
+                if (method?.Invoke(machine, new object[] { outcome }) is S1Casino.SlotMachine.EOutcome evaluatedOutcome)
                 {
-                    return (S1Casino.SlotMachine.EOutcome)method.Invoke(machine, new object[] { outcome });
+                    return evaluatedOutcome;
                 }
             }
             catch (Exception ex)

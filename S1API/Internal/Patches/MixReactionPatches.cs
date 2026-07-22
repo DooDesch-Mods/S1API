@@ -49,7 +49,7 @@ namespace S1API.Internal.Patches
 
                 // The game can return a shared list (e.g. a product definition's Properties for a named recipe),
                 // so never mutate __result directly. Clone once, only if a rule actually fires.
-                EffectList working = null;
+            EffectList? working = null;
 
                 foreach (var rule in rules)
                 {

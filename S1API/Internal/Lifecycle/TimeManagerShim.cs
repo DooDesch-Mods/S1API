@@ -61,6 +61,8 @@ namespace S1API.Internal.Lifecycle
 #if IL2CPPMELON
                 var sleepStart = il2cppOnSleepStart ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onSleepStart);
                 var hourPass = il2cppOnHourPass ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onHourPass);
+                if (sleepStart == null || hourPass == null)
+                    return;
 
                 if (!_addedSleepStart.Contains(sleepStart))
                 {

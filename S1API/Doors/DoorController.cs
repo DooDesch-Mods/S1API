@@ -60,7 +60,7 @@ namespace S1API.Doors
         /// </summary>
         public bool OpenableByNPCs
         {
-            get => (bool)Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_controller, "OpenableByNPCs");
+            get => Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_controller, "OpenableByNPCs") is bool value && value;
             set => Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(_controller, "OpenableByNPCs", value);
         }
 
@@ -71,17 +71,17 @@ namespace S1API.Doors
         /// <summary>
         /// Event fired when the door is opened from a specific side.
         /// </summary>
-        public event Action<DoorSide> OnDoorOpened;
+        public event Action<DoorSide>? OnDoorOpened;
 
         /// <summary>
         /// Event fired when the door is opened (any side).
         /// </summary>
-        public event Action OnDoorOpenedAny;
+        public event Action? OnDoorOpenedAny;
 
         /// <summary>
         /// Event fired when the door is closed.
         /// </summary>
-        public event Action OnDoorClosed;
+        public event Action? OnDoorClosed;
 
         #endregion
 

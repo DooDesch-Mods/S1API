@@ -25,7 +25,7 @@ namespace S1API.Building
         /// The item definition ID.
         /// Convenience property for filtering events by item type.
         /// </summary>
-        public string ItemId => ItemInstance?.Definition?.ID;
+        public string? ItemId => ItemInstance?.Definition?.ID;
 
         /// <summary>
         /// The storage entity if this item is a storage container.
@@ -35,12 +35,12 @@ namespace S1API.Building
         /// Use this to customize storage properties when items are placed.
         /// Example: args.Storage?.AddSlots(5);
         /// </remarks>
-        public StorageEntity Storage { get; internal set; }
+        public StorageEntity? Storage { get; internal set; }
 
         /// <summary>
         /// INTERNAL: Constructor used by S1API patches.
         /// </summary>
-        internal BuildEventArgs(ItemInstance itemInstance, GameObject gameObject, StorageEntity storage = null)
+        internal BuildEventArgs(ItemInstance itemInstance, GameObject gameObject, StorageEntity? storage = null)
         {
             ItemInstance = itemInstance;
             GameObject = gameObject;

@@ -153,7 +153,7 @@ namespace S1API.UI
         /// <summary>
         /// Cached sprite with rounded corners generated on demand by <see cref="GetRoundedSprite"/>.
         /// </summary>
-        private static Sprite roundedSprite;
+        private static Sprite? roundedSprite;
 
         /// <summary>
         /// Creates a rounded button composed of a mask container, button, and centered text label.

@@ -289,6 +289,7 @@ namespace S1API.Entities
         /// <summary>
         /// Inserts clothing into the matching player clothing slot.
         /// </summary>
+#pragma warning disable CS0618 // Compatibility overloads intentionally retain the legacy wrapper types.
         public void InsertClothing(ClothingItemInstance clothing)
         {
             if (clothing == null)
@@ -315,6 +316,7 @@ namespace S1API.Entities
             InsertClothing(clothing);
             return clothing;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Refreshes the player's avatar from the current clothing slots.

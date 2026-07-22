@@ -40,6 +40,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return false;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return false;
             return CanItemFitInternal(temp);
         }
 
@@ -51,6 +53,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return 0;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return 0;
             return GetCapacityForItemInternal(temp);
         }
 
@@ -63,6 +67,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return false;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return false;
             if (!CanItemFitInternal(temp))
                 return false;
             InsertItemInternal(temp, network);

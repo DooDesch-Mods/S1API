@@ -71,7 +71,7 @@ namespace S1API.Input
     /// </summary>
     internal static class ControlsState
     {
-        internal static InputDeviceType LastKnownDevice;
+        internal static InputDeviceType LastKnownDevice = InputDeviceType.KeyboardMouse;
         internal static readonly Dictionary<Action<InputDeviceType>, Action<S1InputDeviceType>> TrackedListeners 
             = new Dictionary<Action<InputDeviceType>, Action<S1InputDeviceType>>();
     }

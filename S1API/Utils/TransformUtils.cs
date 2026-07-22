@@ -15,7 +15,7 @@ namespace S1API.Utils
         /// <param name="root">Root transform to search under.</param>
         /// <param name="name">Name of the transform to find.</param>
         /// <returns>The first matching transform, or null if not found.</returns>
-        public static Transform FindDescendant(Transform root, string name) =>
+        public static Transform? FindDescendant(Transform root, string name) =>
             Internal.Utils.TransformUtils.FindDescendant(root, name);
     }
 }

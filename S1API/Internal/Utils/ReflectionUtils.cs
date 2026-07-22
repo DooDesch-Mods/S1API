@@ -217,7 +217,7 @@ namespace S1API.Internal.Utils
         /// </summary>
         /// <param name="obj">The ValueTuple instance</param>
         /// <returns>The items in the ValueTuple instance.</returns>
-        internal static object[]? GetValueTupleItems(this object obj)
+        internal static object?[]? GetValueTupleItems(this object obj)
         {
             if (!obj.IsValueTuple())
                 return null;
@@ -260,7 +260,7 @@ namespace S1API.Internal.Utils
                     || field.IsDefined(typeof(ObsoleteAttribute), inherit: false))
                     continue;
 
-                string value = (string)field.GetRawConstantValue();
+                string? value = field.GetRawConstantValue() as string;
                 if (!string.IsNullOrWhiteSpace(value))
                     consts.Add(value);
             }
@@ -277,8 +277,11 @@ namespace S1API.Internal.Utils
         /// <param name="memberName">The name of the field or property.</param>
         /// <param name="value">The value to set.</param>
         /// <returns><c>true</c> if the member was successfully set; otherwise, <c>false</c>.</returns>
-        internal static bool TrySetFieldOrProperty(object target, string memberName, object? value)
+        internal static bool TrySetFieldOrProperty(object? target, string memberName, object? value)
         {
+            if (target == null)
+                return false;
+
             var type = target.GetType();
             const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
             

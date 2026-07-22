@@ -84,7 +84,7 @@ namespace S1API.Stations
         /// <summary>
         /// Returns the native product item definition.
         /// </summary>
-        public S1ItemFramework.ItemDefinition S1ProductItem => S1StationRecipe.Product?.Item;
+        public S1ItemFramework.ItemDefinition? S1ProductItem => S1StationRecipe.Product?.Item;
     }
 
     /// <summary>

@@ -54,7 +54,7 @@ namespace S1API.Property
         /// <returns>
         /// A <see cref="PropertyWrapper"/> representing the property with the specified name if found; otherwise, null.
         /// </returns>
-        public static PropertyWrapper FindPropertyByName(string name)
+        public static PropertyWrapper? FindPropertyByName(string name)
         {
 #if IL2CPPMELON
             foreach (var prop in Il2CppScheduleOne.Property.Property.Properties)

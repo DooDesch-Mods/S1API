@@ -40,13 +40,21 @@ namespace S1API.Internal.Utils
             var originalLength = array?.Length ?? 0;
             var additionalLength = itemsToAdd?.Length ?? 0;
             var newLength = originalLength + additionalLength;
+            var source = array;
+            var additions = itemsToAdd;
 
             var result = new Il2CppReferenceArray<T>(newLength);
-            for (var i = 0; i < originalLength; i++)
-                result[i] = array[i];
+            if (source != null)
+            {
+                for (var i = 0; i < originalLength; i++)
+                    result[i] = source[i]!;
+            }
 
-            for (var i = 0; i < additionalLength; i++)
-                result[originalLength + i] = itemsToAdd[i];
+            if (additions != null)
+            {
+                for (var i = 0; i < additionalLength; i++)
+                    result[originalLength + i] = additions[i]!;
+            }
 
             return result;
         }

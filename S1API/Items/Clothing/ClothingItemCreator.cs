@@ -57,7 +57,7 @@ namespace S1API.Items.Clothing
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(string sourceItemId)
+        public static ClothingItemDefinitionBuilder? CloneFrom(string sourceItemId)
         {
             if (string.IsNullOrWhiteSpace(sourceItemId))
             {
@@ -95,7 +95,7 @@ namespace S1API.Items.Clothing
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(ClothingItemDefinition source)
+        public static ClothingItemDefinitionBuilder? CloneFrom(ClothingItemDefinition source)
         {
             if (source == null)
             {

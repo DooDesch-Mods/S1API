@@ -46,7 +46,7 @@ namespace S1API.Shops
         /// }
         /// </code>
         /// </example>
-        public static Shop GetShopByName(string shopName)
+        public static Shop? GetShopByName(string shopName)
         {
             if (string.IsNullOrEmpty(shopName))
                 return null;
@@ -208,7 +208,7 @@ namespace S1API.Shops
                 {
                     if (listing?.Item?.ID == itemId)
                     {
-                        var itemDef = ItemManager.GetItemDefinition(itemId);
+                        var itemDef = ItemManager.GetDefinition(itemId);
                         if (itemDef != null)
                         {
                             return RefreshItemIcon(itemDef);

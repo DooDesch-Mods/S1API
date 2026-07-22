@@ -97,7 +97,7 @@ namespace S1API.Internal.Entities.Suppliers
                 return;
 
             int supplierKey = supplier.GetInstanceID();
-            if (!OwnedShops.TryGetValue(supplierKey, out GameObject shopObject))
+            if (!OwnedShops.TryGetValue(supplierKey, out GameObject? shopObject))
                 return;
 
             if (shopObject != null)

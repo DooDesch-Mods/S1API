@@ -54,7 +54,7 @@ namespace S1API.Internal.Items
         /// Returns the ingredient already registered under the given ID, if any. Used to keep repeated
         /// builds of the same ID idempotent instead of registering duplicate definitions.
         /// </summary>
-        internal static bool TryGetExisting(string id, out S1Product.PropertyItemDefinition definition)
+        internal static bool TryGetExisting(string id, out S1Product.PropertyItemDefinition? definition)
         {
             if (string.IsNullOrWhiteSpace(id))
             {

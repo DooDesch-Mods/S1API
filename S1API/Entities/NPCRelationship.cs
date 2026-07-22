@@ -151,7 +151,7 @@ namespace S1API.Entities
                     int count = GetListCount(listObj);
                     for (int i = 0; i < count; i++)
                     {
-                        S1NPCs.NPC other = GetListItem(listObj, i);
+                    S1NPCs.NPC? other = GetListItem(listObj, i);
                         if (other != null && other.ID != null)
                             ids.Add(other.ID);
                     }
@@ -178,11 +178,11 @@ namespace S1API.Entities
 
                 try
                 {
-                    FieldInfo field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
+                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
                     if (field == null)
                         return;
 
-                    object existing = field.GetValue(Component);
+                    object? existing = field.GetValue(Component);
 #if IL2CPPMELON
                     System.Action<float> wrapped = new System.Action<float>(d => { try { value(d); } catch { } });
                     var combined = (Il2CppSystem.Delegate)Il2CppSystem.Delegate.Combine(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped);
@@ -208,7 +208,7 @@ namespace S1API.Entities
                 _relationshipChangedHandlers.Remove(value);
                 try
                 {
-                    FieldInfo field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
+                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
                     if (field == null)
                         return;
 
@@ -246,11 +246,11 @@ namespace S1API.Entities
 
                 try
                 {
-                    FieldInfo field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
+                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
                     if (field == null)
                         return;
 
-                    object existing = field.GetValue(Component);
+                    object? existing = field.GetValue(Component);
 #if IL2CPPMELON
                     System.Action<S1Relation.NPCRelationData.EUnlockType, bool> wrapped = new System.Action<S1Relation.NPCRelationData.EUnlockType, bool>((t, notify) =>
                     {
@@ -282,7 +282,7 @@ namespace S1API.Entities
                 _relationshipUnlockedHandlers.Remove(value);
                 try
                 {
-                    FieldInfo field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
+                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
                     if (field == null)
                         return;
 
@@ -311,7 +311,7 @@ namespace S1API.Entities
         /// <summary>
         /// INTERNAL: Direct access to the underlying base-game relation data.
         /// </summary>
-        internal S1Relation.NPCRelationData Component => NPC?.S1NPC?.RelationData;
+        internal S1Relation.NPCRelationData? Component => NPC?.S1NPC?.RelationData;
 
         #endregion
 
@@ -331,12 +331,12 @@ namespace S1API.Entities
             return prop != null ? Convert.ToInt32(prop.GetValue(listObj)) : 0;
         }
 
-        private static S1NPCs.NPC GetListItem(object listObj, int index)
+        private static S1NPCs.NPC? GetListItem(object? listObj, int index)
         {
             if (listObj == null)
                 return null;
             var indexer = listObj.GetType().GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
-            return indexer != null ? (S1NPCs.NPC)indexer.GetValue(listObj, new object[] { index }) : null;
+            return indexer?.GetValue(listObj, new object[] { index }) as S1NPCs.NPC;
         }
 
         #endregion

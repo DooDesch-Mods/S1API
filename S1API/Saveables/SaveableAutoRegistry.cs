@@ -71,7 +71,7 @@ namespace S1API.Saveables
                         catch (ReflectionTypeLoadException ex)
                         {
                             // Use successfully loaded types if some failed to load
-                            types = ex.Types.Where(t => t != null).ToArray();
+                        types = ex.Types.OfType<Type>().ToArray();
                         }
                         catch
                         {
@@ -147,7 +147,7 @@ namespace S1API.Saveables
                     try
                     {
                         // Try to create instance using parameterless constructor
-                        instance = (Saveable)Activator.CreateInstance(saveableType, true);
+                        instance = Activator.CreateInstance(saveableType, true) as Saveable;
                         if (instance != null)
                         {
                             _instances[saveableType] = instance;

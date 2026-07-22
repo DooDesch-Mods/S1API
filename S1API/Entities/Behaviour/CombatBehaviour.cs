@@ -253,7 +253,7 @@ public class CombatBehaviour
     /// </summary>
     /// <param name="equippable">The S1API Equippable wrapper.</param>
     /// <returns>The asset path if found, otherwise null or empty string.</returns>
-    private string GetAssetPathFromEquippable(Equippable equippable)
+    private string? GetAssetPathFromEquippable(Equippable equippable)
     {
         if (equippable?.S1Equippable == null)
         {

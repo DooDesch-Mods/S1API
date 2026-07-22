@@ -201,7 +201,7 @@ namespace S1API.Rendering
         /// To use the player's actual appearance, consider deferring icon generation until after player spawn
         /// by subscribing to <see cref="Entities.Player.LocalPlayerSpawned"/>.
         /// </remarks>
-        public static void GenerateAccessoryIcon(string accessoryPath, Action<Texture2D> callback, Color? accessoryColor = null, int size = 512)
+        public static void GenerateAccessoryIcon(string accessoryPath, Action<Texture2D?>? callback, Color? accessoryColor = null, int size = 512)
         {
             if (string.IsNullOrEmpty(accessoryPath))
             {
@@ -243,7 +243,7 @@ namespace S1API.Rendering
         /// <param name="callback">Callback invoked with the generated sprite when complete</param>
         /// <param name="accessoryColor">Optional tint color for the accessory (defaults to white)</param>
         /// <param name="size">The size of the square icon (default 512)</param>
-        public static void GenerateAccessoryIconSprite(string accessoryPath, Action<Sprite> callback, Color? accessoryColor = null, int size = 512)
+        public static void GenerateAccessoryIconSprite(string accessoryPath, Action<Sprite?>? callback, Color? accessoryColor = null, int size = 512)
         {
             GenerateAccessoryIcon(accessoryPath, texture =>
             {
@@ -391,10 +391,10 @@ namespace S1API.Rendering
         /// </summary>
         private class AccessoryIconRequest
         {
-            public string AccessoryPath { get; set; }
+            public string AccessoryPath { get; set; } = string.Empty;
             public Color AccessoryColor { get; set; }
             public int IconSize { get; set; }
-            public Action<Texture2D> Callback { get; set; }
+            public Action<Texture2D?>? Callback { get; set; }
         }
 
         private static readonly object _accessoryIconQueueLock = new object();
@@ -408,7 +408,7 @@ namespace S1API.Rendering
         {
             while (true)
             {
-                AccessoryIconRequest next = null;
+                AccessoryIconRequest? next = null;
                 lock (_accessoryIconQueueLock)
                 {
                     if (_accessoryIconQueue.Count > 0)
@@ -470,7 +470,7 @@ namespace S1API.Rendering
                 yield return new WaitForEndOfFrame();
 
                 bool completed = false;
-                Texture2D capturedTexture = null;
+                Texture2D? capturedTexture = null;
 
                 // Trigger capture
                 mugshotRig.GetMugshot((Action<Texture2D>)(generatedMugshot =>
@@ -528,25 +528,11 @@ namespace S1API.Rendering
             var localPlayer = Entities.Player.Local;
             S1AvatarFramework.AvatarSettings settings;
 
-            if (localPlayer != null && localPlayer.CurrentAvatarSettings != null)
+            var playerSettings = localPlayer?.GetCurrentBasicAvatarSettings();
+            if (playerSettings != null)
             {
-                // Clone the player's current avatar settings
-#if (IL2CPPMELON)
-                var playerSettings = (localPlayer.CurrentAvatarSettings as Il2CppSystem.Object)?.Cast<BasicAvatarSettings>();
-#else
-                var playerSettings = localPlayer.CurrentAvatarSettings as BasicAvatarSettings;
-#endif
-                if (playerSettings != null)
-                {
-                    // Convert BasicAvatarSettings to AvatarSettings
-                    settings = playerSettings.GetAvatarSettings();
-                    Logger.Msg($"Using local player's avatar settings for accessory icon");
-                }
-                else
-                {
-                    // Fallback to minimal settings if cast fails
-                    settings = CreateFallbackAvatarSettings();
-                }
+                settings = playerSettings.ToAvatarSettings().S1AvatarSettings;
+                Logger.Msg("Using local player's avatar settings for accessory icon");
             }
             else
             {

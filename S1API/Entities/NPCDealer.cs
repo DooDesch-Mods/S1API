@@ -62,10 +62,10 @@ namespace S1API.Entities
     {
         internal readonly NPC NPC;
         private static readonly Logging.Log Logger = new Logging.Log("NPCDealer");
-        private static readonly FieldInfo DealerRecruitedField = typeof(S1Economy.Dealer).GetField("onDealerRecruited", BindingFlags.Public | BindingFlags.Static);
+        private static readonly FieldInfo? DealerRecruitedField = typeof(S1Economy.Dealer).GetField("onDealerRecruited", BindingFlags.Public | BindingFlags.Static);
 
         private readonly Dictionary<Action, Action<S1Economy.Dealer>> _dealerRecruitedHandlers = new Dictionary<Action, Action<S1Economy.Dealer>>();
-        private Action _contractAcceptedHandlers;
+        private Action? _contractAcceptedHandlers;
         private bool _contractAcceptedHooked;
 
         internal NPCDealer(NPC npc)
@@ -563,7 +563,7 @@ namespace S1API.Entities
 
                 try
                 {
-                    object homeBuilding = null;
+                    object? homeBuilding = null;
                     if (value != null)
                     {
                         // Resolve the underlying game building object
@@ -606,7 +606,7 @@ namespace S1API.Entities
         /// INTERNAL: Direct access to underlying dealer instance.
         /// Since Dealer inherits from NPC, we check if the wrapped NPC is a Dealer instance.
         /// </summary>
-        internal S1Economy.Dealer Component
+        internal S1Economy.Dealer? Component
         {
             get
             {
@@ -883,7 +883,7 @@ namespace S1API.Entities
                     if (existingValue == null)
                         return;
 
-                    var remaining = (Action<S1Economy.Dealer>)Delegate.Remove(existingValue, wrapper);
+                    var remaining = (Action<S1Economy.Dealer>?)Delegate.Remove(existingValue, wrapper);
                     DealerRecruitedField.SetValue(null, remaining);
                 }
                 catch (Exception ex)
@@ -999,7 +999,7 @@ namespace S1API.Entities
             }
         }
 
-        private UnityEvent GetRecommendedUnityEvent(bool createIfMissing)
+        private UnityEvent? GetRecommendedUnityEvent(bool createIfMissing)
         {
             if (Component == null)
                 return null;
@@ -1049,7 +1049,7 @@ namespace S1API.Entities
             {
                 if (target == null || string.IsNullOrEmpty(fieldName)) return;
                 var type = target.GetType();
-                FieldInfo field = null;
+                FieldInfo? field = null;
                 while (type != null && field == null)
                 {
                     field = type.GetField(fieldName, BindingFlags.Instance | System.Reflection.BindingFlags.Public | BindingFlags.NonPublic);

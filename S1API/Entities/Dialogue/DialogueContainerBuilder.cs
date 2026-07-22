@@ -23,7 +23,7 @@ namespace S1API.Entities.Dialogue
         /// <summary>
         /// Adds a dialogue node by label with the text shown in the bubble/UI.
         /// </summary>
-        public DialogueContainerBuilder AddNode(string nodeLabel, string text, Action<ChoiceList> choices = null)
+        public DialogueContainerBuilder AddNode(string nodeLabel, string text, Action<ChoiceList>? choices = null)
         {
             if (string.IsNullOrEmpty(nodeLabel))
                 return this;
@@ -39,10 +39,13 @@ namespace S1API.Entities.Dialogue
 
             if (choices != null)
             {
-                var list = (ChoiceList)typeof(ChoiceList)
-                    .GetConstructor(System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance, null, new Type[]{ typeof(NodeSpec) }, null)
-                    .Invoke(new object[]{ node });
-                choices(list);
+                var constructor = typeof(ChoiceList).GetConstructor(
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance,
+                    null,
+                    new[] { typeof(NodeSpec) },
+                    null);
+                if (constructor?.Invoke(new object[] { node }) is ChoiceList list)
+                    choices(list);
             }
             return this;
         }
@@ -135,7 +138,7 @@ namespace S1API.Entities.Dialogue
             /// <summary>
             /// Adds a choice with a label and shown text and links it to a target node label.
             /// </summary>
-            public ChoiceList Add(string choiceLabel, string shownText, string targetNodeLabel = null)
+        public ChoiceList Add(string choiceLabel, string shownText, string? targetNodeLabel = null)
             {
                 if (string.IsNullOrEmpty(choiceLabel))
                     return this;
@@ -170,7 +173,7 @@ namespace S1API.Entities.Dialogue
                 return c;
             }
 
-            internal ChoiceSpec GetChoice(string label) => Choices.Find(x => string.Equals(x.Label, label, StringComparison.OrdinalIgnoreCase));
+        internal ChoiceSpec? GetChoice(string label) => Choices.Find(x => string.Equals(x.Label, label, StringComparison.OrdinalIgnoreCase));
         }
 
         private sealed class ChoiceSpec

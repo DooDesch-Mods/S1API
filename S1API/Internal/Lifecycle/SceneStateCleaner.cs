@@ -22,7 +22,7 @@ namespace S1API.Internal.Lifecycle
     {
         private static readonly Log Logger = new Log("Lifecycle");
 
-        private static void TryRun(Action action, string warningMessage = null)
+        private static void TryRun(Action action, string? warningMessage = null)
         {
             try
             {

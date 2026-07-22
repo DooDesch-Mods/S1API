@@ -37,7 +37,7 @@ namespace S1API.Growing
         /// <summary>
         /// The mushroom colony currently growing in this bed, or null if empty.
         /// </summary>
-        public ShroomColonyInstance CurrentColony
+        public ShroomColonyInstance? CurrentColony
         {
             get
             {

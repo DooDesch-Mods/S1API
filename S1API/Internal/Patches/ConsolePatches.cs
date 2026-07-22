@@ -158,8 +158,12 @@ namespace S1API.Internal.Patches
         {
             try
             {
-                if (__instance == null || __instance.CommandEntryPrefab == null ||
-                    __instance.CommandEntryContainer == null)
+                if (__instance is null)
+                    return;
+
+                var commandEntryPrefab = __instance.CommandEntryPrefab;
+                var commandEntryContainer = __instance.CommandEntryContainer;
+                if (commandEntryPrefab is null || commandEntryContainer is null)
                     return;
 
                 _addedCommandsToList.Clear();
@@ -182,12 +186,21 @@ namespace S1API.Internal.Patches
                         if (IsNativeCommand(commandKey))
                             continue;
 
-                        var rt = Object.Instantiate(__instance.CommandEntryPrefab, __instance.CommandEntryContainer);
-                        rt.Find("Command").GetComponent<TextMeshProUGUI>().text =
+                        var rt = Object.Instantiate(commandEntryPrefab, commandEntryContainer);
+                        if (rt is null)
+                            continue;
+
+                        var commandLabel = rt.Find("Command")?.GetComponent<TextMeshProUGUI>();
+                        var descriptionLabel = rt.Find("Description")?.GetComponent<TextMeshProUGUI>();
+                        var exampleLabel = rt.Find("Example")?.GetComponent<TextMeshProUGUI>();
+                        if (commandLabel == null || descriptionLabel == null || exampleLabel == null)
+                            continue;
+
+                        commandLabel.text =
                             command.Value.CommandWord;
-                        rt.Find("Description").GetComponent<TextMeshProUGUI>().text =
+                        descriptionLabel.text =
                             command.Value.CommandDescription;
-                        rt.Find("Example").GetComponent<TextMeshProUGUI>().text =
+                        exampleLabel.text =
                             command.Value.ExampleUsage;
 
                         commandEntries?.Add(rt);

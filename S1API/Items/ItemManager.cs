@@ -32,9 +32,9 @@ namespace S1API.Items
         /// <param name="itemID">The ID of the item.</param>
         /// <returns>An instance of the item definition.</returns>
         [Obsolete("Use S1API.Items.ItemManager.GetDefinition instead.")]
-        public static ItemDefinition GetItemDefinition(string itemID)
+        public static ItemDefinition? GetItemDefinition(string itemID)
         {
-            S1ItemFramework.ItemDefinition itemDefinition = S1Registry.GetItem(itemID);
+            S1ItemFramework.ItemDefinition? itemDefinition = S1Registry.GetItem(itemID);
 
             if (itemDefinition == null)
                 return null;
@@ -240,7 +240,7 @@ namespace S1API.Items
                     continue;
 
                 // Get the item ID directly from the native item
-                string itemId = null;
+                string? itemId = null;
                 try
                 {
                     itemId = nativeItem.ID;
@@ -255,7 +255,7 @@ namespace S1API.Items
                     continue;
 
                 // Preserve the legacy method's root-namespace wrapper contract.
-                var wrappedItem = GetItemDefinition(itemId);
+                var wrappedItem = GetDefinition(itemId);
                 if (wrappedItem != null)
                 {
                     wrappedItems.Add(wrappedItem);
@@ -272,22 +272,22 @@ namespace S1API.Items
                 return false;
             }
 
-            FieldInfo runtimeItemsField = typeof(S1Registry).GetField("ItemsAddedAtRuntime", BindingFlags.NonPublic | BindingFlags.Instance);
+            FieldInfo? runtimeItemsField = typeof(S1Registry).GetField("ItemsAddedAtRuntime", BindingFlags.NonPublic | BindingFlags.Instance);
             if (runtimeItemsField == null)
             {
                 return false;
             }
 
-            object runtimeItems = runtimeItemsField.GetValue(S1Registry.Instance);
+            object? runtimeItems = runtimeItemsField.GetValue(S1Registry.Instance);
             if (runtimeItems == null)
             {
                 return false;
             }
 
             Type runtimeItemsType = runtimeItems.GetType();
-            PropertyInfo countProperty = runtimeItemsType.GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
-            PropertyInfo indexerProperty = runtimeItemsType.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
-            MethodInfo removeAtMethod = runtimeItemsType.GetMethod("RemoveAt", BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo? countProperty = runtimeItemsType.GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
+            PropertyInfo? indexerProperty = runtimeItemsType.GetProperty("Item", BindingFlags.Public | BindingFlags.Instance);
+            MethodInfo? removeAtMethod = runtimeItemsType.GetMethod("RemoveAt", BindingFlags.Public | BindingFlags.Instance);
             if (countProperty == null || indexerProperty == null || removeAtMethod == null)
             {
                 return false;
@@ -298,18 +298,18 @@ namespace S1API.Items
 
             for (int index = count - 1; index >= 0; index--)
             {
-                object register = indexerProperty.GetValue(runtimeItems, new object[] { index });
+                object? register = indexerProperty.GetValue(runtimeItems, new object[] { index });
                 if (register == null)
                 {
                     continue;
                 }
 
                 Type registerType = register.GetType();
-                FieldInfo idField = registerType.GetField("ID", BindingFlags.Public | BindingFlags.Instance);
-                FieldInfo definitionField = registerType.GetField("Definition", BindingFlags.Public | BindingFlags.Instance);
+                FieldInfo? idField = registerType.GetField("ID", BindingFlags.Public | BindingFlags.Instance);
+                FieldInfo? definitionField = registerType.GetField("Definition", BindingFlags.Public | BindingFlags.Instance);
 
-                string registeredId = idField?.GetValue(register) as string;
-                object registeredDefinition = definitionField?.GetValue(register);
+                string? registeredId = idField?.GetValue(register) as string;
+                object? registeredDefinition = definitionField?.GetValue(register);
                 if (!string.Equals(registeredId, itemId, StringComparison.OrdinalIgnoreCase) &&
                     !ReferenceEquals(registeredDefinition, nativeDefinition))
                 {

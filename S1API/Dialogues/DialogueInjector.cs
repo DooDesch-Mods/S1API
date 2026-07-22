@@ -128,7 +128,7 @@ namespace S1API.Dialogues
             if (handler == null)
                 return;
 
-            DialogueContainer container = ResolveContainer(handler, injection.ContainerName);
+            DialogueContainer? container = ResolveContainer(handler, injection.ContainerName);
             if (container == null)
                 return;
 
@@ -184,7 +184,7 @@ namespace S1API.Dialogues
             // MelonLogger.Msg($"[DialogueInjector] Injected '{injection.ChoiceLabel}' into NPC '{npc.name}'");
         }
 
-        private static DialogueContainer ResolveContainer(DialogueHandler handler, string containerName)
+        private static DialogueContainer? ResolveContainer(DialogueHandler handler, string containerName)
         {
             if (handler == null || string.IsNullOrEmpty(containerName))
                 return null;
@@ -199,7 +199,7 @@ namespace S1API.Dialogues
                     return controller.OverrideContainer;
             }
 
-            NPCEvent_LocationDialogue dialogueEvent = handler.GetComponentInParent<S1NPC>()?.GetComponentInChildren<NPCEvent_LocationDialogue>(true);
+            NPCEvent_LocationDialogue? dialogueEvent = handler.GetComponentInParent<S1NPC>()?.GetComponentInChildren<NPCEvent_LocationDialogue>(true);
             if (dialogueEvent != null && dialogueEvent.DialogueOverride != null && dialogueEvent.DialogueOverride.name == containerName)
                 return dialogueEvent.DialogueOverride;
 

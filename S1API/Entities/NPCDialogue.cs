@@ -263,8 +263,8 @@ namespace S1API.Entities
                 {
                     var mod = Handler.gameObject.AddComponent<S1Dialogue.DialogueModule>();
                     // Try to map a known enum name; fallback keeps as custom
-                    if (System.Enum.TryParse(typeof(S1Dialogue.EDialogueModule), spec.ModuleName, true, out var enumVal))
-                        mod.ModuleType = (S1Dialogue.EDialogueModule)enumVal;
+                    if (System.Enum.TryParse(spec.ModuleName, true, out S1Dialogue.EDialogueModule moduleType))
+                        mod.ModuleType = moduleType;
                     mod.Entries = ToIl2CppEntryList(spec.Entries);
                     EnsureRuntimeModulesList();
                     try { GetRuntimeModules()?.Add(mod); } catch { }
@@ -420,7 +420,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -461,7 +461,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -509,7 +509,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -570,13 +570,13 @@ namespace S1API.Entities
         private bool _eventsHooked;
 
 #if IL2CPPMELON
-        private Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule> GetRuntimeModules()
+        private Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>? GetRuntimeModules()
         {
             return ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>
                 ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>;
         }
 #else
-        private List<S1Dialogue.DialogueModule> GetRuntimeModules()
+        private List<S1Dialogue.DialogueModule>? GetRuntimeModules()
         {
             return ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as List<S1Dialogue.DialogueModule>
                 ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as List<S1Dialogue.DialogueModule>;

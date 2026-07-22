@@ -100,7 +100,7 @@ namespace S1API.Entities
         /// <summary>
         /// INTERNAL: Adds a new schedule action instance under this NPC's schedule manager and sets its start time.
         /// </summary>
-        internal T AddActionInternal<T>(int startTime, string name = null) where T : S1NPCsSchedules.NPCAction
+        internal T? AddActionInternal<T>(int startTime, string? name = null) where T : S1NPCsSchedules.NPCAction
         {
             EnsureManager();
             if (Manager == null)
@@ -108,7 +108,7 @@ namespace S1API.Entities
 
             // Prefer a pre-created, inactive action instance of this type to avoid changing component indices
             var pool = Manager.GetComponentsInChildren<T>(true);
-            T chosen = null;
+            T? chosen = null;
             for (int i = 0; i < pool.Length; i++)
             {
                 var candidate = pool[i];
@@ -258,7 +258,7 @@ namespace S1API.Entities
         /// <summary>
         /// INTERNAL: Direct access to the underlying manager.
         /// </summary>
-        internal S1NPCs.NPCScheduleManager Manager => NPC.gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
+        internal S1NPCs.NPCScheduleManager? Manager => NPC.gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
 
         /// <summary>
         /// INTERNAL: The owning NPC instance.

@@ -356,8 +356,8 @@ namespace S1API.Internal.Patches
             // Use default quality calculation for non-absolute methods
             if (currentAddedRecipe.QualityCalculationMethod != QualityCalculationMethod.Absolute) return true;
             var product = currentAddedRecipe.Product.ItemId;
-            var itemDefinition = ItemManager.GetItemDefinition(product);
-            if (itemDefinition is not QualityItemDefinition qualityItemDefinition)
+            var itemDefinition = ItemManager.GetDefinition(product);
+            if (itemDefinition is not global::S1API.Items.Quality.QualityItemDefinition qualityItemDefinition)
             {
                 Logger.Warning($"[S1API] Absolute quality calculation method specified for recipe '{currentAddedRecipe.RecipeID}' but product '{product}' is not a quality item. Falling back to default calculation.");
                 return true;

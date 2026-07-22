@@ -59,7 +59,7 @@ namespace S1API.Internal.Patches
             if (!IsGameLoading())
                 return true;
 
-            if (!S1APIPreferences.EnableMugshotLoadingScreen.Value)
+            if (S1APIPreferences.EnableMugshotLoadingScreen?.Value == false)
                 return true;
 
             if (!_hasCustomNpcTypes)
@@ -140,7 +140,7 @@ namespace S1API.Internal.Patches
 
         private static bool TryReadStaticBool(string memberName)
         {
-            object value = ReflectionUtils.TryGetStaticFieldOrProperty(typeof(NPCAppearance), memberName);
+                object? value = ReflectionUtils.TryGetStaticFieldOrProperty(typeof(NPCAppearance), memberName);
             if (value is bool boolValue)
                 return boolValue;
 

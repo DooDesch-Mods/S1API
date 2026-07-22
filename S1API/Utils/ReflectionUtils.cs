@@ -31,7 +31,7 @@ namespace S1API.Utils
         /// </summary>
         /// <param name="obj">The ValueTuple instance.</param>
         /// <returns>The items in the ValueTuple instance.</returns>
-        public static object[]? GetValueTupleItems(this object obj) =>
+        public static object?[]? GetValueTupleItems(this object obj) =>
             Internal.Utils.ReflectionUtils.GetValueTupleItems(obj);
 
         /// <summary>

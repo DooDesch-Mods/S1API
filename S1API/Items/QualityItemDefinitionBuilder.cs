@@ -34,7 +34,7 @@ namespace S1API.Items
         private static readonly object StationItemGate = new object();
         private static readonly Dictionary<int, S1StationFramework.StationItem> StationItemCache = new Dictionary<int, S1StationFramework.StationItem>();
         private static readonly HashSet<int> WarnedStationItemModuleMissing = new HashSet<int>();
-        private static GameObject _stationItemRoot;
+        private static GameObject? _stationItemRoot;
 
         private readonly S1ItemFramework.QualityItemDefinition _definition;
         private readonly GameObject _storedItemPlaceholder;

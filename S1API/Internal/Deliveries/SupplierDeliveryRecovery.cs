@@ -93,7 +93,7 @@ namespace S1API.Internal.Deliveries
         private static void ApplyPendingVehicleLoad(S1Delivery.DeliveryVehicle deliveryVehicle)
         {
             if (string.IsNullOrWhiteSpace(deliveryVehicle.GUID)
-                || !PendingVehicleLoads.TryGetValue(deliveryVehicle.GUID, out PendingVehicleLoad pending))
+                    || !PendingVehicleLoads.TryGetValue(deliveryVehicle.GUID, out PendingVehicleLoad? pending))
             {
                 return;
             }

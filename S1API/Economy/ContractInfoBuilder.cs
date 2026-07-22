@@ -24,7 +24,7 @@ namespace S1API.Economy
     {
         private float _payment;
         private readonly List<ContractInfo.OrderLine> _orders = new List<ContractInfo.OrderLine>();
-        private DeliveryLocation _deliveryLocation;
+        private DeliveryLocation? _deliveryLocation;
         private (int startTime, int endTime)? _deliveryWindow;
         private bool _isCounterOffer;
         private bool _expires = true;
