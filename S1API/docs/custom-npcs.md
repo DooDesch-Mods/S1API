@@ -129,6 +129,29 @@ Available state:
 
 `NPC.SendTextMessage(...)` remains available for compatibility. `Messaging.SendTextMessage(...)` forwards to the same implementation so state checks, events, and sending can live under one API surface.
 
+## Selecting a voice
+
+Configure a custom NPC's voice in `ConfigurePrefab`. Use the typed catalog when possible; the string overload accepts the same case-insensitive identifiers.
+
+```csharp
+using S1API.Entities.Voices;
+
+protected override void ConfigurePrefab(NPCPrefabBuilder builder)
+{
+    builder
+        .WithIdentity("my-mod:dispatcher", "Dispatch", "")
+        .WithVoice(NPCVoiceCatalog.Tyler, pitch: 0.92f);
+}
+```
+
+Supported identifiers are `cold`, `crackhead`, `female-1`, `female-2`, `goblin`, `hippie`, `joel`, `monotone`, `redneck`, `timid`, and `tyler`.
+
+These identifiers name reusable voice databases, not individual NPCs. For example, Ray's native configuration combines the `tyler` database with a character-specific pitch; use the pitch overload when reproducing that kind of voice profile.
+
+The pitch overload accepts values from `0.1` through `4.0`. Omitting the pitch preserves the selected base prefab's inherited pitch. Omitting `WithVoice(...)` entirely preserves both the inherited voice database and pitch. Invalid identifiers, unavailable databases, and out-of-range pitch values throw an actionable configuration error.
+
+Voice selection controls which clips normal NPC dialogue and reactions play. It does not play an individual voice line.
+
 ## What To Read First
 
 - Start here: **[Basic NPC Creation](basic-npc-creation.md)**

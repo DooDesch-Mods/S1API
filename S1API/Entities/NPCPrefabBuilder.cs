@@ -29,6 +29,7 @@ using S1API.Entities.Customer;
 using S1API.Entities.Dealer;
 using S1API.Entities.Supplier;
 using S1API.Entities.Impostors;
+using S1API.Entities.Voices;
 using S1API.Entities.Relation;
 using S1API.Entities.Appearances.Base;
 using System.Collections.Generic;
@@ -365,6 +366,84 @@ namespace S1API.Entities
                 stayInBuilding = go.AddComponent<S1NPCsSchedules.NPCEvent_StayInBuilding>();
                 go.SetActive(false);
             }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Selects a supported base-game voice while preserving the prefab's inherited pitch.
+        /// </summary>
+        /// <param name="voice">The S1API-owned voice definition.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="voice"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(NPCVoiceDefinition voice) =>
+            WithVoiceInternal(voice, null);
+
+        /// <summary>
+        /// Selects a supported base-game voice and default pitch.
+        /// </summary>
+        /// <param name="voice">The S1API-owned voice definition.</param>
+        /// <param name="pitch">The default playback pitch, from 0.1 through 4.0.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="voice"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pitch"/> is outside the supported range.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(NPCVoiceDefinition voice, float pitch) =>
+            WithVoiceInternal(voice, pitch);
+
+        /// <summary>
+        /// Selects a supported base-game voice by its stable, case-insensitive identifier.
+        /// </summary>
+        /// <param name="identifier">An identifier from <see cref="NPCVoiceCatalog"/>.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="identifier"/> is missing or unsupported.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(string identifier) =>
+            WithVoice(NPCVoiceCatalog.Get(identifier));
+
+        /// <summary>
+        /// Selects a supported base-game voice and default pitch by identifier.
+        /// </summary>
+        /// <param name="identifier">An identifier from <see cref="NPCVoiceCatalog"/>.</param>
+        /// <param name="pitch">The default playback pitch, from 0.1 through 4.0.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="identifier"/> is missing or unsupported.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pitch"/> is outside the supported range.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(string identifier, float pitch) =>
+            WithVoice(NPCVoiceCatalog.Get(identifier), pitch);
+
+        private NPCPrefabBuilder WithVoiceInternal(NPCVoiceDefinition voice, float? pitch)
+        {
+            if (voice == null)
+                throw new ArgumentNullException(nameof(voice));
+
+            if (pitch.HasValue
+                && (float.IsNaN(pitch.Value)
+                    || float.IsInfinity(pitch.Value)
+                    || pitch.Value < 0.1f
+                    || pitch.Value > 4f))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(pitch),
+                    pitch,
+                    "NPC voice pitch must be between 0.1 and 4.0.");
+            }
+
+            var npc = prefabRoot.GetComponent<S1NPCs.NPC>()
+                      ?? throw new InvalidOperationException("The custom NPC prefab has no NPC component.");
+            var database = NPCVoiceResolver.Resolve(voice);
+            if (!NPCDataAccess.ApplyVoice(npc, database, pitch))
+            {
+                throw new InvalidOperationException(
+                    $"Could not apply S1API voice '{voice.Id}' because the custom NPC has no framework data.");
+            }
+
+            var identity = EnsureIdentityComponent();
+            identity.VoiceId = voice.Id;
+            identity.VoicePitch = pitch;
+            identity.RegisterToStaticCache(prefabRoot.name);
 
             return this;
         }

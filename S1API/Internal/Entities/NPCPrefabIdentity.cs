@@ -24,7 +24,7 @@ using S1API.Logging;
 namespace S1API.Internal.Entities
 {
     /// <summary>
-    /// INTERNAL: Stores identity and appearance defaults on the prefab so clients receive
+    /// INTERNAL: Stores identity, appearance, and voice defaults on the prefab so clients receive
     /// the same configuration on network spawn without relying on RPCs/SyncVars.
     /// On Il2Cpp, stores data in a static registry keyed by prefab name to work around
     /// field serialization issues with RegisterTypeInIl2Cpp components.
@@ -47,6 +47,9 @@ namespace S1API.Internal.Entities
         private string? _dealerHomeBuildingName;
         private string? _prefabName;
         private List<string>? _connectionIds;
+        private string? _voiceId;
+        private bool _hasVoicePitch;
+        private float _voicePitch;
 #else
         [SerializeField] private string? _id;
         [SerializeField] private string? _firstName;
@@ -57,6 +60,9 @@ namespace S1API.Internal.Entities
         [SerializeField] private string? _dealerHomeBuildingName;
         [SerializeField] private string? _prefabName;
         [SerializeField] private List<string>? _connectionIds;
+        [SerializeField] private string? _voiceId;
+        [SerializeField] private bool _hasVoicePitch;
+        [SerializeField] private float _voicePitch;
 #endif
 
         private float? _relationDelta;
@@ -122,6 +128,22 @@ namespace S1API.Internal.Entities
             set => _prefabName = value;
         }
 
+        internal string? VoiceId
+        {
+            get => _voiceId;
+            set => _voiceId = value;
+        }
+
+        internal float? VoicePitch
+        {
+            get => _hasVoicePitch ? _voicePitch : (float?)null;
+            set
+            {
+                _hasVoicePitch = value.HasValue;
+                _voicePitch = value.GetValueOrDefault();
+            }
+        }
+
         private float? RelationDelta
         {
             get => _relationDelta;
@@ -154,6 +176,9 @@ namespace S1API.Internal.Entities
             internal int? UnlockType; // Stored as int (0=Recommendation, 1=DirectApproach) to avoid enum dependency
             internal List<string> ConnectionIDs;
             internal string PrefabName;
+            internal string VoiceId;
+            internal bool HasVoicePitch;
+            internal float VoicePitch;
         }
 
         private void Awake()
@@ -319,7 +344,10 @@ namespace S1API.Internal.Entities
                 Unlocked = unlocked,
                 UnlockType = unlockType,
                 ConnectionIDs = connectionIDs,
-                PrefabName = normalizedName
+                PrefabName = normalizedName,
+                VoiceId = VoiceId,
+                HasVoicePitch = VoicePitch.HasValue,
+                VoicePitch = VoicePitch.GetValueOrDefault()
             };
 
             _registry[normalizedName] = identityData;
@@ -427,6 +455,10 @@ namespace S1API.Internal.Entities
                 this.UnlockType = dataRef.UnlockType.HasValue ? (NPCRelationship.UnlockType?)dataRef.UnlockType.Value : null;
                 _connectionIds = dataRef.ConnectionIDs != null ? new List<string>(dataRef.ConnectionIDs) : null;
                 PrefabName = dataRef.PrefabName ?? PrefabName;
+                if (string.IsNullOrEmpty(VoiceId) && !string.IsNullOrEmpty(dataRef.VoiceId))
+                    VoiceId = dataRef.VoiceId;
+                if (!VoicePitch.HasValue && dataRef.HasVoicePitch)
+                    VoicePitch = dataRef.VoicePitch;
                 if (AppearanceImpostorSelection == null)
                     AppearanceImpostorSelection = dataRef.AppearanceImpostorSelection ?? dataRef.AppearanceDefaults?.ImpostorSelection;
                 
@@ -609,6 +641,7 @@ namespace S1API.Internal.Entities
             NPCDataAccess.ApplyIdentity(npc, Id, FirstName, LastName);
             if (Icon != null)
                 NPCDataAccess.ApplyIcon(npc, Icon);
+            ApplyConfiguredVoice(npc, updateEmitter: true);
 
             try
             {
@@ -713,6 +746,7 @@ namespace S1API.Internal.Entities
             catch { }
 
             EnsureFrameworkNpcDataIdentity(npc);
+            ApplyConfiguredVoice(npc, updateEmitter: false);
         }
 
 #if IL2CPPMELON
@@ -859,6 +893,27 @@ namespace S1API.Internal.Entities
             {
                 Logger.Warning($"[NPCPrefabIdentity] Failed to initialize framework NPCData identity before Awake for '{Id ?? FirstName ?? "<unknown>"}': {ex.Message}");
             }
+        }
+
+        private void ApplyConfiguredVoice(S1NPCs.NPC npc, bool updateEmitter)
+        {
+            if (npc == null || string.IsNullOrWhiteSpace(VoiceId))
+                return;
+
+            var definition = global::S1API.Entities.Voices.NPCVoiceCatalog.Get(VoiceId);
+            var database = NPCVoiceResolver.Resolve(definition);
+            if (!NPCDataAccess.ApplyVoice(npc, database, VoicePitch))
+            {
+                throw new InvalidOperationException(
+                    $"Could not apply S1API voice '{definition.Id}' because the custom NPC has no framework data.");
+            }
+
+            if (!updateEmitter || npc.VoiceOverEmitter == null)
+                return;
+
+            npc.VoiceOverEmitter.SetDatabase(database);
+            if (VoicePitch.HasValue)
+                npc.VoiceOverEmitter.SetDefaultPitch(VoicePitch.Value);
         }
 
         /// <summary>

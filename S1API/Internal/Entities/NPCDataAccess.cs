@@ -8,6 +8,7 @@ using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1NPCFramework = Il2CppScheduleOne.NPCs.Framework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
+using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
 #elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1DevUtilities = ScheduleOne.DevUtilities;
@@ -16,6 +17,7 @@ using S1Economy = ScheduleOne.Economy;
 using S1Messaging = ScheduleOne.Messaging;
 using S1NPCFramework = ScheduleOne.NPCs.Framework;
 using S1NPCs = ScheduleOne.NPCs;
+using S1VoiceOver = ScheduleOne.VoiceOver;
 #endif
 using System;
 using System.Collections.Generic;
@@ -129,6 +131,25 @@ namespace S1API.Internal.Entities
 
         internal static Sprite? GetIcon(S1NPCs.NPC npc) =>
             GetCurrentData(npc)?.Appearance?.Mugshot;
+
+        internal static bool ApplyVoice(
+            S1NPCs.NPC npc,
+            S1VoiceOver.VODatabase database,
+            float? pitch)
+        {
+            if (database == null)
+                throw new ArgumentNullException(nameof(database));
+
+            return ApplyToData(npc, data =>
+            {
+                if (data.Voice == null)
+                    throw new InvalidOperationException("The custom NPC data has no voice settings.");
+
+                data.Voice.VoiceDatabase = database;
+                if (pitch.HasValue)
+                    data.Voice.VoicePitch = pitch.Value;
+            });
+        }
 
         internal static bool GetConversationCanBeHidden(S1NPCs.NPC npc) =>
             GetCurrentData(npc)?.Messaging?.ConversationCanBeHidden ?? false;
