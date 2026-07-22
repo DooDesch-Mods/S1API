@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Dialogue = Il2CppScheduleOne.Dialogue;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Dialogue = ScheduleOne.Dialogue;
 #endif
 
@@ -183,9 +183,9 @@ namespace S1API.Entities
                 return;
             _eventsHooked = true;
             // Handler events are invoked from DialogueHandler.ChoiceCallback and DialogueCallback
-            EventHelper.AddListener(Internal_OnChoice, Handler.onDialogueChoiceChosen);
-            EventHelper.AddListener(Internal_OnNode, Handler.onDialogueNodeDisplayed);
-            EventHelper.AddListener(Internal_OnConversationStart, Handler.onConversationStart);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnChoice, Handler.onDialogueChoiceChosen);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnNode, Handler.onDialogueNodeDisplayed);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnConversationStart, Handler.onConversationStart);
         }
 
         /// <summary>
@@ -281,7 +281,7 @@ namespace S1API.Entities
             {
                 if (GetRuntimeModules() == null)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     ReflectionUtils.TrySetFieldOrProperty(Handler, "RuntimeModules", new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>());
 #else
                     runtimeModulesProperty?.SetValue(Handler, new List<S1Dialogue.DialogueModule>());
@@ -315,7 +315,7 @@ namespace S1API.Entities
                     // Ensure target modules exists
                     if (target.Modules == null)
                     {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         target.Modules = new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>();
 #else
                         target.Modules = new System.Collections.Generic.List<S1Dialogue.DialogueModule>();
@@ -484,9 +484,9 @@ namespace S1API.Entities
             void ClearOnce()
             {
                 try { controller.ClearOverrideContainer(); } catch { }
-                try { EventHelper.RemoveListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
+                try { global::S1API.Utils.EventHelper.RemoveListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
             }
-            try { EventHelper.AddListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
+            try { global::S1API.Utils.EventHelper.AddListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
 
             return true;
         }
@@ -569,7 +569,7 @@ namespace S1API.Entities
         private readonly List<Action> _conversationStartCallbacks = new List<Action>();
         private bool _eventsHooked;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule> GetRuntimeModules()
         {
             return ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>
@@ -601,7 +601,7 @@ namespace S1API.Entities
             return true;
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static Il2CppSystem.Collections.Generic.List<S1Dialogue.Entry> ToIl2CppEntryList(System.Collections.Generic.List<S1Dialogue.Entry> source)
         {
             var list = new Il2CppSystem.Collections.Generic.List<S1Dialogue.Entry>();

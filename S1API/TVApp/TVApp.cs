@@ -16,7 +16,7 @@ using S1GameInput = Il2CppScheduleOne.GameInput;
 using S1ExitAction = Il2CppScheduleOne.ExitAction;
 using S1TVHomeScreen = Il2CppScheduleOne.TV.TVHomeScreen;
 using S1TVApp = Il2CppScheduleOne.TV.TVApp;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using TMPro;
 using ScheduleOne.DevUtilities;
 using S1GameInput = ScheduleOne.GameInput;
@@ -475,7 +475,7 @@ namespace S1API.TVApp
             if (button != null)
             {
                 button.onClick.RemoveAllListeners();
-                EventHelper.AddListener(OnButtonClicked, button.onClick);
+                global::S1API.Utils.EventHelper.AddListener(OnButtonClicked, button.onClick);
             }
         }
 

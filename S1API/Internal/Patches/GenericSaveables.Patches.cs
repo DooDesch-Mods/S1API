@@ -9,15 +9,15 @@ using S1API.Saveables;
 using S1Persistence = Il2CppScheduleOne.Persistence;
 using S1Loaders = Il2CppScheduleOne.Persistence.Loaders;
 using S1Datas = Il2CppScheduleOne.Persistence.Datas;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Persistence = ScheduleOne.Persistence;
 using S1Loaders = ScheduleOne.Persistence.Loaders;
 using S1Datas = ScheduleOne.Persistence.Datas;
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using ListString = System.Collections.Generic.List<string>;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
 using ListString = Il2CppSystem.Collections.Generic.List<string>;
 #endif
 
@@ -27,7 +27,7 @@ namespace S1API.Internal.Patches
 	/// INTERNAL: Save/Load pipeline for mod-registered Saveables not tied to base entities.
 	/// Writes to Modded/Saveables and restores on load. Cross-compatible for Mono/Il2Cpp.
 	/// <para>
-	/// Supports configurable load order via <see cref="S1API.Internal.Abstraction.Saveable.LoadOrder"/>:
+	/// Supports configurable load order via <c>Saveable.LoadOrder</c>:
 	/// </para>
 	/// <list type="bullet">
 	/// <item><description>BeforeBaseGame: Loads before base game loaders run (prefix patch on LoadRequest constructor)</description></item>
@@ -116,7 +116,7 @@ namespace S1API.Internal.Patches
 						{
 						    try
 						    {
-							    EventHelper.RemoveListener(InitializeOnLoadComplete, lm.onLoadComplete);
+							    global::S1API.Utils.EventHelper.RemoveListener(InitializeOnLoadComplete, lm.onLoadComplete);
 							    ((IRegisterable)saveable).CreateInternal();
 						    }
 						    catch (Exception e)
@@ -124,7 +124,7 @@ namespace S1API.Internal.Patches
 							    try { MelonLoader.MelonLogger.Warning($"[Saveables] InitializeOnLoadComplete (Before) failed: {e.Message}\n{e.StackTrace}"); } catch { }
 						    }
 						}
-						EventHelper.AddListener(InitializeOnLoadComplete, lm.onLoadComplete);
+						global::S1API.Utils.EventHelper.AddListener(InitializeOnLoadComplete, lm.onLoadComplete);
 					}
 				}
 				
@@ -135,7 +135,7 @@ namespace S1API.Internal.Patches
 				{
 				    try
 				    {
-					    EventHelper.RemoveListener(ClearLockOnLoadComplete, lm.onLoadComplete);
+					    global::S1API.Utils.EventHelper.RemoveListener(ClearLockOnLoadComplete, lm.onLoadComplete);
 					    sameSession = false;
 				    }
 				    catch (Exception e)
@@ -143,7 +143,7 @@ namespace S1API.Internal.Patches
 					    try { MelonLoader.MelonLogger.Warning($"[Saveables] ClearLockOnLoadComplete failed: {e.Message}\n{e.StackTrace}"); } catch { }
 				    }
 				}
-				EventHelper.AddListener(ClearLockOnLoadComplete, lm.onLoadComplete);
+				global::S1API.Utils.EventHelper.AddListener(ClearLockOnLoadComplete, lm.onLoadComplete);
 			}
 			catch (Exception e)
 			{
@@ -185,7 +185,7 @@ namespace S1API.Internal.Patches
 						{
 						    try
 						    {
-							    EventHelper.RemoveListener(InitializeOnLoadComplete, lm.onLoadComplete);
+							    global::S1API.Utils.EventHelper.RemoveListener(InitializeOnLoadComplete, lm.onLoadComplete);
 							    ((IRegisterable)saveable).CreateInternal();
 						    }
 						    catch (Exception e)
@@ -193,7 +193,7 @@ namespace S1API.Internal.Patches
 							    try { MelonLoader.MelonLogger.Warning($"[Saveables] InitializeOnLoadComplete (After) failed: {e.Message}\n{e.StackTrace}"); } catch { }
 						    }
 						}
-						EventHelper.AddListener(InitializeOnLoadComplete, lm.onLoadComplete);
+						global::S1API.Utils.EventHelper.AddListener(InitializeOnLoadComplete, lm.onLoadComplete);
 					}
 				}
 			}

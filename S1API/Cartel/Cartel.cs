@@ -3,7 +3,7 @@ using Il2Cpp;
 using S1Cartel = Il2CppScheduleOne.Cartel;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 #endif

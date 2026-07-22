@@ -1,6 +1,6 @@
 #if IL2CPPMELON
 using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1VoiceOver = ScheduleOne.VoiceOver;
 #endif
 

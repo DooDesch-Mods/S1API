@@ -2,7 +2,7 @@
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Map = Il2CppScheduleOne.Map;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1Map = ScheduleOne.Map;
 using S1NPCs = ScheduleOne.NPCs;
@@ -51,6 +51,7 @@ namespace S1API.Entities
         /// INTERNAL: Constructor used for assigning the NPC instance.
         /// </summary>
         /// <param name="npc"></param>
+        /// <param name="runtimeAvatar">The runtime avatar used to apply appearance changes.</param>
         internal NPCAppearance(NPC npc, S1AvatarFramework.Avatar runtimeAvatar)
         {
             NPC = npc;
@@ -730,7 +731,7 @@ namespace S1API.Entities
         {
             if (obj == null) return;
             obj.layer = layer;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             // Il2Cpp: foreach iteration returns Il2CppSystem.Object, use index-based access
             for (int i = 0; i < obj.transform.childCount; i++)
             {

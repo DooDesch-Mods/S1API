@@ -2,7 +2,7 @@
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;

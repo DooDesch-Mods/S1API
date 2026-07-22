@@ -15,10 +15,6 @@ using Il2CppScheduleOne.DevUtilities;
 using MelonLoader.Utils;
 using Il2CppInterop.Runtime;
 using S1GameInput = Il2CppScheduleOne.GameInput;
-#elif MONOBEPINEX || IL2CPPBEPINEX
-using ScheduleOne.UI.Phone;
-using ScheduleOne;
-using S1GameInput = ScheduleOne.GameInput;
 #elif MONOMELON
 using ScheduleOne.UI;
 using ScheduleOne.DevUtilities;
@@ -364,7 +360,7 @@ namespace S1API.PhoneApp
             if (iconButton != null)
             {
                 iconButton.onClick.RemoveAllListeners();
-                EventHelper.AddListener(OpenApp, iconButton.onClick);
+                global::S1API.Utils.EventHelper.AddListener(OpenApp, iconButton.onClick);
             }
         }
 
@@ -589,11 +585,7 @@ namespace S1API.PhoneApp
                 return false;
             }
 
-#if MONOMELON || IL2CPPMELON
             string path = Path.Combine(MelonEnvironment.ModsDirectory, filename);
-#elif MONOBEPINEX || IL2CPPBEPINEX
-            string path = Path.Combine(BepInEx.Paths.PluginPath, filename);
-#endif
             if (!File.Exists(path))
             {
                 Logger.Error("Icon file not found: " + path);

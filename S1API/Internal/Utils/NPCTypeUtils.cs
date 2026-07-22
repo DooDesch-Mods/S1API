@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 #endif
 

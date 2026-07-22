@@ -3,7 +3,7 @@ using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Product = ScheduleOne.Product;

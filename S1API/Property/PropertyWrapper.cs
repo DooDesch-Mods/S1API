@@ -7,7 +7,7 @@ using S1API.Internal.Utils;
 #if IL2CPPMELON
 using Il2CppTMPro;
 using Il2CppScheduleOne.Money;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using TMPro;
 using ScheduleOne.Money;
 #endif

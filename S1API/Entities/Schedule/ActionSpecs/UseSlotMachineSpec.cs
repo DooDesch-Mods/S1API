@@ -4,7 +4,7 @@ using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using MelonLoader;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1DevUtilities = ScheduleOne.DevUtilities;
@@ -197,9 +197,9 @@ namespace S1API.Entities.Schedule
                         
                         stayAction.Duration = Mathf.Max(1, durationMinutes);
                         
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         var endTime = Il2CppScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(buildingStartTime, stayAction.Duration);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                         var endTime = ScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(buildingStartTime, stayAction.Duration);
 #endif
                         ReflectionUtils.TrySetFieldOrProperty(stayAction, "EndTime", endTime);

@@ -10,7 +10,7 @@ using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1UIPhoneMessages = Il2CppScheduleOne.UI.Phone.Messages;
 using S1Money = Il2CppScheduleOne.Money;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;
@@ -39,7 +39,7 @@ using Il2CppFishNet;
 using Il2CppFishNet.Managing;
 using Il2CppFishNet.Managing.Object;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using FishNet;
 using FishNet.Managing;
 using FishNet.Managing.Object;
@@ -679,7 +679,7 @@ namespace S1API.Entities
                     if (assignedCustomersObj == null)
                     {
                         Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "AssignedCustomers",
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                             new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>()
 #else
                             new System.Collections.Generic.List<S1Economy.Customer>()
@@ -691,7 +691,7 @@ namespace S1API.Entities
                     if (activeContractsObj == null)
                     {
                         Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "ActiveContracts",
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                             new Il2CppSystem.Collections.Generic.List<S1Quests.Contract>()
 #else
                             new System.Collections.Generic.List<S1Quests.Contract>()
@@ -976,7 +976,7 @@ namespace S1API.Entities
                 {
                     var evt = GetRecommendedUnityEvent(true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -990,7 +990,7 @@ namespace S1API.Entities
                 {
                     var evt = GetRecommendedUnityEvent(false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception ex)
                 {

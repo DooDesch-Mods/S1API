@@ -3,7 +3,7 @@ using S1Economy = Il2CppScheduleOne.Economy;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1Props = Il2CppScheduleOne.Effects;
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Economy = ScheduleOne.Economy;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Props = ScheduleOne.Effects;

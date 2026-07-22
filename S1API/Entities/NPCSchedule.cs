@@ -2,7 +2,7 @@
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1GameTime = ScheduleOne.GameTime;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
@@ -22,7 +22,7 @@ namespace S1API.Entities
     /// </summary>
     /// <remarks>
     /// Use this to control NPC movement patterns, building visits, and timed activities.
-    /// Schedules are defined in <see cref="NPC.ConfigurePrefab"/> using <see cref="NPCPrefabBuilder.WithSchedule"/> and managed at runtime via this wrapper.
+    /// Schedules are defined in <see cref="NPC.ConfigurePrefab"/> using <c>NPCPrefabBuilder.WithSchedule(...)</c> and managed at runtime via this wrapper.
     /// </remarks>
     public sealed class NPCSchedule
     {

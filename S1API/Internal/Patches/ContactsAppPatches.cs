@@ -5,7 +5,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Relations = Il2CppScheduleOne.UI.Relations;
 using Il2CppSystem.Collections.Generic;
 using Il2CppSystem;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1ContactsApp = ScheduleOne.UI.Phone.ContactsApp;
 using S1Map = ScheduleOne.Map;

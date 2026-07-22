@@ -1,7 +1,7 @@
 using S1API.Internal.Utils;
 #if (IL2CPPMELON)
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 #endif
 

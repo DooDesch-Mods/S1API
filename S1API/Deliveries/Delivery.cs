@@ -1,6 +1,6 @@
 #if IL2CPPMELON
 using S1Delivery = Il2CppScheduleOne.Delivery;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Delivery = ScheduleOne.Delivery;
 #endif
 

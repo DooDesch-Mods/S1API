@@ -4,7 +4,7 @@ using S1Grid = Il2CppScheduleOne.Tiles.Grid;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Growing = ScheduleOne.Growing;
 using S1Grid = ScheduleOne.Tiles.Grid;
 using S1ItemFramework = ScheduleOne.ItemFramework;

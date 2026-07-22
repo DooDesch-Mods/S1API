@@ -2,7 +2,7 @@
 using S1Combat = Il2CppScheduleOne.Combat;
 using Il2CppScheduleOne.AvatarFramework.Equipping;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Combat = ScheduleOne.Combat;
 using ScheduleOne.AvatarFramework.Equipping;
 using FishNet.Object;

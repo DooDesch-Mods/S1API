@@ -3,7 +3,7 @@ using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1UIStations = Il2CppScheduleOne.UI.Stations;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1ObjectScripts = ScheduleOne.ObjectScripts;
 using S1StationFramework = ScheduleOne.StationFramework;
@@ -74,7 +74,7 @@ namespace S1API.Internal.Patches
 
         private static bool TryGetRecipeEntriesList(
             object canvas,
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             out Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>? entries
 #else
             out List<S1UIStations.StationRecipeEntry>? entries
@@ -89,7 +89,7 @@ namespace S1API.Internal.Patches
             {
                 var value = ReflectionUtils.TryGetFieldOrProperty(canvas, "recipeEntries");
                 entries =
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     value as Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>;
 #else
                     value as List<S1UIStations.StationRecipeEntry>;
@@ -171,7 +171,7 @@ namespace S1API.Internal.Patches
                 return;
 
             var recipes =
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 ReflectionUtils.TryGetFieldOrProperty(canvas, "Recipes") as Il2CppSystem.Collections.Generic.List<S1StationFramework.StationRecipe>;
 #else
                 ReflectionUtils.TryGetFieldOrProperty(canvas, "Recipes") as List<S1StationFramework.StationRecipe>;
@@ -270,7 +270,7 @@ namespace S1API.Internal.Patches
         }
 
         private static S1StationFramework.StationRecipe? FindRecipeById(
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             Il2CppSystem.Collections.Generic.List<S1StationFramework.StationRecipe> recipes,
 #else
             List<S1StationFramework.StationRecipe> recipes,
@@ -301,7 +301,7 @@ namespace S1API.Internal.Patches
         }
 
         private static S1UIStations.StationRecipeEntry? FindEntryByRecipeId(
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry> entries,
 #else
             List<S1UIStations.StationRecipeEntry> entries,

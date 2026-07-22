@@ -3,7 +3,7 @@ using S1API.Internal.Abstraction;
 using UnityEngine;
 using UnityEngine.Events;
 
-#if (IL2CPPMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using S1Misc = Il2CppScheduleOne.Misc;
 using S1Interaction = Il2CppScheduleOne.Interaction;
 #else
@@ -95,8 +95,8 @@ namespace S1API.Misc
 #else
             _switch.onToggled += HandleToggled;
 #endif
-            EventHelper.AddListener(HandleSwitchedOn, _switch.switchedOn);
-            EventHelper.AddListener(HandleSwitchedOff, _switch.switchedOff);
+            global::S1API.Utils.EventHelper.AddListener(HandleSwitchedOn, _switch.switchedOn);
+            global::S1API.Utils.EventHelper.AddListener(HandleSwitchedOff, _switch.switchedOff);
         }
 
         private void HandleToggled(bool isOn) =>
@@ -138,7 +138,7 @@ namespace S1API.Misc
                             intObj.SetMessage(_offMessage);
                         }
                     };
-                    EventHelper.AddListener(hoverHandler, intObj.onHovered);
+                    global::S1API.Utils.EventHelper.AddListener(hoverHandler, intObj.onHovered);
                     _hoverListenerAdded = true;
                 }
             }

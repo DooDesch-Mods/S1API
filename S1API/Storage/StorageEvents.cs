@@ -84,7 +84,7 @@ namespace S1API.Storage
     /// // Expand storage slots when loading from save
     /// StorageEvents.OnStorageLoading += (args) =>
     /// {
-    ///     if (args.ItemId == "my_custom_storage" && args.NeedsMoreSlots)
+    ///     if (args.ItemId == "my_custom_storage" &amp;&amp; args.NeedsMoreSlots)
     ///     {
     ///         args.Storage.AddSlots(args.AdditionalSlotsNeeded);
     ///     }

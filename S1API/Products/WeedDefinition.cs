@@ -2,7 +2,7 @@
 using Il2CppScheduleOne.Product;
 using S1WeedDefinition = Il2CppScheduleOne.Product.WeedDefinition;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using ScheduleOne.Product;
 using S1WeedDefinition = ScheduleOne.Product.WeedDefinition;
 using S1Properties = ScheduleOne.Effects;

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Other = Il2CppScheduleOne.NPCs.Other;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Other = ScheduleOne.NPCs.Other;
 #endif
 
@@ -10,7 +10,7 @@ namespace S1API.Entities.Actions
     /// Wraps the generic item holding action for an NPC. Use to equip or unequip any equippable item.
     /// </summary>
     /// <remarks>
-    /// Requires the item holding component to be configured on the prefab via <see cref="NPCPrefabBuilder.EnsureItemHolding"/>.
+    /// Requires the item holding component to be configured on the prefab via <c>NPCPrefabBuilder.EnsureItemHolding(...)</c>.
     /// The equippable asset path is set during prefab configuration. If the component is not present,
     /// <see cref="Begin"/> and <see cref="End"/> are no-ops.
     /// </remarks>
@@ -51,7 +51,7 @@ namespace S1API.Entities.Actions
         /// Begins holding the configured item: equips the item specified in the prefab configuration.
         /// </summary>
         /// <remarks>
-        /// No-op if the item holding component is not on the prefab. Call <see cref="NPCPrefabBuilder.EnsureItemHolding"/> during ConfigurePrefab to add it.
+        /// No-op if the item holding component is not on the prefab. Call <c>NPCPrefabBuilder.EnsureItemHolding(...)</c> during ConfigurePrefab to add it.
         /// </remarks>
         public void Begin()
         {

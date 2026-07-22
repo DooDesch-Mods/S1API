@@ -25,7 +25,7 @@ using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1Money = Il2CppScheduleOne.Money;
 using ConversationCategoryList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Messaging.EConversationCategory>;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 using S1Dialogue = ScheduleOne.Dialogue;
@@ -54,14 +54,14 @@ using S1Money = ScheduleOne.Money;
 using ConversationCategoryList = System.Collections.Generic.List<ScheduleOne.Messaging.EConversationCategory>;
 #endif
 
-#if (IL2CPPBEPINEX || IL2CPPMELON)
+#if IL2CPPMELON
 using S1Type = Il2CppSystem.Type;
 using Il2CppInterop.Runtime;
 #else
 using S1Type = System.Type;
 #endif
 
-#if (IL2CPPBEPINEX || IL2CPPMELON)
+#if IL2CPPMELON
 using Il2CppSystem.Collections.Generic;
 #else
 using System.Collections.Generic;
@@ -79,7 +79,7 @@ using HarmonyLib;
 using Il2CppFishNet;
 using Il2CppFishNet.Managing.Object;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using FishNet;
 using FishNet.Managing.Object;
 using FishNet.Object;
@@ -179,7 +179,7 @@ namespace S1API.Entities
         private static volatile bool _prefabsConfiguredForLocalProcess;
         private static bool _loggedBaseEmployeeNormalization;
         private static int _clientNetworkSpawnHydrationDepth;
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static readonly FieldInfo BehaviourOwnerField =
             AccessTools.Field(typeof(S1Behaviour.Behaviour), "<beh>k__BackingField")
             ?? throw new MissingFieldException(typeof(S1Behaviour.Behaviour).FullName, "<beh>k__BackingField");
@@ -2383,9 +2383,9 @@ namespace S1API.Entities
 
             if (S1NPC.MSGConversation == null)
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 S1NPC.CreateMessageConversation();
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 MethodInfo createConvoMethod = AccessTools.Method(typeof(S1NPCs.NPC), "CreateMessageConversation");
                 createConvoMethod?.Invoke(S1NPC, null);
 #endif
@@ -2595,7 +2595,7 @@ namespace S1API.Entities
         /// </summary>
         public bool RequiresRegionUnlocked
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             get => DefaultRequiresRegionUnlocked;
             set { /* no-op under IL2CPP; constant in base game so non accessible */ }
 #else
@@ -2789,8 +2789,8 @@ namespace S1API.Entities
         /// </summary>
         public event Action OnDeath
         {
-            add => EventHelper.AddListener(value, S1NPC.Health.onDie);
-            remove => EventHelper.RemoveListener(value, S1NPC.Health.onDie);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1NPC.Health.onDie);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1NPC.Health.onDie);
         }
 
         /// <summary>
@@ -2802,13 +2802,13 @@ namespace S1API.Entities
             {
                 var evt = GetInventoryContentsChanged(S1NPC.Inventory);
                 if (evt != null)
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
             }
             remove
             {
                 var evt = GetInventoryContentsChanged(S1NPC.Inventory);
                 if (evt != null)
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
             }
         }
 
@@ -3016,7 +3016,7 @@ namespace S1API.Entities
 
             try
             {
-#if (IL2CPPBEPINEX || IL2CPPMELON)
+#if IL2CPPMELON
                 // Allow non-public constructors on Il2Cpp
                 return (NPC?)System.Activator.CreateInstance(npcType, true);
 #else
@@ -3423,7 +3423,7 @@ namespace S1API.Entities
 
             SetGameMember(npc, "Behaviour", behaviourManager);
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             behaviourManager.Npc = npc;
 #else
             NpcBehaviourOwnerField.SetValue(behaviourManager, npc);
@@ -3435,7 +3435,7 @@ namespace S1API.Entities
                 if (behaviour == null)
                     continue;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 behaviour.beh = behaviourManager;
 #else
                 BehaviourOwnerField.SetValue(behaviour, behaviourManager);
@@ -3446,7 +3446,7 @@ namespace S1API.Entities
         private void RefreshBehaviourStack()
         {
             var behaviours = S1NPC.Behaviour.GetComponentsInChildren<S1Behaviour.Behaviour>(true);
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var ordered = new System.Collections.Generic.List<S1Behaviour.Behaviour>();
             foreach (S1Behaviour.Behaviour behaviour in behaviours)
             {
@@ -3829,7 +3829,7 @@ namespace S1API.Entities
         internal readonly bool IsCustomNPC;
 
         private static readonly bool DefaultRequiresRegionUnlocked = true;
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private readonly FieldInfo _requiresRegionUnlockedField = AccessTools.Field(typeof(S1NPCs.NPC), "RequiresRegionUnlocked");
 #else
         private readonly FieldInfo _requiresRegionUnlockedField = null;
@@ -4353,7 +4353,7 @@ namespace S1API.Entities
 
             // Collect action types via reflection when possible
             System.Collections.Generic.List<S1Type> actionTypes = new System.Collections.Generic.List<S1Type>();
-#if (IL2CPPBEPINEX || IL2CPPMELON)
+#if IL2CPPMELON
             S1Type baseType = Il2CppType.Of<S1NPCsSchedules.NPCAction>();
 #else
             S1Type baseType = typeof(S1NPCsSchedules.NPCAction);
@@ -4395,7 +4395,7 @@ namespace S1API.Entities
                 for (int i = 0; i < known.Length; i++)
                 {
                     string full = string.IsNullOrEmpty(ns) ? known[i] : (ns + "." + known[i]);
-#if (IL2CPPBEPINEX || IL2CPPMELON)
+#if IL2CPPMELON
                     S1Type t = Il2CppSystem.Type.GetType(full);
 #else
                     S1Type t = System.Type.GetType(full);

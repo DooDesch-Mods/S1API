@@ -4,7 +4,7 @@ using S1EntityFramework = Il2CppScheduleOne.EntityFramework;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Storage = ScheduleOne.Storage;
 using S1EntityFramework = ScheduleOne.EntityFramework;
 using S1ItemFramework = ScheduleOne.ItemFramework;
@@ -226,7 +226,7 @@ namespace S1API.Storage
                 {
                     var slot = new S1ItemFramework.ItemSlot(S1StorageEntity.SlotsAreFilterable);
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     // Il2Cpp requires explicit interface casting
                     slot.SetSlotOwner(S1StorageEntity.Cast<S1ItemFramework.IItemSlotOwner>());
 #else

@@ -1,4 +1,4 @@
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 #endif
 

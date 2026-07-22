@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Dialogue = Il2CppScheduleOne.Dialogue;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Dialogue = ScheduleOne.Dialogue;
 #endif
 

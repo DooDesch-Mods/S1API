@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Messaging = Il2CppScheduleOne.Messaging;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Messaging = ScheduleOne.Messaging;
 #endif
 using System;

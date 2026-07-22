@@ -4,7 +4,7 @@ using S1Product = Il2CppScheduleOne.Product;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1Clothing = Il2CppScheduleOne.Clothing;
 using S1Packaging = Il2CppScheduleOne.Product.Packaging;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Product = ScheduleOne.Product;
 using S1Registry = ScheduleOne.Registry;

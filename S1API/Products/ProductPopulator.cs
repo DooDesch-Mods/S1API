@@ -2,7 +2,7 @@
 using S1Product = Il2CppScheduleOne.Product;
 using S1ProductPackaging = Il2CppScheduleOne.Product.Packaging;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1ProductPackaging = ScheduleOne.Product.Packaging;
 using S1ItemFramework = ScheduleOne.ItemFramework;

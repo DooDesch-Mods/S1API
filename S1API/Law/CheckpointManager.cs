@@ -2,7 +2,7 @@
 using S1Law = Il2CppScheduleOne.Law;
 using S1Police = Il2CppScheduleOne.Police;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Law = ScheduleOne.Law;
 using S1Police = ScheduleOne.Police;
 using S1NPCs = ScheduleOne.NPCs;

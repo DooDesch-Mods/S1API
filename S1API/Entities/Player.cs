@@ -376,8 +376,8 @@ namespace S1API.Entities
         /// </summary>
         public event Action OnDeath
         {
-            add => EventHelper.AddListener(value, S1Player.Health.onDie);
-            remove => EventHelper.RemoveListener(value, S1Player.Health.onDie);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1Player.Health.onDie);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1Player.Health.onDie);
         }
 
         /// <summary>
@@ -385,8 +385,8 @@ namespace S1API.Entities
         /// </summary>
         public event Action OnRevive
         {
-            add => EventHelper.AddListener(value, S1Player.Health.onRevive);
-            remove => EventHelper.RemoveListener(value, S1Player.Health.onRevive);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1Player.Health.onRevive);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1Player.Health.onRevive);
         }
 
         private static readonly HashSet<S1PlayerScripts.Player> InvinciblePlayers = new HashSet<S1PlayerScripts.Player>();

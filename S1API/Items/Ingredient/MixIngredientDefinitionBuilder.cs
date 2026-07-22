@@ -5,7 +5,7 @@ using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Product = ScheduleOne.Product;
@@ -208,7 +208,7 @@ namespace S1API.Items.Ingredient
             return new MixIngredientDefinition(CrossType.As<S1Product.PropertyItemDefinition>(definition));
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static Il2CppSystem.Collections.Generic.List<T> ToIl2CppList<T>(List<T> source)
         {
             var list = new Il2CppSystem.Collections.Generic.List<T>();

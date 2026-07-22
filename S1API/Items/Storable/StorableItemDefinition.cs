@@ -1,6 +1,6 @@
 ﻿#if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 #endif
 using S1API.Leveling;
@@ -86,7 +86,7 @@ namespace S1API.Items.Storable
         /// </summary>
         /// <remarks>
         /// This is primarily used for debugging and tooling. Prefer configuring StationItem via
-        /// <see cref="StorableItemDefinitionBuilder.WithStationItem"/> during build/registration.
+        /// <c>StorableItemDefinitionBuilder.WithStationItem(...)</c> during build/registration.
         /// </remarks>
         public GameObject? StationItemPrefab =>
             S1StorableItemDefinition.StationItem?.gameObject;

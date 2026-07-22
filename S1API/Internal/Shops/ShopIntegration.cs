@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1UIShop = Il2CppScheduleOne.UI.Shop;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1UIShop = ScheduleOne.UI.Shop;
 using System;
 #endif
@@ -144,7 +144,7 @@ namespace S1API.Internal.Shops
 
         private static void BindListingUIEvents(S1UIShop.ShopInterface shop, S1UIShop.ListingUI listingUI)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             // Il2Cpp: Direct Action assignment
             listingUI.onClicked = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.OpenAmountSelector(listingUI)));
             listingUI.onDropdownClicked = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.DropdownClicked(listingUI)));
@@ -191,7 +191,7 @@ namespace S1API.Internal.Shops
 
                 if (listingUIField != null)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
 #else
                     var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
@@ -258,7 +258,7 @@ namespace S1API.Internal.Shops
 
                 if (listingUIField != null)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
 #else
                     var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
@@ -295,7 +295,7 @@ namespace S1API.Internal.Shops
 
                 if (listingUIField != null)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
                     if (listingUIList != null)
                     {
@@ -334,7 +334,7 @@ namespace S1API.Internal.Shops
             }
         }
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static MethodInfo? GetShopMethod(S1UIShop.ShopInterface shop, string methodName)
         {
             return typeof(S1UIShop.ShopInterface).GetMethod(

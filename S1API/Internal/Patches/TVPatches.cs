@@ -11,7 +11,7 @@ using S1API.Logging;
 
 #if IL2CPPMELON
 using Il2CppScheduleOne.TV;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using ScheduleOne.TV;
 #endif
 

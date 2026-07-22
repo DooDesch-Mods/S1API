@@ -3,7 +3,7 @@ using S1Law = Il2CppScheduleOne.Law;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1NPCBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1Police = Il2CppScheduleOne.Police;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Law = ScheduleOne.Law;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 using S1NPCBehaviour = ScheduleOne.NPCs.Behaviour;

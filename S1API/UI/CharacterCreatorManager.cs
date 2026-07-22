@@ -3,7 +3,7 @@ using S1Customization = Il2CppScheduleOne.AvatarFramework.Customization;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1UI = Il2CppScheduleOne.UI;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Customization = ScheduleOne.AvatarFramework.Customization;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
@@ -457,7 +457,7 @@ namespace S1API.UI
             if (camera == null)
                 return 0;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             if (ReflectionUtils.TryGetFieldOrProperty(camera, "ActiveUIElementCount") is int count)
                 return count;
 #else

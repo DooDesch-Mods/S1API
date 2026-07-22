@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Law = Il2CppScheduleOne.Law;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Law = ScheduleOne.Law;
 #endif
 

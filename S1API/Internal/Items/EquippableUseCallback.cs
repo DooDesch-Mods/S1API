@@ -8,7 +8,7 @@ using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
 using Il2CppInterop.Runtime;
 using Il2CppInterop.Runtime.Attributes;
 using Il2CppInterop.Runtime.Injection;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Equipping = ScheduleOne.Equipping;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
@@ -131,7 +131,7 @@ namespace S1API.Internal.Items
             if (camera == null)
                 return 0;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             if (ReflectionUtils.TryGetFieldOrProperty(camera, "ActiveUIElementCount") is int count)
                 return count;
 #else

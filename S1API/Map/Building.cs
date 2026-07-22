@@ -93,9 +93,9 @@ namespace S1API.Map
             try
             {
                 // Fallback: try to find by name in-scene
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<Il2CppScheduleOne.Map.NPCEnterableBuilding>(includeInactive: true);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<ScheduleOne.Map.NPCEnterableBuilding>(true);
 #else
                 var arr = Array.Empty<UnityEngine.Object>();

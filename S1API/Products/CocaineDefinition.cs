@@ -2,7 +2,7 @@
 using Il2CppScheduleOne.Product;
 using S1CocaineDefinition = Il2CppScheduleOne.Product.CocaineDefinition;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using ScheduleOne.Product;
 using S1CocaineDefinition = ScheduleOne.Product.CocaineDefinition;
 using S1Properties = ScheduleOne.Effects;

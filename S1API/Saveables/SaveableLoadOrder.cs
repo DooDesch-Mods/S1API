@@ -3,8 +3,8 @@ namespace S1API.Saveables
     /// <summary>
     /// Defines when a modded saveable should load relative to base game saveables.
     /// <para>
-    /// Override the <see cref="S1API.Internal.Abstraction.Saveable.LoadOrder"/> property in your
-    /// <see cref="S1API.Internal.Abstraction.Saveable"/> class to control load timing.
+    /// Override the <c>Saveable.LoadOrder</c> property in your
+    /// <c>Saveable</c> class to control load timing.
     /// </para>
     /// </summary>
     /// <example>
@@ -33,7 +33,7 @@ namespace S1API.Saveables
         /// </list>
         /// <para>
         /// <strong>Important:</strong> When using BeforeBaseGame, base game entities (NPCs, buildings, vehicles) 
-        /// are <strong>not yet loaded</strong> when <see cref="S1API.Internal.Abstraction.Saveable.OnLoaded"/> is called.
+        /// are <strong>not yet loaded</strong> when <c>Saveable.OnLoaded</c> is called.
         /// </para>
         /// </summary>
         BeforeBaseGame,
@@ -50,7 +50,7 @@ namespace S1API.Saveables
         /// </list>
         /// <para>
         /// This is the <strong>default behavior</strong>. If you don't override LoadOrder, your saveable will use AfterBaseGame.
-        /// Base game entities <strong>are loaded</strong> when <see cref="S1API.Internal.Abstraction.Saveable.OnLoaded"/> is called.
+        /// Base game entities <strong>are loaded</strong> when <c>Saveable.OnLoaded</c> is called.
         /// </para>
         /// </summary>
         AfterBaseGame

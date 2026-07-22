@@ -6,7 +6,7 @@ using UnityEngine;
 using S1GameInput = Il2CppScheduleOne.GameInput;
 using S1ButtonCode = Il2CppScheduleOne.GameInput.ButtonCode;
 using S1InputDeviceType = Il2CppScheduleOne.GameInput.InputDeviceType;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1GameInput = ScheduleOne.GameInput;
 using S1ButtonCode = ScheduleOne.GameInput.ButtonCode;
 using S1InputDeviceType = ScheduleOne.GameInput.InputDeviceType;

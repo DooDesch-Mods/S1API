@@ -2,7 +2,7 @@
 using S1DevUtils = Il2CppScheduleOne.DevUtilities;
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using Il2CppScheduleOne.AvatarFramework.Customization;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1DevUtils = ScheduleOne.DevUtilities;
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using ScheduleOne.AvatarFramework.Customization;
@@ -632,7 +632,7 @@ namespace S1API.Rendering
         {
             if (obj == null) return;
             obj.layer = layer;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             // Il2Cpp: use index-based access
             for (int i = 0; i < obj.transform.childCount; i++)
             {

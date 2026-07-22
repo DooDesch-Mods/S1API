@@ -3,7 +3,7 @@ using S1Building = Il2CppScheduleOne.Building;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
 using S1EntityFramework = Il2CppScheduleOne.EntityFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Building = ScheduleOne.Building;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1ObjectScripts = ScheduleOne.ObjectScripts;

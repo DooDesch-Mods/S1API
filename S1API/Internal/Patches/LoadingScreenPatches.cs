@@ -2,7 +2,7 @@
 using S1UI = Il2CppScheduleOne.UI;
 using S1Persistence = Il2CppScheduleOne.Persistence;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1UI = ScheduleOne.UI;
 using S1Persistence = ScheduleOne.Persistence;
 using S1DevUtilities = ScheduleOne.DevUtilities;

@@ -17,7 +17,7 @@ using Il2CppFishNet;
 using Il2CppFishNet.Object;
 using Il2CppScheduleOne.DevUtilities;
 using Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Relation = ScheduleOne.NPCs.Relation;
 using S1Loaders = ScheduleOne.Persistence.Loaders;
 using S1NPCs = ScheduleOne.NPCs;
@@ -997,7 +997,7 @@ namespace S1API.Internal.Patches
         [HarmonyPatch(typeof(S1NPCs.NPC), "WriteData")]
         [HarmonyPostfix]
         private static void NPCWriteData(S1NPCs.NPC __instance, string parentFolderPath, 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             ref Il2CppSystem.Collections.Generic.List<string> __result)
 #else
             ref System.Collections.Generic.List<string> __result)
@@ -1939,7 +1939,7 @@ namespace S1API.Internal.Patches
 
                 if (needsInit)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     // Create IL2CPP array
                     var overflowSlots = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>(10);
                     for (int i = 0; i < 10; i++)
@@ -1962,7 +1962,7 @@ namespace S1API.Internal.Patches
                 else if (slotCount > 0)
                 {
                     // Slots exist, ensure they have proper owners
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     // For IL2CPP, cast to Il2CppReferenceArray and use direct indexing
                     var il2cppArray = overflowSlotsObj as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>;
                     if (il2cppArray != null)
@@ -2387,7 +2387,7 @@ namespace S1API.Internal.Patches
                                 var slotsArray = new S1Items.ItemSlot[slotCount];
                                 bool hasNullSlots = false;
                                 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                                 // For IL2CPP, cast to Il2CppReferenceArray and use direct indexing
                                 var il2cppArray = overflowSlotsObj as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>;
                                 if (il2cppArray != null)
@@ -2479,7 +2479,7 @@ namespace S1API.Internal.Patches
             int min,
             int max,
             bool checkShouldStart,
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             ref Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction> __result)
 #else
             ref System.Collections.Generic.List<S1NPCsSchedules.NPCAction> __result)
@@ -2497,7 +2497,7 @@ namespace S1API.Internal.Patches
 
                 // Handle both System.List and Il2CppList types
                 int actionCount = 0;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var il2cppList = actionListObj as Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>;
                 if (il2cppList != null)
                     actionCount = il2cppList.Count;
@@ -2511,7 +2511,7 @@ namespace S1API.Internal.Patches
                     return true; // Unexpected type, fall back to original
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var list = new Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>();
 #else
                 var list = new List<S1NPCsSchedules.NPCAction>();
@@ -2521,7 +2521,7 @@ namespace S1API.Internal.Patches
                 for (int i = 0; i < actionCount; i++)
                 {
                     S1NPCsSchedules.NPCAction action = null;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     action = il2cppList[i];
 #else
                     action = monoList[i];
@@ -2550,7 +2550,7 @@ namespace S1API.Internal.Patches
                     var orderByDescending = Utils.ReflectionUtils.TryGetFieldOrProperty(__instance, "orderByDescending");
                     if (orderByDescending != null)
                     {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         var comparer = orderByDescending as Il2CppSystem.Collections.Generic.IComparer<S1NPCsSchedules.NPCAction>;
                         if (comparer != null)
                             list.Sort(comparer);
@@ -2597,7 +2597,7 @@ namespace S1API.Internal.Patches
                 var actionsArray = __instance.gameObject.GetComponentsInChildren<S1NPCsSchedules.NPCAction>(includeInactive: true);
                 
                 // Create appropriate list type for the platform
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var list = new Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>();
 #else
                 var list = new List<S1NPCsSchedules.NPCAction>();
@@ -2612,7 +2612,7 @@ namespace S1API.Internal.Patches
                 
                 // Sort with fixed comparison function
                 // Use manual bubble sort for IL2CPP compatibility (can't use delegates or IComparer easily)
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 // Manual sort for IL2CPP - convert to array, sort, rebuild list
                 var sortArray = new S1NPCsSchedules.NPCAction[list.Count];
                 for (int i = 0; i < list.Count; i++)

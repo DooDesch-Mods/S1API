@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 #endif
 
@@ -227,6 +227,7 @@ namespace S1API.Entities.Schedule
         /// <param name="timeBetweenSpins">Time to wait between spins in seconds (default: 10.0).</param>
         /// <param name="stopIfBroke">If true, stops gambling when out of cash; if false, only stops at end time (default: true).</param>
         /// <param name="maxSearchDistance">Maximum distance to search for a slot machine from the position (default: 5.0).</param>
+        /// <param name="building">Optional building containing the slot machine.</param>
         /// <param name="name">Optional custom name for this action; defaults to "UseSlotMachine".</param>
         /// <returns>This builder instance for method chaining.</returns>
         /// <remarks>

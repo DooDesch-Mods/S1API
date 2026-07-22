@@ -3,7 +3,7 @@ using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Economy = Il2CppScheduleOne.Economy;
 using S1Loaders = Il2CppScheduleOne.Persistence.Loaders;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Economy = ScheduleOne.Economy;
 using S1Loaders = ScheduleOne.Persistence.Loaders;

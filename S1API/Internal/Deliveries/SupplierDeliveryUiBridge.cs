@@ -5,7 +5,7 @@ using S1Shop = Il2CppScheduleOne.UI.Shop;
 using DeliveryElementList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.UI.Phone.Delivery.DeliveryApp.DeliveryShopElement>;
 using DeliveryShopList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.UI.Phone.Delivery.DeliveryShop>;
 using DeliveryListingEntryList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.UI.Phone.Delivery.ListingEntry>;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Delivery = ScheduleOne.UI.Phone.Delivery;
 using S1Shop = ScheduleOne.UI.Shop;
 using DeliveryElementList = System.Collections.Generic.List<ScheduleOne.UI.Phone.Delivery.DeliveryApp.DeliveryShopElement>;

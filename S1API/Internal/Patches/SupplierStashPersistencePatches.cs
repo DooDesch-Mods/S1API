@@ -2,7 +2,7 @@
 using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Loaders = Il2CppScheduleOne.Persistence.Loaders;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Loaders = ScheduleOne.Persistence.Loaders;
 using S1Storage = ScheduleOne.Storage;

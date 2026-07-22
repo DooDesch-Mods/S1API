@@ -1,4 +1,4 @@
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime;
 #endif
 
@@ -284,7 +284,7 @@ namespace S1API.Rendering
             }
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Harmony prefix for Resources.Load(string, Il2CppSystem.Type) on IL2CPP.
         /// </summary>

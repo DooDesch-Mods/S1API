@@ -3,12 +3,7 @@ using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
 using StringList = Il2CppSystem.Collections.Generic.List<string>;
 using EffectList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Effects.Effect>;
-#elif (IL2CPPBEPINEX)
-using S1Product = ScheduleOne.Product;
-using S1Properties = ScheduleOne.Effects;
-using StringList = Il2CppSystem.Collections.Generic.List<string>;
-using EffectList = Il2CppSystem.Collections.Generic.List<ScheduleOne.Effects.Effect>;
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1Properties = ScheduleOne.Effects;
 using StringList = System.Collections.Generic.List<string>;

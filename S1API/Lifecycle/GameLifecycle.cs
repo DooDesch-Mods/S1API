@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Persistence = Il2CppScheduleOne.Persistence;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Persistence = ScheduleOne.Persistence;
 #endif
 
@@ -149,14 +149,14 @@ namespace S1API.Lifecycle
             if (loadManager == null || saveManager == null)
                 return;
 
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
             loadManager.onPreLoad.AddListener((UnityAction)InvokeOnPreLoad);
             loadManager.onLoadComplete.AddListener((UnityAction)InvokeOnLoadComplete);
             loadManager.onPreSceneChange.AddListener((UnityAction)InvokeOnPreSceneChange);
             loadManager.onSaveInfoLoaded.AddListener((UnityAction)InvokeOnSaveInfoLoaded);
             saveManager.onSaveStart.AddListener((UnityAction)InvokeOnSaveStart);
             saveManager.onSaveComplete.AddListener((UnityAction)InvokeOnSaveComplete);
-#elif MONOMELON || MONOBEPINEX
+#elif MONOMELON
             loadManager.onPreLoad.AddListener(new UnityAction(InvokeOnPreLoad));
             loadManager.onLoadComplete.AddListener(new UnityAction(InvokeOnLoadComplete));
             loadManager.onPreSceneChange.AddListener(new UnityAction(InvokeOnPreSceneChange));

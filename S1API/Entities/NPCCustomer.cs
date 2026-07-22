@@ -13,7 +13,7 @@ using S1Dialogue = Il2CppScheduleOne.Dialogue;
 using S1UI = Il2CppScheduleOne.UI;
 using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;
 using S1Player = ScheduleOne.PlayerScripts.Player;
@@ -46,7 +46,7 @@ using Il2CppFishNet;
 using Il2CppFishNet.Managing;
 using Il2CppFishNet.Managing.Object;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using FishNet;
 using FishNet.Managing;
 using FishNet.Managing.Object;
@@ -463,7 +463,7 @@ namespace S1API.Entities
                 // Ensure static customer registries exist to mirror base Awake
                 try
                 {
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                     S1Economy.Customer.UnlockedCustomers ??= new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>();
                     S1Economy.Customer.LockedCustomers ??= new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>();
 #else
@@ -668,7 +668,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onUnlocked", true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception) { }
             }
@@ -680,7 +680,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onUnlocked", false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception) { }
             }
@@ -700,7 +700,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onDealCompleted", true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -716,7 +716,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onDealCompleted", false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception ex)
                 {

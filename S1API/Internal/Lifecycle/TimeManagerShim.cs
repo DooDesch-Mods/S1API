@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1GameTime = ScheduleOne.GameTime;
 #endif
 

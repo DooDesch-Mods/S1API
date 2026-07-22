@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1UIShop = Il2CppScheduleOne.UI.Shop;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1UIShop = ScheduleOne.UI.Shop;
 #endif
 

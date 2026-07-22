@@ -261,6 +261,15 @@ jobs:
           cd S1API
           docfx docfx.json
 
+      - name: Check public API documentation coverage
+        run: >-
+          dotnet run
+          --project tools/S1APIDocumentationCoverage/S1APIDocumentationCoverage.csproj
+          --configuration Release
+          --
+          --api-directory S1API/api
+          --minimum 80
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

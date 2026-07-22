@@ -9,7 +9,7 @@ using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1NPCFramework = Il2CppScheduleOne.NPCs.Framework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1Dialogue = ScheduleOne.Dialogue;

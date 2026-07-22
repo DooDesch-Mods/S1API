@@ -2,7 +2,7 @@
 using S1Relation = Il2CppScheduleOne.NPCs.Relation;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using Il2CppInterop.Runtime.Attributes;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Relation = ScheduleOne.NPCs.Relation;
 using S1NPCs = ScheduleOne.NPCs;
 #endif
@@ -228,6 +228,8 @@ namespace S1API.Entities.Relation
         /// <summary>
         /// INTERNAL: Applies the configured values to a relation data instance.
         /// </summary>
+        /// <param name="relationData">The native relationship data to update.</param>
+        /// <param name="owner">The NPC that owns the relationship data.</param>
         /// <param name="preserveUnlockState">If true, will not modify unlock state if the NPC is already unlocked (preserves save data).</param>
         public void ApplyTo(S1Relation.NPCRelationData relationData, S1NPCs.NPC owner, bool preserveUnlockState = false)
         {

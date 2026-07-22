@@ -6,7 +6,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1VehiclesAI = Il2CppScheduleOne.Vehicles.AI;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1Map = ScheduleOne.Map;
@@ -54,8 +54,8 @@ namespace S1API.Entities.Schedule
         /// <value>The building GUID, or <c>null</c> if using name-based lookup.</value>
         /// <remarks>
         /// The building GUID is typically generated at runtime and may not be stable across game sessions.
-        /// For modder-facing APIs prefer using name-based lookup via <see cref="Building.GetByName(string)"/>
-        /// or typed identifiers via <see cref="Building.Get{T}()"/>. Use the GUID only if you have a
+        /// For modder-facing APIs prefer using name-based lookup via <c>Building.GetByName(...)</c>
+        /// or typed identifiers via <c>Building.Get&lt;T&gt;()</c>. Use the GUID only if you have a
         /// reliable runtime reference to the exact game object.
         /// </remarks>
         public string BuildingGUID { get; set; }
@@ -67,8 +67,8 @@ namespace S1API.Entities.Schedule
         /// <remarks>
         /// The building name takes precedence over <see cref="BuildingGUID"/> and is the
         /// recommended identifier for mod developers. It should match a building registered
-        /// in the S1API building registry (see <see cref="Building.GetByName(string)"/> and
-        /// <see cref="Building.Get{T}()"/>). Names are stable across game sessions and
+        /// in the S1API building registry (see <c>Building.GetByName(...)</c> and
+        /// <c>Building.Get&lt;T&gt;()</c>). Names are stable across game sessions and
         /// preferred for persistence and prefab configuration.
         /// </remarks>
         public string BuildingName { get; set; }
@@ -124,9 +124,9 @@ namespace S1API.Entities.Schedule
             
             // Calculate and set EndTime from StartTime + Duration
             // This is required for the action to properly start and end
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var endTime = Il2CppScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(StartTime, action.Duration);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
             var endTime = ScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(StartTime, action.Duration);
 #endif
             ReflectionUtils.TrySetFieldOrProperty(action, "EndTime", endTime);
@@ -394,9 +394,9 @@ namespace S1API.Entities.Schedule
         {
             try
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<Il2CppScheduleOne.Map.NPCEnterableBuilding>(includeInactive: true);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<ScheduleOne.Map.NPCEnterableBuilding>(true);
 #else
                 var arr = Array.Empty<UnityEngine.Object>();

@@ -3,7 +3,7 @@ using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Interaction = Il2CppScheduleOne.Interaction;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Interaction = ScheduleOne.Interaction;
@@ -90,7 +90,7 @@ namespace S1API.Entities
             
             if (inv.ItemSlots == null)
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 inv.ItemSlots = new Il2CppSystem.Collections.Generic.List<S1Items.ItemSlot>();
 #else
                 inv.ItemSlots = new System.Collections.Generic.List<S1Items.ItemSlot>();
@@ -149,7 +149,7 @@ namespace S1API.Entities
                 {
                     var slot = new S1Items.ItemSlot();
                     
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var handler = new System.Action(() =>
                     {
                         try { TryInvokeContentsChanged(inv); }

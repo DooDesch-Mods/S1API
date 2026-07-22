@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using Il2CppCollectionsGeneric = Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
 

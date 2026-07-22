@@ -4,7 +4,7 @@ using Il2Cpp;
 using Il2CppFishNet;
 using Il2CppFishNet.Connection;
 using Guid = Il2CppSystem.Guid;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Vehicles = ScheduleOne.Vehicles;
 using FishNet;
 using FishNet.Connection;
@@ -151,7 +151,7 @@ namespace S1API.Vehicles
         }
 
         /// <summary>
-        /// Aligns car to parking spot <see cref="Map.ParkingSpotWrapper">
+        /// Aligns car to parking spot <see cref="Map.ParkingSpotWrapper"/>.
         /// </summary>
         /// <param name="target"></param>
         /// <param name="type"></param>
@@ -330,7 +330,7 @@ namespace S1API.Vehicles
                 var guidProp = typeof(S1Vehicles.LandVehicle).GetProperty("GUID", BindingFlags.Public | BindingFlags.Instance);
                 if (guidProp == null)
                     return;
-#if (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if MONOMELON
                 var g = (System.Guid)(guidProp.GetValue(S1LandVehicle) ?? System.Guid.Empty);
                 _guid = g.ToString();
 #else

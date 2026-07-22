@@ -241,7 +241,7 @@ public class MyMod : MelonMod
 
 ## Reference Links
 
-- [`AccessoryFactory`](../Rendering/AccessoryFactory.cs) – helper for duplicating prefabs and swapping materials.
-- [`RuntimeResourceRegistry`](../Rendering/RuntimeResourceRegistry.cs) – tracks registered accessory/resource paths.
-- [`ClothingItemCreator`](../Items/ClothingItemCreator.cs) – builder API for clothing definitions.
+- <xref:S1API.Rendering.AccessoryFactory> – helper for duplicating prefabs and swapping materials.
+- <xref:S1API.Rendering.RuntimeResourceRegistry> – tracks registered accessory/resource paths.
+- <xref:S1API.Items.Clothing.ClothingItemCreator> – builder API for clothing definitions.
 

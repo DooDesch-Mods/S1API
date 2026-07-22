@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Other = Il2CppScheduleOne.NPCs.Other;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Other = ScheduleOne.NPCs.Other;
 #endif
 
@@ -12,7 +12,7 @@ namespace S1API.Entities.Actions
     /// Wraps the spray painting action for an NPC. Use to equip the spray can, toggle spray effects, and control the animation.
     /// </summary>
     /// <remarks>
-    /// Requires the spray paint component to be configured on the prefab via <see cref="NPCPrefabBuilder.EnsureGraffiti"/>.
+    /// Requires the spray paint component to be configured on the prefab via <c>NPCPrefabBuilder.EnsureGraffiti(...)</c>.
     /// If not present, <see cref="Begin"/>, <see cref="End"/>, and <see cref="SetEffect"/> are no-ops.
     /// </remarks>
     public sealed class NPCSprayPainting
@@ -49,7 +49,7 @@ namespace S1API.Entities.Actions
         /// Begins the spray painting action: equips the spray can and plays the UseSprayCan animation.
         /// </summary>
         /// <remarks>
-        /// No-op if the spray paint component is not on the prefab. Call <see cref="NPCPrefabBuilder.EnsureGraffiti"/> during ConfigurePrefab to add it.
+        /// No-op if the spray paint component is not on the prefab. Call <c>NPCPrefabBuilder.EnsureGraffiti(...)</c> during ConfigurePrefab to add it.
         /// </remarks>
         public void Begin()
         {

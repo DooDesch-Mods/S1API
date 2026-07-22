@@ -8,7 +8,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1CoreEquipping = Il2CppScheduleOne.Core.Equipping.Framework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
@@ -1134,7 +1134,7 @@ namespace S1API.Entities
 
             if (dealSignal > 0)
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 EnsureIl2CppCustomerAttendDealBehaviour();
 #else
                 try
@@ -1186,7 +1186,7 @@ namespace S1API.Entities
 
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private void EnsureIl2CppCustomerAttendDealBehaviour()
         {
             var behaviourManager = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);

@@ -9,7 +9,7 @@ namespace S1API.Internal.Utils
     /// <summary>
     /// INTERNAL: A utility class to assist with loading images into the game.
     /// Useful for icons such as on phone apps, custom NPCs, quests, etc.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.ImageUtils"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.ImageUtils</c> instead.
     /// </summary>
     internal static class ImageUtils
     {

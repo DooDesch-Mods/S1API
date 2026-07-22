@@ -2,7 +2,7 @@
 using Il2Cpp;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1Guid = Il2CppSystem.Guid;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Vehicles = ScheduleOne.Vehicles;
 using S1Guid = System.Guid;
 #endif
@@ -59,7 +59,7 @@ namespace S1API.Vehicles
                 return null;
             try
             {
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
                 var g = new System.Guid(guid);
 #else
                 var g = new Il2CppSystem.Guid(guid);

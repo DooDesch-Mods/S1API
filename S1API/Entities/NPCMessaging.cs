@@ -2,7 +2,7 @@
 using Il2CppInterop.Runtime;
 using NativeAction = Il2CppSystem.Action;
 using S1Messaging = Il2CppScheduleOne.Messaging;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using NativeAction = System.Action;
 using S1Messaging = ScheduleOne.Messaging;
 #endif

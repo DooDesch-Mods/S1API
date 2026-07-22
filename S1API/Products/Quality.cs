@@ -1,6 +1,6 @@
 #if  IL2CPPMELON
 using InternalQuality = Il2CppScheduleOne.ItemFramework.EQuality;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using InternalQuality = ScheduleOne.ItemFramework.EQuality;
 #endif
 namespace S1API.Products

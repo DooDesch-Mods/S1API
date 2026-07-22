@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Clothing = Il2CppScheduleOne.Clothing;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Clothing = ScheduleOne.Clothing;
 #endif
 using System;

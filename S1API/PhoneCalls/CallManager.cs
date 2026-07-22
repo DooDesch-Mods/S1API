@@ -3,7 +3,7 @@ using S1Calling = Il2CppScheduleOne.Calling;
 using S1UIPhone = Il2CppScheduleOne.UI.Phone;
 using S1ScriptableObjects = Il2CppScheduleOne.ScriptableObjects;
 using ActionPhoneCall = Il2CppSystem.Action<Il2CppScheduleOne.ScriptableObjects.PhoneCallData>;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Calling = ScheduleOne.Calling;
 using S1UIPhone = ScheduleOne.UI.Phone;
 using S1ScriptableObjects = ScheduleOne.ScriptableObjects;

@@ -1,4 +1,4 @@
-﻿#if (IL2CPPMELON || IL2CPPBEPINEX)
+﻿#if IL2CPPMELON
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 #endif
 
@@ -8,7 +8,7 @@ namespace S1API.Internal.Utils
 {
     /// <summary>
     /// INTERNAL: Extensions for Arrays.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.ArrayExtensions"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.ArrayExtensions</c> instead.
     /// </summary>
     internal static class ArrayExtensions
     {
@@ -28,7 +28,7 @@ namespace S1API.Internal.Utils
             return array;
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Add's an item to an existing <see cref="Il2CppReferenceArray{T}"/> instance.
         /// </summary>

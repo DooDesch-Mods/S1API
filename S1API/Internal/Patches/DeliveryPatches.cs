@@ -4,7 +4,7 @@ using S1Delivery = Il2CppScheduleOne.Delivery;
 using S1DeliveryUi = Il2CppScheduleOne.UI.Phone.Delivery;
 using S1Shop = Il2CppScheduleOne.UI.Shop;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Delivery = ScheduleOne.Delivery;
 using S1DeliveryUi = ScheduleOne.UI.Phone.Delivery;

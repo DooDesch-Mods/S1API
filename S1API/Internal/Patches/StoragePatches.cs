@@ -7,7 +7,7 @@ using S1Persistence = Il2CppScheduleOne.Persistence.Datas;
 using S1UI = Il2CppScheduleOne.UI;
 using Il2CppInterop.Runtime;
 using Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Storage = ScheduleOne.Storage;
 using S1EntityFramework = ScheduleOne.EntityFramework;
 using S1ItemFramework = ScheduleOne.ItemFramework;
@@ -25,7 +25,7 @@ using System.Reflection;
 using UnityEngine;
 #if (IL2CPPMELON)
 using S1PersistenceLoaders = Il2CppScheduleOne.Persistence.Loaders;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1PersistenceLoaders = ScheduleOne.Persistence.Loaders;
 #endif
 
@@ -251,7 +251,7 @@ namespace S1API.Internal.Patches
 
                 S1Storage.StorageEntity storageEntity = null;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 storageEntity = owner.TryCast<S1Storage.StorageEntity>();
 #else
                 storageEntity = owner as S1Storage.StorageEntity;

@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Relation = Il2CppScheduleOne.NPCs.Relation;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Relation = ScheduleOne.NPCs.Relation;
 using S1NPCs = ScheduleOne.NPCs;
 #endif
@@ -183,7 +183,7 @@ namespace S1API.Entities
                         return;
 
                     object existing = field.GetValue(Component);
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     System.Action<float> wrapped = new System.Action<float>(d => { try { value(d); } catch { } });
                     var combined = (Il2CppSystem.Delegate)Il2CppSystem.Delegate.Combine(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped);
                     field.SetValue(Component, combined);
@@ -212,7 +212,7 @@ namespace S1API.Entities
                     if (field == null)
                         return;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var existing = field.GetValue(Component);
                     var remaining = existing != null
                         ? Il2CppSystem.Delegate.Remove(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped)
@@ -251,7 +251,7 @@ namespace S1API.Entities
                         return;
 
                     object existing = field.GetValue(Component);
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     System.Action<S1Relation.NPCRelationData.EUnlockType, bool> wrapped = new System.Action<S1Relation.NPCRelationData.EUnlockType, bool>((t, notify) =>
                     {
                         try { value(FromS1(t), notify); } catch { }
@@ -286,7 +286,7 @@ namespace S1API.Entities
                     if (field == null)
                         return;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var existing = field.GetValue(Component);
                     var remaining = existing != null
                         ? Il2CppSystem.Delegate.Remove(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped)

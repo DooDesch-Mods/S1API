@@ -6,7 +6,7 @@ using S1API.Console;
 using S1API.Internal.Utils;
 using UnityEngine;
 using Object = UnityEngine.Object;
-#if (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if MONOMELON
 using S1Console = ScheduleOne.Console;
 using S1CommandListScreen = ScheduleOne.CommandListScreen;
 using TMPro;
@@ -16,7 +16,7 @@ using S1CommandListScreen = Il2CppScheduleOne.CommandListScreen;
 using Il2CppTMPro;
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime.Injection;
 #endif
 
@@ -61,7 +61,7 @@ namespace S1API.Internal.Patches
             }
         }
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static FieldInfo? _monoCommandsField;
 
         /// <summary>
@@ -102,7 +102,7 @@ namespace S1API.Internal.Patches
         }
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Routes unknown commands to our managed registry on Il2Cpp.
         /// </summary>
@@ -140,7 +140,7 @@ namespace S1API.Internal.Patches
         }
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static FieldInfo? _commandEntriesField;
 #endif
 
@@ -163,12 +163,12 @@ namespace S1API.Internal.Patches
                     return;
 
                 _addedCommandsToList.Clear();
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
                 _commandEntriesField ??= 
                     typeof(S1CommandListScreen)
                         .GetField("commandEntries", BindingFlags.NonPublic | BindingFlags.Instance);
                 var commandEntries = _commandEntriesField?.GetValue(__instance) as List<RectTransform>;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
                 var commandEntries = __instance?.commandEntries;
 #endif
 
@@ -210,11 +210,11 @@ namespace S1API.Internal.Patches
             if (string.IsNullOrWhiteSpace(commandKey))
                 return false;
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             _monoCommandsField ??= typeof(S1Console).GetField("commands", BindingFlags.NonPublic | BindingFlags.Static);
             var dict = _monoCommandsField?.GetValue(null) as IDictionary<string, S1Console.ConsoleCommand>;
             return dict != null && dict.ContainsKey(commandKey);
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
             var dict = S1Console.commands;
             return dict != null && dict.ContainsKey(commandKey);
 #else

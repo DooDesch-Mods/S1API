@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1UIMainMenu = Il2CppScheduleOne.UI.MainMenu;
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1UIMainMenu = ScheduleOne.UI.MainMenu;
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
@@ -54,9 +54,9 @@ namespace S1API.UI
         /// <returns>An array of MainMenuRig wrappers found in the scene.</returns>
         public static MainMenuRig[] FindInScene(bool includeInactive = false)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var rigs = Object.FindObjectsOfType<S1UIMainMenu.MainMenuRig>(includeInactive);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
             var rigs = Object.FindObjectsOfType<S1UIMainMenu.MainMenuRig>(includeInactive);
 #else
             var rigs = System.Array.Empty<S1UIMainMenu.MainMenuRig>();

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 #endif
 

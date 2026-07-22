@@ -2,7 +2,7 @@
 using S1Map = Il2CppScheduleOne.Map;
 using S1Economy = Il2CppScheduleOne.Economy;
 using S1AvatarAnimation = Il2CppScheduleOne.AvatarFramework.Animation;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Map = ScheduleOne.Map;
 using S1Economy = ScheduleOne.Economy;
 using S1AvatarAnimation = ScheduleOne.AvatarFramework.Animation;

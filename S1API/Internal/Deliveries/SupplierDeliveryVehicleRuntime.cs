@@ -7,7 +7,7 @@ using S1Economy = Il2CppScheduleOne.Economy;
 using S1GuidRegisterable = Il2CppScheduleOne.IGUIDRegisterable;
 using S1Shop = Il2CppScheduleOne.UI.Shop;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using FishNetInstanceFinder = FishNet.InstanceFinder;
 using FishNetNetworkObject = FishNet.Object.NetworkObject;
 using S1Delivery = ScheduleOne.Delivery;

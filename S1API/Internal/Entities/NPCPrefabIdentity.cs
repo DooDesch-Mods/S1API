@@ -3,7 +3,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Economy = Il2CppScheduleOne.Economy;
 using Il2CppInterop.Runtime.Attributes;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;

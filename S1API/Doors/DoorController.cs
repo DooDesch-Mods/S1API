@@ -3,7 +3,7 @@ using S1API.Internal.Abstraction;
 using UnityEngine;
 using UnityEngine.Events;
 
-#if (IL2CPPMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using S1Doors = Il2CppScheduleOne.Doors;
 #else
 using S1Doors = ScheduleOne.Doors;
@@ -108,8 +108,8 @@ namespace S1API.Doors
 
         private void SubscribeToEvents()
         {
-            EventHelper.AddListener(HandleDoorOpened, _controller.onDoorOpened);
-            EventHelper.AddListener(HandleDoorClosed, _controller.onDoorClosed);
+            global::S1API.Utils.EventHelper.AddListener(HandleDoorOpened, _controller.onDoorOpened);
+            global::S1API.Utils.EventHelper.AddListener(HandleDoorClosed, _controller.onDoorClosed);
         }
 
         private void HandleDoorOpened(S1Doors.EDoorSide side)

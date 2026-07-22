@@ -2,9 +2,6 @@
 
 S1API can be installed as a runtime dependency for players or referenced as a NuGet package by mod developers. The standard package includes S1API and S1APILoader so the correct runtime build is selected when Schedule One starts.
 
-> [!NOTE]
-> The current S1API fork is maintained for MelonLoader. BepInEx targets may still appear in the source tree as legacy work from before the fork, but they are not part of the supported install path.
-
 ## For mod users
 
 1. Install MelonLoader for Schedule One.

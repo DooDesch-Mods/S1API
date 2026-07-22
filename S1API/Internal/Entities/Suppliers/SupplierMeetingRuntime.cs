@@ -2,7 +2,7 @@
 using S1Economy = Il2CppScheduleOne.Economy;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Schedules = Il2CppScheduleOne.NPCs.Schedules;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Economy = ScheduleOne.Economy;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Schedules = ScheduleOne.NPCs.Schedules;

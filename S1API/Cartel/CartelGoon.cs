@@ -2,7 +2,7 @@
 using S1Cartel = Il2CppScheduleOne.Cartel;
 using S1Player = Il2CppScheduleOne.PlayerScripts;
 using S1Combat = Il2CppScheduleOne.Combat;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 using S1Player = ScheduleOne.PlayerScripts;
 using S1Combat = ScheduleOne.Combat;

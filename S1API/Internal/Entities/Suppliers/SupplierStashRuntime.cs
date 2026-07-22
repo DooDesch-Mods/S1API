@@ -6,7 +6,7 @@ using S1GuidRegisterable = Il2CppScheduleOne.IGUIDRegisterable;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Relation = Il2CppScheduleOne.NPCs.Relation;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1Economy = ScheduleOne.Economy;
 using S1GuidRegisterable = ScheduleOne.IGUIDRegisterable;

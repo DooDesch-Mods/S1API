@@ -6,7 +6,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1VehiclesAI = Il2CppScheduleOne.Vehicles.AI;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1Map = ScheduleOne.Map;
@@ -251,7 +251,7 @@ namespace S1API.Entities.Schedule
                         {
                             try
                             {
-                                #if (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+                                #if MONOMELON
                                 var nm = FishNet.InstanceFinder.NetworkManager;
                                 #else
                                 var nm = Il2CppFishNet.InstanceFinder.NetworkManager;

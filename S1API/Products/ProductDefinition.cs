@@ -3,7 +3,7 @@ using Il2CppInterop.Runtime.InteropTypes;
 using S1Product = Il2CppScheduleOne.Product;
 using ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using ItemFramework = ScheduleOne.ItemFramework;
 using S1Properties = ScheduleOne.Effects;
@@ -135,7 +135,7 @@ namespace S1API.Products
             {
 #if (IL2CPPMELON)
                 var s1Packaging = CrossType.As<Il2CppScheduleOne.Product.Packaging.PackagingDefinition>(packaging.S1ItemDefinition);
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
                 var s1Packaging = CrossType.As<ScheduleOne.Product.Packaging.PackagingDefinition>(packaging.S1ItemDefinition);
 #endif
 

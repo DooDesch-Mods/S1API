@@ -3,7 +3,7 @@ using Il2Cpp;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1AvatarAnimation = Il2CppScheduleOne.AvatarFramework.Animation;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1AvatarAnimation = ScheduleOne.AvatarFramework.Animation;
@@ -225,9 +225,9 @@ namespace S1API.Entities.Schedule
         {
             try
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 return UnityEngine.Object.FindObjectsOfType<S1AvatarAnimation.AvatarSeatSet>(includeInactive: IncludeInactiveSearch);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 return UnityEngine.Object.FindObjectsOfType<S1AvatarAnimation.AvatarSeatSet>(IncludeInactiveSearch);
 #else
                 return Array.Empty<S1AvatarAnimation.AvatarSeatSet>();

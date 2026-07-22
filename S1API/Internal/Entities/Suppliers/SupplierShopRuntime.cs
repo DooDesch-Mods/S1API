@@ -6,7 +6,7 @@ using S1Shop = Il2CppScheduleOne.UI.Shop;
 using S1Storage = Il2CppScheduleOne.Storage;
 using ShopListingList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.UI.Shop.ShopListing>;
 using ShopListingUiList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.UI.Shop.ListingUI>;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Economy = ScheduleOne.Economy;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Shop = ScheduleOne.UI.Shop;

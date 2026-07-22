@@ -10,7 +10,7 @@ using S1MapUI = ScheduleOne.UI.Phone.Map;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using System.Reflection;
 using HarmonyLib;
 #endif
@@ -228,7 +228,7 @@ namespace S1API.Internal.Map
 
             _nativePOI = _root.AddComponent<S1Map.POI>();
             _nativePOI.onUICreated = new UnityEvent();
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
             _nativePOI.onUICreated.AddListener((UnityAction)ApplyUIState);
 #else
             _nativePOI.onUICreated.AddListener(new UnityAction(ApplyUIState));
@@ -330,7 +330,7 @@ namespace S1API.Internal.Map
                     return false;
                 }
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
                 FieldInfo? field = AccessTools.Field(typeof(S1Map.POI), "UIPrefab");
                 uiPrefab = field?.GetValue(player.PoI) as GameObject;
 #else
@@ -346,7 +346,7 @@ namespace S1API.Internal.Map
 
         private static void SetNativeUIPrefab(S1Map.POI poi, GameObject uiPrefab)
         {
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             FieldInfo? field = AccessTools.Field(typeof(S1Map.POI), "UIPrefab");
             if (field == null)
             {

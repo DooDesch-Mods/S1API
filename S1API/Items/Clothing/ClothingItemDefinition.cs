@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1Clothing = Il2CppScheduleOne.Clothing;
 using Il2CppCollections = Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Clothing = ScheduleOne.Clothing;
 #endif
 using System;

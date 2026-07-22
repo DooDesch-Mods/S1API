@@ -3,7 +3,7 @@ using S1Casino = Il2CppScheduleOne.Casino;
 using S1Money = Il2CppScheduleOne.Money;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1Items = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Casino = ScheduleOne.Casino;
 using S1Money = ScheduleOne.Money;
 using S1DevUtilities = ScheduleOne.DevUtilities;

@@ -5,7 +5,7 @@ using S1Levelling = Il2CppScheduleOne.Levelling;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Levelling = ScheduleOne.Levelling;

@@ -1,7 +1,7 @@
 #if IL2CPPMELON
 using S1Delivery = Il2CppScheduleOne.Delivery;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using S1Delivery = ScheduleOne.Delivery;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 #endif

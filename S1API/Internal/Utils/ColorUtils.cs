@@ -6,7 +6,7 @@ namespace S1API.Internal.Utils
 {
     /// <summary>
     /// INTERNAL: Utilities for the <see cref="Color"/> class.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.ColorUtils"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.ColorUtils</c> instead.
     /// </summary>
     internal static class ColorUtils
     {
