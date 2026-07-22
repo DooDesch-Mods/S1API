@@ -92,6 +92,43 @@ public sealed class MyFirstNPC : NPC
 }
 ```
 
+## Messaging and read objectives
+
+Use `Messaging` when quest or tutorial logic needs to know whether the player opened an NPC conversation. The read state is conversation-level: Schedule One does not expose per-message read receipts for NPC conversations.
+
+```csharp
+protected override void OnCreated()
+{
+    base.OnCreated();
+
+    Messaging.OnConversationOpened += HandleConversationOpened;
+    Messaging.SendTextMessage("Open this conversation to continue.");
+}
+
+protected override void OnDestroyed()
+{
+    Messaging.OnConversationOpened -= HandleConversationOpened;
+    base.OnDestroyed();
+}
+
+private void HandleConversationOpened()
+{
+    if (!Messaging.HasUnreadMessages)
+    {
+        // Complete the related quest entry here.
+    }
+}
+```
+
+Available state:
+
+- `Messaging.IsRead`: whether the native conversation is marked as read. A conversation that does not exist yet is treated as read.
+- `Messaging.HasUnreadMessages`: the inverse conversation-level unread state.
+- `Messaging.IsOpen`: whether this conversation is currently open in the phone's Messages app.
+- `Messaging.OnConversationOpened`: raised whenever the conversation is opened, including later reopenings.
+
+`NPC.SendTextMessage(...)` remains available for compatibility. `Messaging.SendTextMessage(...)` forwards to the same implementation so state checks, events, and sending can live under one API surface.
+
 ## What To Read First
 
 - Start here: **[Basic NPC Creation](basic-npc-creation.md)**

@@ -2411,6 +2411,7 @@ namespace S1API.Entities
             try
             {
                 convo.SetCategories(categories);
+                _messaging?.EnsureConversationHook();
             }
             catch (Exception ex)
             {
@@ -2880,6 +2881,11 @@ namespace S1API.Entities
         /// Access to the relationship system for social connections and relationships with the player.
         /// </summary>
         public NPCRelationship Relationship => _relationship ?? (_relationship = new NPCRelationship(this));
+
+        /// <summary>
+        /// Gets access to the NPC's phone messaging state, events, and message helpers.
+        /// </summary>
+        public NPCMessaging Messaging => _messaging ?? (_messaging = new NPCMessaging(this));
 
         /// <summary>
         /// Sends a text message from this NPC to the players.
@@ -3839,6 +3845,7 @@ namespace S1API.Entities
         private NPCDealer _dealer;
         private NPCSupplier _supplier;
         private NPCRelationship _relationship;
+        private NPCMessaging _messaging;
         private NPCSmoking _smoking;
         private NPCSprayPainting _sprayPainting;
         private NPCDrinking _drinking;
@@ -4275,6 +4282,7 @@ namespace S1API.Entities
         internal void CleanupRuntimeHooks()
         {
             ClearDealerRecommendationHooks();
+            _messaging?.Cleanup();
         }
 
         private sealed class DealerRecommendationSubscription
