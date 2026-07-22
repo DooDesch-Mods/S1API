@@ -22,9 +22,9 @@ namespace S1API.Map
         // Registry (name-based)
         internal static readonly System.Collections.Generic.List<DeliveryLocation> All = new System.Collections.Generic.List<DeliveryLocation>();
 
-        internal S1Economy.DeliveryLocation S1Location;
+        internal S1Economy.DeliveryLocation? S1Location;
         private bool _isDeferred;
-        private Type _deferredIdentifierType;
+        private Type? _deferredIdentifierType;
 
         internal DeliveryLocation(S1Economy.DeliveryLocation s1)
         {
@@ -111,13 +111,13 @@ namespace S1API.Map
         /// <summary>
         /// Customer standing position.
         /// </summary>
-        public Transform CustomerStandPoint =>
+        public Transform? CustomerStandPoint =>
             S1Location != null ? S1Location.CustomerStandPoint : null;
 
         /// <summary>
         /// Teleport target point near the location.
         /// </summary>
-        public Transform TeleportPoint =>
+        public Transform? TeleportPoint =>
             S1Location != null ? S1Location.TeleportPoint : null;
 
         /// <summary>
@@ -131,7 +131,7 @@ namespace S1API.Map
         /// <summary>
         /// Returns a delivery location by case-insensitive name match.
         /// </summary>
-        public static DeliveryLocation GetByName(string name)
+        public static DeliveryLocation? GetByName(string name)
         {
             if (string.IsNullOrEmpty(name))
                 return null;
@@ -161,7 +161,7 @@ namespace S1API.Map
         /// <summary>
         /// Returns a delivery location by GUID string.
         /// </summary>
-        public static DeliveryLocation GetByGuid(string guid)
+        public static DeliveryLocation? GetByGuid(string guid)
         {
             if (string.IsNullOrEmpty(guid))
                 return null;
@@ -224,10 +224,10 @@ namespace S1API.Map
         /// Resolves a delivery location using a typed identifier T.
         /// Declare an identifier class annotated with [DeliveryLocations.DeliveryLocationName("...")].
         /// </summary>
-        public static DeliveryLocation Get<T>() where T : DeliveryLocations.IDeliveryLocationIdentifier
+        public static DeliveryLocation? Get<T>() where T : DeliveryLocations.IDeliveryLocationIdentifier
         {
             var t = typeof(T);
-            string name = TryGetNameFromIdentifier(t);
+            string? name = TryGetNameFromIdentifier(t);
             if (!string.IsNullOrEmpty(name))
             {
                 var found = GetByName(name);
@@ -259,7 +259,7 @@ namespace S1API.Map
             return null;
         }
 
-        private static string TryGetNameFromIdentifier(Type t)
+        private static string? TryGetNameFromIdentifier(Type t)
         {
             try
             {

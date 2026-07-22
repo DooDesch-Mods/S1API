@@ -26,9 +26,9 @@ namespace S1API.Map
     {
         internal string _guid;
         internal string _gameObjectName;
-        internal ParkingLot _lot;
+        internal ParkingLot? _lot;
         internal bool _isDeferred;
-        private Type _deferredIdentifierType;
+        private Type? _deferredIdentifierType;
 
         internal ParkingLotWrapper(ParkingLot lot)
         {
@@ -75,9 +75,9 @@ namespace S1API.Map
         /// </summary>
         /// <param name="index"></param>
         /// <returns></returns>
-        public ParkingSpotWrapper GetSpot(int index) => new ParkingSpotWrapper(_lot.ParkingSpots[index]);
+        public ParkingSpotWrapper GetSpot(int index) => new ParkingSpotWrapper(ResolveGameLot()!.ParkingSpots[index]);
 
-        internal ParkingLot ResolveGameLot()
+        internal ParkingLot? ResolveGameLot()
         {
             if (_isDeferred && _lot == null)
             {
@@ -106,7 +106,7 @@ namespace S1API.Map
             return _lot;
         }
 
-        private static ParkingLotWrapper TryResolveDeferred(Type identifierType)
+        private static ParkingLotWrapper? TryResolveDeferred(Type identifierType)
         {
             try
             {
@@ -123,7 +123,7 @@ namespace S1API.Map
             }
         }
 
-        private static string TryGetNameFromIdentifier(Type t)
+        private static string? TryGetNameFromIdentifier(Type t)
         {
             try
             {
@@ -210,7 +210,7 @@ namespace S1API.Map
         /// <summary>
         /// Finds a lot by GUID string. Returns null if not found.
         /// </summary>
-        public static ParkingLotWrapper GetByGUID(string guid)
+        public static ParkingLotWrapper? GetByGUID(string guid)
         {
             if (string.IsNullOrEmpty(guid))
                 return null;
@@ -222,7 +222,7 @@ namespace S1API.Map
         /// </summary>
         /// <param name="gameObjectName">The name of the GameObject containing the ParkingLot component.</param>
         /// <returns>A parking lot wrapper, or null if not found.</returns>
-        public static ParkingLotWrapper GetByName(string gameObjectName)
+        public static ParkingLotWrapper? GetByName(string gameObjectName)
         {
             if (string.IsNullOrEmpty(gameObjectName))
                 return null;
@@ -262,7 +262,11 @@ namespace S1API.Map
                 return Array.Empty<ParkingSpotWrapper>();
             try
             {
-                var spots = lot.ResolveGameLot().GetFreeParkingSpots();
+                var gameLot = lot.ResolveGameLot();
+                if (gameLot == null)
+                    return Array.Empty<ParkingSpotWrapper>();
+
+                var spots = gameLot.GetFreeParkingSpots();
                 var results = new List<ParkingSpotWrapper>();
                 foreach (var spot in spots)
                 {
@@ -286,7 +290,11 @@ namespace S1API.Map
                 return Array.Empty<ParkingSpotWrapper>();
             try
             {
-                var spots = lot.ResolveGameLot().GetFreeParkingSpots();
+                var gameLot = lot.ResolveGameLot();
+                if (gameLot == null)
+                    return Array.Empty<ParkingSpotWrapper>();
+
+                var spots = gameLot.GetFreeParkingSpots();
                 var results = new List<ParkingSpotWrapper>();
                 foreach (var spot in spots)
                 {
@@ -347,10 +355,10 @@ namespace S1API.Map
         /// </summary>
         /// <typeparam name="T">A type implementing IParkingLotIdentifier with ParkingLotNameAttribute</typeparam>
         /// <returns>The parking lot wrapper, or null if not found.</returns>
-        public static ParkingLotWrapper Get<T>() where T : IParkingLotIdentifier
+        public static ParkingLotWrapper? Get<T>() where T : IParkingLotIdentifier
         {
             var t = typeof(T);
-            string name = TryGetNameFromIdentifier(t);
+            string? name = TryGetNameFromIdentifier(t);
             if (!string.IsNullOrEmpty(name))
             {
                 var found = GetByName(name);
@@ -395,7 +403,7 @@ namespace S1API.Map
         /// <summary>
         /// Helper method to extract the parking lot name from a type's ParkingLotNameAttribute.
         /// </summary>
-        private static string TryGetNameFromIdentifier(System.Type t)
+        private static string? TryGetNameFromIdentifier(System.Type t)
         {
             try
             {

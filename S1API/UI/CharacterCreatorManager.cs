@@ -29,7 +29,7 @@ namespace S1API.UI
     public static class CharacterCreatorManager
     {
         private static readonly Logging.Log Logger = new Logging.Log("CharacterCreatorManager");
-        private static S1Customization.CharacterCreator _s1Creator;
+        private static S1Customization.CharacterCreator? _s1Creator;
         private static bool _isInitialized;
         private static bool _eventsRegistered;
 
@@ -38,12 +38,12 @@ namespace S1API.UI
         /// <summary>
         /// Fired when the character creator is opened.
         /// </summary>
-        public static event Action OnOpened;
+        public static event Action? OnOpened;
 
         /// <summary>
         /// Fired when the character creator is closed without completion.
         /// </summary>
-        public static event Action OnClosed;
+        public static event Action? OnClosed;
 
         /// <summary>
         /// Fired when character customization is completed successfully.
@@ -51,7 +51,7 @@ namespace S1API.UI
         /// <remarks>
         /// The BasicAvatarSettings parameter contains the finalized character configuration.
         /// </remarks>
-        public static event Action<BasicAvatarSettings> OnCompleted;
+        public static event Action<BasicAvatarSettings>? OnCompleted;
 
         #endregion
 
@@ -73,7 +73,7 @@ namespace S1API.UI
         /// The current avatar settings being edited in the character creator.
         /// Returns null if the creator is not open.
         /// </summary>
-        public static BasicAvatarSettings ActiveSettings
+        public static BasicAvatarSettings? ActiveSettings
         {
             get
             {
@@ -94,7 +94,7 @@ namespace S1API.UI
         /// </summary>
         /// <param name="initialSettings">Optional initial avatar settings. If null, player's current avatar settings are loaded, or default settings if player has none.</param>
         /// <param name="showUI">Whether to display the UI. Set to false to customize programmatically without showing UI.</param>
-        public static void Open(BasicAvatarSettings initialSettings = null, bool showUI = true)
+        public static void Open(BasicAvatarSettings? initialSettings = null, bool showUI = true)
         {
             EnsureInitialized();
 
@@ -423,7 +423,7 @@ namespace S1API.UI
         /// Returns null if player has no avatar settings yet.
         /// </summary>
         /// <returns>Player's current avatar settings, or null if not available.</returns>
-        private static BasicAvatarSettings GetPlayerAvatarSettings()
+        private static BasicAvatarSettings? GetPlayerAvatarSettings()
         {
             try
             {

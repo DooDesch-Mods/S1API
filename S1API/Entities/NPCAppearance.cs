@@ -52,12 +52,12 @@ namespace S1API.Entities
         /// </summary>
         /// <param name="npc"></param>
         /// <param name="runtimeAvatar">The runtime avatar used to apply appearance changes.</param>
-        internal NPCAppearance(NPC npc, S1AvatarFramework.Avatar runtimeAvatar)
+        internal NPCAppearance(NPC npc, S1AvatarFramework.Avatar? runtimeAvatar)
         {
             NPC = npc;
             _runtimeAvatar = runtimeAvatar;
 
-            S1AvatarFramework.AvatarSettings sourceSettings = null;
+            S1AvatarFramework.AvatarSettings? sourceSettings = null;
 
             if (_runtimeAvatar != null)
             {
@@ -112,6 +112,7 @@ namespace S1API.Entities
             var generator = S1AvatarFramework.MugshotGenerator.Instance;
             var mugshotRig = generator != null ? generator.MugshotRig : null;
             var iconGenerator = generator != null ? generator.Generator : null;
+            var defaultSettings = generator != null ? generator.DefaultSettings : null;
 
             // === Quick physical warmup ===
             // Toggle the rig active/inactive to force the GPU driver and Unity's internal
@@ -122,7 +123,7 @@ namespace S1API.Entities
             // renders produce black frames on cold start even when the rig is fully ready
             // for real NPC captures. Actual content validation happens per-capture in the
             // retry loop below.
-            if (mugshotRig != null && generator.DefaultSettings != null)
+            if (mugshotRig != null && defaultSettings != null)
             {
                 int iconLayer = LayerMask.NameToLayer("IconGeneration");
                 const int primeCycles = 5;
@@ -134,7 +135,7 @@ namespace S1API.Entities
                         warmupParent.gameObject.SetActive(true);
                     mugshotRig.gameObject.SetActive(true);
 
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                     SetLayerRecursively(mugshotRig.gameObject, iconLayer);
 
                     var warmupSMRs = mugshotRig.GetComponentsInChildren<SkinnedMeshRenderer>();
@@ -143,14 +144,14 @@ namespace S1API.Entities
 
                     yield return new WaitForEndOfFrame();
 
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                     mugshotRig.gameObject.SetActive(false);
                 }
             }
 
             while (true)
             {
-                NPCAppearance next = null;
+                NPCAppearance? next = null;
                 lock (_mugshotQueueLock)
                 {
                     if (_mugshotQueue.Count > 0)
@@ -175,7 +176,8 @@ namespace S1API.Entities
                 generator = S1AvatarFramework.MugshotGenerator.Instance;
                 mugshotRig = generator != null ? generator.MugshotRig : null;
                 iconGenerator = generator != null ? generator.Generator : null;
-                if (mugshotRig == null)
+                defaultSettings = generator != null ? generator.DefaultSettings : null;
+                if (mugshotRig == null || iconGenerator == null)
                 {
                     lock (_mugshotQueueLock)
                         _mugshotQueue.Enqueue(next);
@@ -199,7 +201,7 @@ namespace S1API.Entities
                 // Do NOT reduce this — lower values will break cold start on some machines.
                 const int maxRetries = 30;
                 const float contentBrightnessFloor = 0.01f;
-                Texture2D generatedMugshot = null;
+                Texture2D? generatedMugshot = null;
                 bool hasContent = false;
 
                 for (int attempt = 0; attempt <= maxRetries; attempt++)
@@ -264,8 +266,8 @@ namespace S1API.Entities
                         break;
 
                     // No content — deactivate and retry
-                    if (generator.DefaultSettings != null)
-                        mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    if (defaultSettings != null)
+                        mugshotRig.LoadAvatarSettings(defaultSettings);
                     if (mugshotRig.Animation != null)
                         mugshotRig.Animation.AllowCulling = previousAllowCulling;
                     mugshotRig.gameObject.SetActive(false);
@@ -298,8 +300,8 @@ namespace S1API.Entities
 
                 // Reset rig and deactivate
                 bool finalAllowCulling = mugshotRig.Animation != null && mugshotRig.Animation.AllowCulling;
-                if (generator.DefaultSettings != null)
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                if (defaultSettings != null)
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                 if (mugshotRig.Animation != null)
                     mugshotRig.Animation.AllowCulling = finalAllowCulling;
                 mugshotRig.gameObject.SetActive(false);
@@ -313,7 +315,7 @@ namespace S1API.Entities
         /// INTERNAL: Applies the currently configured avatar settings to a runtime avatar instance.
         /// </summary>
         /// <param name="avatar">The avatar to apply settings to.</param>
-        internal void ApplyToAvatar(S1AvatarFramework.Avatar avatar)
+        internal void ApplyToAvatar(S1AvatarFramework.Avatar? avatar)
         {
             if (avatar == null)
                 return;
@@ -524,7 +526,7 @@ namespace S1API.Entities
             foreach (var (type, apply) in bodyTypes.OrderBy(_ => Guid.NewGuid()).Take(UnityEngine.Random.Range(1, 3)))
             {
                 MethodInfo method = AccessTools.Method(typeof(BaseBodyAppearance), "GetConstPaths").MakeGenericMethod(type);
-                List<string> paths = (List<string>)method.Invoke(null, null);
+                List<string>? paths = (List<string>?)method.Invoke(null, null);
                 if (paths?.Count > 0)
                     apply(RandomFromList(paths), RandomColor());
             }
@@ -546,7 +548,7 @@ namespace S1API.Entities
             foreach (var (type, apply) in accessoryLayers.OrderBy(_ => Guid.NewGuid()).Take(UnityEngine.Random.Range(2, 6)))
             {
                 MethodInfo method = AccessTools.Method(typeof(BaseAccessoryAppearance), "GetConstPaths").MakeGenericMethod(type);
-                List<string> paths = (List<string>)method.Invoke(null, null);
+                List<string>? paths = (List<string>?)method.Invoke(null, null);
                 if (paths?.Count > 0)
                     apply(RandomFromList(paths), RandomColor());
             }
@@ -600,7 +602,7 @@ namespace S1API.Entities
             _customAvatarSettings.CombinedLayer = null;
         }
 
-        private S1AvatarFramework.Avatar _runtimeAvatar;
+        private S1AvatarFramework.Avatar? _runtimeAvatar;
 
         /// <summary>
         /// INTERNAL: The custom <see cref="S1AvatarFramework.AvatarSettings"/> instance used for modders

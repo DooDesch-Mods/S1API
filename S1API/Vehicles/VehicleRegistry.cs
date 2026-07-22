@@ -53,7 +53,7 @@ namespace S1API.Vehicles
         /// <summary>
         /// Finds a vehicle by GUID string. Returns null if not found.
         /// </summary>
-        public static LandVehicle GetByGUID(string guid)
+        public static LandVehicle? GetByGUID(string guid)
         {
             if (string.IsNullOrEmpty(guid))
                 return null;
@@ -81,7 +81,7 @@ namespace S1API.Vehicles
         /// </summary>
         /// <param name="gameObjectName">The name of the GameObject containing the vehicle.</param>
         /// <returns>A vehicle wrapper, or null if not found.</returns>
-        public static LandVehicle GetByName(string gameObjectName)
+        public static LandVehicle? GetByName(string gameObjectName)
         {
             if (string.IsNullOrEmpty(gameObjectName))
                 return null;
@@ -137,7 +137,7 @@ namespace S1API.Vehicles
         /// </summary>
         /// <param name="vehicleCode">The vehicle code to spawn (e.g., "Sedan", "SUV", etc.).</param>
         /// <returns>A new vehicle wrapper, or null if creation fails.</returns>
-        public static LandVehicle CreateVehicle(string vehicleCode)
+        public static LandVehicle? CreateVehicle(string vehicleCode)
         {
             if (!string.IsNullOrEmpty(vehicleCode))
             {
@@ -205,7 +205,7 @@ namespace S1API.Vehicles
                 _cache.Remove(gameVehicle);
         }
 
-        private static LandVehicle Wrap(S1Vehicles.LandVehicle veh)
+        private static LandVehicle? Wrap(S1Vehicles.LandVehicle? veh)
         {
             if (veh == null)
                 return null;
