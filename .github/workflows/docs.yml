@@ -242,7 +242,7 @@ jobs:
           fi
 
       - name: Restore dependencies
-        run: dotnet restore S1API.sln
+        run: dotnet restore S1API.sln -p:Configuration=MonoMelon
 
       - name: Build S1API
         run: dotnet build S1API/S1API.csproj --no-restore -c MonoMelon -v normal
