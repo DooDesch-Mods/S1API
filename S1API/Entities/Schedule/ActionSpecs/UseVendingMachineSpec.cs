@@ -45,13 +45,13 @@ namespace S1API.Entities.Schedule
         /// or if the machine cannot be found, the NPC will use the nearest available
         /// vending machine instead.
         /// </remarks>
-        public string MachineGUID { get; set; }
+        public string? MachineGUID { get; set; }
         
         /// <summary>
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "UseVending".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

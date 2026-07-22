@@ -107,7 +107,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "UseSlotMachine".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
         
         /// <summary>
         /// Gets or sets the optional building that contains the slot machine.
@@ -118,7 +118,7 @@ namespace S1API.Entities.Schedule
         /// This is useful when the slot machine is inside a building and the NPC needs to enter first.
         /// If not specified, the system will attempt to pathfind directly to the slot machine position.
         /// </remarks>
-        public Map.Building Building { get; set; }
+        public Map.Building? Building { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

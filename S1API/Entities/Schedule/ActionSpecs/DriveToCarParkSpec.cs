@@ -51,7 +51,7 @@ namespace S1API.Entities.Schedule
         /// This property is used as a fallback if <see cref="ParkingLot"/> is not specified.
         /// The GUID should match the parking lot's unique identifier in the game.
         /// </remarks>
-        public string ParkingLotGUID { get; set; }
+        public string? ParkingLotGUID { get; set; }
         
         /// <summary>
         /// Gets or sets the GUID of the vehicle that should be driven to the parking lot.
@@ -61,7 +61,7 @@ namespace S1API.Entities.Schedule
         /// This property is used as a fallback if <see cref="Vehicle"/> is not specified.
         /// The GUID should match the vehicle's unique identifier in the game.
         /// </remarks>
-        public string VehicleGUID { get; set; }
+        public string? VehicleGUID { get; set; }
         
         /// <summary>
         /// Gets or sets whether to override the default parking type behavior.
@@ -99,7 +99,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "DriveToCarPark".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
         
         /// <summary>
         /// Gets or sets the parking lot wrapper object to avoid GUID lookups.
@@ -108,7 +108,7 @@ namespace S1API.Entities.Schedule
         /// <remarks>
         /// This property takes precedence over <see cref="ParkingLotGUID"/>.
         /// </remarks>
-        public ParkingLotWrapper ParkingLot { get; set; }
+        public ParkingLotWrapper? ParkingLot { get; set; }
         
         /// <summary>
         /// Gets or sets the vehicle wrapper object to avoid GUID lookups.
@@ -117,7 +117,7 @@ namespace S1API.Entities.Schedule
         /// <remarks>
         /// This property takes precedence over <see cref="VehicleGUID"/> and <see cref="VehicleName"/>.
         /// </remarks>
-        public LandVehicle Vehicle { get; set; }
+        public LandVehicle? Vehicle { get; set; }
         
         /// <summary>
         /// Gets or sets the name of the parking lot GameObject for runtime resolution.
@@ -127,7 +127,7 @@ namespace S1API.Entities.Schedule
         /// This property is used at runtime to find the parking lot by GameObject name.
         /// Takes precedence over GUID lookup but is overridden by wrapper object.
         /// </remarks>
-        public string ParkingLotName { get; set; }
+        public string? ParkingLotName { get; set; }
         
         /// <summary>
         /// Gets or sets the name of the vehicle GameObject for runtime resolution.
@@ -137,7 +137,7 @@ namespace S1API.Entities.Schedule
         /// This property is used at runtime to find the vehicle by GameObject name.
         /// Takes precedence over GUID lookup but is overridden by wrapper object.
         /// </remarks>
-        public string VehicleName { get; set; }
+        public string? VehicleName { get; set; }
         
         /// <summary>
         /// Gets or sets a vehicle code for runtime vehicle creation.
@@ -147,7 +147,7 @@ namespace S1API.Entities.Schedule
         /// This property is used at runtime to create a new vehicle if one doesn't exist.
         /// Only used if Vehicle, VehicleGUID, and VehicleName are all null or failed resolution.
         /// </remarks>
-        public string VehicleCode { get; set; }
+        public string? VehicleCode { get; set; }
         
         /// <summary>
         /// Gets or sets the spawn position for a created vehicle.
@@ -179,8 +179,8 @@ namespace S1API.Entities.Schedule
             try
             {
                 // Resolve lot
-                object lotObj = null;
-                S1Map.ParkingLot gameLot = null;
+                object? lotObj = null;
+                S1Map.ParkingLot? gameLot = null;
                 if (ParkingLot != null)
                 {
                     gameLot = ParkingLot.ResolveGameLot();
@@ -216,7 +216,7 @@ namespace S1API.Entities.Schedule
                 }
 
                 // Resolve vehicle
-                object vehObj = null;
+                object? vehObj = null;
                 if (Vehicle != null && Vehicle.S1LandVehicle != null)
                 {
                     vehObj = Vehicle.S1LandVehicle;

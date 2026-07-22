@@ -68,7 +68,7 @@ namespace S1API.Products
         /// <summary>
         /// Gets the in-game icon associated with the product.
         /// </summary>
-        public Sprite Icon
+        public new Sprite Icon
         {
             get { return S1ProductDefinition.Icon; }
         }

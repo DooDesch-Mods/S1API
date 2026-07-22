@@ -40,12 +40,12 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// Optional specific ATM GUID to target.
         /// </summary>
-        public string ATMGUID { get; set; }
+        public string? ATMGUID { get; set; }
 
         /// <summary>
         /// Optional custom name for the action.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

@@ -36,7 +36,7 @@ namespace S1API.Internal.Patches
                 SetupScrollableGrid(__instance);
                 _isInitialized = true;
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
                 // Setup failed; leave scroll disabled
             }

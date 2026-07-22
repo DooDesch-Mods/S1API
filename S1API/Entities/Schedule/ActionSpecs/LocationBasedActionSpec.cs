@@ -85,7 +85,7 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// Gets or sets the optional name for this action.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// For Graffiti: optional region to pick a spray surface from. If null, nearest to destination is used.
@@ -101,13 +101,13 @@ namespace S1API.Entities.Schedule
         /// For HoldItem: Resources path to the AvatarEquippable prefab (e.g. "Avatar/Equippables/Phone_Lowered").
         /// If null, uses the prefab's configured HoldItem equippable.
         /// </summary>
-        public string EquippableAssetPath { get; set; }
+        public string? EquippableAssetPath { get; set; }
 
         /// <summary>
         /// For Drinking: Resources path to the drink AvatarEquippable prefab (e.g. "Avatar/Equippables/Beer").
         /// If null, uses the prefab's configured DrinkItem.
         /// </summary>
-        public string DrinkEquippablePath { get; set; }
+        public string? DrinkEquippablePath { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {
@@ -246,7 +246,7 @@ namespace S1API.Entities.Schedule
                 return;
             }
 
-            S1Graffiti.WorldSpraySurface surface = null;
+            S1Graffiti.WorldSpraySurface? surface = null;
             if (spec.GraffitiSurfaceGuid.HasValue)
                 surface = GraffitiManager.FindSurfaceByGuid(spec.GraffitiSurfaceGuid.Value);
             if (surface == null && spec.GraffitiRegion.HasValue)
@@ -272,7 +272,13 @@ namespace S1API.Entities.Schedule
 
             var baseNpc = schedule.NPC.S1NPC;
             var npcBehaviour = baseNpc.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
-            var behaviour = npcBehaviour?.GetBehaviour("GraffitiBehaviour");
+            if (npcBehaviour == null)
+            {
+                Logger.Warning("[LocationBasedActionSpec] Graffiti: NPCBehaviour component not found.");
+                return;
+            }
+
+            var behaviour = npcBehaviour.GetBehaviour("GraffitiBehaviour");
             if (behaviour == null)
             {
                 Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour not found.");

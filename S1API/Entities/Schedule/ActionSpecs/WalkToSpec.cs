@@ -85,7 +85,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "WalkTo".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

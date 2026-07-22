@@ -21,7 +21,7 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// Optional custom name for the action.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

@@ -76,7 +76,6 @@ namespace S1API.Casino
             try
             {
                 float totalCash = 0;
-                int cashItemsFound = 0;
                 var inventory = npc.S1NPC.Inventory;
                 
                 totalCash = inventory.GetCashInInventory();
