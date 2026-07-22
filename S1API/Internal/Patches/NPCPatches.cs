@@ -35,7 +35,6 @@ using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Items = ScheduleOne.ItemFramework;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Quests = ScheduleOne.Quests;
-using System.Collections.Generic;
 #endif
 
 using System;
@@ -212,7 +211,7 @@ namespace S1API.Internal.Patches
             _pendingInventoryLoads.Clear();
         }
 
-        private static void LogCustomNpcInstantiationException(Type type, string context, Exception ex)
+        private static void LogCustomNpcInstantiationException(Type? type, string context, Exception? ex)
         {
             if (ex == null)
             {
@@ -221,7 +220,7 @@ namespace S1API.Internal.Patches
             }
 
             var exceptionChain = new System.Collections.Generic.List<Exception>();
-            for (Exception current = ex; current != null; current = current.InnerException)
+            for (Exception? current = ex; current != null; current = current.InnerException)
                 exceptionChain.Add(current);
 
             string chainSummary = string.Join(" --> ",
@@ -360,9 +359,9 @@ namespace S1API.Internal.Patches
         /// Returns the instance if successful; otherwise null. Non-matching temporary instances
         /// are cleaned up immediately to avoid registration side effects.
         /// </summary>
-        private static NPC TryInstantiateCustomNpcForSaveId(string npcId, string reasonTag)
+        private static NPC? TryInstantiateCustomNpcForSaveId(string? npcId, string reasonTag)
         {
-            if (_pendingCustomNpcTypes.Count == 0)
+            if (_pendingCustomNpcTypes.Count == 0 || string.IsNullOrWhiteSpace(npcId))
                 return null;
 
             // First check if NPC already exists - don't create duplicates
@@ -437,7 +436,7 @@ namespace S1API.Internal.Patches
                 if (customNPC == null)
                     continue;
 
-                string defaultId = customNPC.S1NPC?.ID;
+                string? defaultId = customNPC.S1NPC?.ID;
                 if (!string.IsNullOrEmpty(defaultId)
                     && defaultId.Equals(npcId, StringComparison.OrdinalIgnoreCase))
                 {
@@ -544,10 +543,13 @@ namespace S1API.Internal.Patches
                 if (type.Assembly == Assembly.GetExecutingAssembly())
                     continue;
 
-                string npcId = customNPC.S1NPC?.ID ?? "<null>";
+                var baseNpc = customNPC.S1NPC
+                    ?? throw new InvalidOperationException(
+                        $"Custom NPC type '{type.FullName}' did not create its base-game NPC instance.");
+                string npcId = baseNpc.ID ?? "<null>";
 
                 // Load SaveableFields from per-NPC folder for legacy saves
-                string npcPath = Path.Combine(mainPath, customNPC.S1NPC.SaveFolderName);
+                string npcPath = Path.Combine(mainPath, baseNpc.SaveFolderName);
                 customNPC.LoadInternal(npcPath);
 
                 try
@@ -810,7 +812,7 @@ namespace S1API.Internal.Patches
                 var identity = __instance != null ? __instance.GetComponent<NPCPrefabIdentity>() : null;
                 if (identity != null)
                 {
-                    identity.ApplyCriticalIdentityBeforeAwake(__instance);
+                    identity.ApplyCriticalIdentityBeforeAwake(__instance!);
                 }
             }
             catch (Exception ex)
@@ -1027,7 +1029,7 @@ namespace S1API.Internal.Patches
         /// <param name="__result">The dynamic save data result.</param>
         [HarmonyPatch(typeof(S1NPCs.NPC), nameof(S1NPCs.NPC.GetSaveData))]
         [HarmonyPrefix]
-        private static bool NPC_GetSaveData_Prefix(S1NPCs.NPC __instance, ref S1Datas.DynamicSaveData __result)
+        private static bool NPC_GetSaveData_Prefix(S1NPCs.NPC __instance, ref S1Datas.DynamicSaveData? __result)
         {
             // Check if instance is null
             if (__instance == null)
@@ -1224,11 +1226,10 @@ namespace S1API.Internal.Patches
                     {
                         try
                         {
-                            apiNpc.Customer.EnsureCustomer();
+                            apiNpc?.Customer?.EnsureCustomer();
 
-                            var npcType = apiNpc.GetType();
-                            bool hasDefaults = NPC.HasCustomerDefaultsForType(npcType);
-                            if (hasDefaults)
+                            var npcType = apiNpc?.GetType();
+                            if (npcType != null && NPC.HasCustomerDefaultsForType(npcType))
                             {
                                 var defaultData = NPC.BuildCustomerDefaultsForType(npcType);
                                 if (defaultData != null)
@@ -1305,7 +1306,7 @@ namespace S1API.Internal.Patches
                     if (hasDefaults)
                     {
                         var builder = new NPCRelationshipDataBuilder();
-                        relCfg(builder);
+                        relCfg!(builder);
                         var rel = s1BaseNpc.RelationData;
                         if (rel != null)
                         {
@@ -1372,14 +1373,14 @@ namespace S1API.Internal.Patches
                 try
                 {
                     // Use reflection to access currentAffinityData field/property
-                    PropertyInfo currentAffinityProp;
-                    FieldInfo currentAffinityField;
+                    PropertyInfo? currentAffinityProp;
+                    FieldInfo? currentAffinityField;
                     currentAffinityField = customerType.GetField("currentAffinityData",
                         BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
                     currentAffinityProp = customerType.GetProperty("currentAffinityData",
                         BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
-                    S1Economy.CustomerAffinityData currentAffinity = null;
+                    S1Economy.CustomerAffinityData? currentAffinity = null;
                     if (currentAffinityField != null)
                     {
                         if (currentAffinityField is FieldInfo field)
@@ -1434,7 +1435,9 @@ namespace S1API.Internal.Patches
                         {
                             var countProperty = productAffinities.GetType()
                                 .GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
-                            var count = countProperty != null ? (int)countProperty.GetValue(productAffinities) : 0;
+                            var count = countProperty?.GetValue(productAffinities) is int countValue
+                                ? countValue
+                                : 0;
                             var actualCount = Math.Min(cust.ProductAffinities.Length, count);
 
                             for (int i = 0; i < actualCount; i++)
@@ -1633,7 +1636,7 @@ namespace S1API.Internal.Patches
                         continue;
                     try
                     {
-                        string n = npc.gameObject != null ? npc.gameObject.name : null;
+                        string? n = npc.gameObject != null ? npc.gameObject.name : null;
                         if (!string.IsNullOrEmpty(n) && n.StartsWith("S1API_", StringComparison.Ordinal))
                             continue; // skip template prefab entries
 
@@ -1792,8 +1795,8 @@ namespace S1API.Internal.Patches
                 }
 
                 // Disable behaviours locally (non-networked equivalent of Disable_Server)
-                baseNpc.Behaviour.DeadBehaviour?.Disable();
-                baseNpc.Behaviour.UnconsciousBehaviour?.Disable();
+                baseNpc!.Behaviour?.DeadBehaviour?.Disable();
+                baseNpc.Behaviour?.UnconsciousBehaviour?.Disable();
 
                 // Fire revive event so downstream listeners still react
                 __instance.onRevive?.Invoke();
@@ -1857,7 +1860,7 @@ namespace S1API.Internal.Patches
         /// Utility to find a base-game NPC by ID in a way compatible with both System and Il2Cpp lists.
         /// Also checks S1API NPC.All list as a fallback for custom NPCs that might not be in NPCRegistry yet.
         /// </summary>
-        internal static S1NPCs.NPC FindBaseNpcById(string id)
+        internal static S1NPCs.NPC? FindBaseNpcById(string? id)
         {
             try
             {
@@ -1926,7 +1929,9 @@ namespace S1API.Internal.Patches
                                    overflowSlotsObj.GetType().GetProperty("Count");
                     if (countProp != null)
                     {
-                        slotCount = (int)countProp.GetValue(overflowSlotsObj);
+                        slotCount = countProp.GetValue(overflowSlotsObj) is int countValue
+                            ? countValue
+                            : 0;
                         needsInit = slotCount == 0;
                     }
                     else
@@ -1945,7 +1950,7 @@ namespace S1API.Internal.Patches
                     for (int i = 0; i < 10; i++)
                     {
                         overflowSlots[i] = new S1Items.ItemSlot();
-                        overflowSlots[i].SetSlotOwner(dealer.Cast<S1Items.IItemSlotOwner>());
+                        overflowSlots[i].SetSlotOwner(dealer!.Cast<S1Items.IItemSlotOwner>());
                     }
 #else
                     // Create regular C# array for Mono
@@ -1957,7 +1962,7 @@ namespace S1API.Internal.Patches
                     }
 #endif
                     
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "overflowSlots", overflowSlots);
+                    Utils.ReflectionUtils.TrySetFieldOrProperty(dealer!, "overflowSlots", overflowSlots);
                 }
                 else if (slotCount > 0)
                 {
@@ -1972,7 +1977,7 @@ namespace S1API.Internal.Patches
                             var slot = il2cppArray[i];
                             if (slot != null)
                             {
-                                slot.SetSlotOwner(dealer.Cast<S1Items.IItemSlotOwner>());
+                                slot.SetSlotOwner(dealer!.Cast<S1Items.IItemSlotOwner>());
                             }
                         }
                     }
@@ -2002,7 +2007,7 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Utility to find the S1API wrapper for a base-game NPC.
         /// </summary>
-        internal static NPC FindWrapperForS1Npc(S1NPCs.NPC baseNpc)
+        internal static NPC? FindWrapperForS1Npc(S1NPCs.NPC? baseNpc)
         {
             try
             {
@@ -2379,14 +2384,14 @@ namespace S1API.Internal.Patches
                             // Get the array length/count
                             var countProp = overflowSlotsObj.GetType().GetProperty("Length") ?? 
                                            overflowSlotsObj.GetType().GetProperty("Count");
-                            int slotCount = countProp != null ? (int)countProp.GetValue(overflowSlotsObj) : 0;
+                            int slotCount = countProp?.GetValue(overflowSlotsObj) is int countValue
+                                ? countValue
+                                : 0;
                             
                             if (slotCount > 0)
                             {
                                 // Convert to ItemSlot array for LoadTo
                                 var slotsArray = new S1Items.ItemSlot[slotCount];
-                                bool hasNullSlots = false;
-                                
 #if IL2CPPMELON
                                 // For IL2CPP, cast to Il2CppReferenceArray and use direct indexing
                                 var il2cppArray = overflowSlotsObj as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>;
@@ -2397,7 +2402,6 @@ namespace S1API.Internal.Patches
                                         var slot = il2cppArray[i];
                                         if (slot == null)
                                         {
-                                            hasNullSlots = true;
                                             // Create a new slot if null
                                             slot = new S1Items.ItemSlot();
                                             slot.SetSlotOwner(__instance.Cast<S1Items.IItemSlotOwner>());
@@ -2417,7 +2421,6 @@ namespace S1API.Internal.Patches
                                         var slot = monoArray[i];
                                         if (slot == null)
                                         {
-                                            hasNullSlots = true;
                                             // Create a new slot if null
                                             slot = new S1Items.ItemSlot();
                                             slot.SetSlotOwner(__instance);
@@ -2520,7 +2523,7 @@ namespace S1API.Internal.Patches
                 // Iterate through actions, skipping null or inactive (pre-created) ones
                 for (int i = 0; i < actionCount; i++)
                 {
-                    S1NPCsSchedules.NPCAction action = null;
+                    S1NPCsSchedules.NPCAction? action = null;
 #if IL2CPPMELON
                     action = il2cppList[i];
 #else
@@ -2667,7 +2670,7 @@ namespace S1API.Internal.Patches
                     // Try to get the property/field type to debug
                     try
                     {
-                        var prop = __instance.GetType().GetProperty("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        var prop = __instance!.GetType().GetProperty("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         var field = __instance.GetType().GetField("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         var memberType = prop?.PropertyType ?? field?.FieldType;
                         Logger.Warning($"ActionList member type: {memberType?.FullName ?? "null"}, list type: {list.GetType().FullName}");
@@ -2714,7 +2717,7 @@ namespace S1API.Internal.Patches
                     continue;
 
                 // Try to find the customer NPC - retry a few times if not found
-                S1NPCs.NPC npc = null;
+                S1NPCs.NPC? npc = null;
                 for (int retry = 0; retry < 5 && npc == null; retry++)
                 {
                     try
@@ -2738,7 +2741,7 @@ namespace S1API.Internal.Patches
                     continue;
                 }
 
-                S1Economy.Customer customer = null;
+                S1Economy.Customer? customer = null;
                 try
                 {
                     customer = npc.GetComponent<S1Economy.Customer>();

@@ -72,7 +72,7 @@ namespace S1API.Internal.Entities
         // Static registry to preserve data across network instantiation on Il2Cpp
         private static readonly Dictionary<string, IdentityData> _registry = new Dictionary<string, IdentityData>();
         private bool _applied;
-        private AvatarSettingsData _cachedAppearanceDefaults;
+        private AvatarSettingsData? _cachedAppearanceDefaults;
 
         internal string? Id
         {
@@ -164,19 +164,19 @@ namespace S1API.Internal.Entities
 
         private struct IdentityData
         {
-            internal string Id;
-            internal string FirstName;
-            internal string LastName;
-            internal Sprite Icon;
-            internal AvatarSettingsData AppearanceDefaults;
-            internal AvatarImpostorSelection AppearanceImpostorSelection;
-            internal string DealerHomeBuildingName;
+            internal string? Id;
+            internal string? FirstName;
+            internal string? LastName;
+            internal Sprite? Icon;
+            internal AvatarSettingsData? AppearanceDefaults;
+            internal AvatarImpostorSelection? AppearanceImpostorSelection;
+            internal string? DealerHomeBuildingName;
             internal float? RelationDelta;
             internal bool? Unlocked;
             internal int? UnlockType; // Stored as int (0=Recommendation, 1=DirectApproach) to avoid enum dependency
-            internal List<string> ConnectionIDs;
-            internal string PrefabName;
-            internal string VoiceId;
+            internal List<string>? ConnectionIDs;
+            internal string? PrefabName;
+            internal string? VoiceId;
             internal bool HasVoicePitch;
             internal float VoicePitch;
         }
@@ -227,7 +227,7 @@ namespace S1API.Internal.Entities
                 float? relationDelta = snapshot?.RelationDelta;
                 bool? unlocked = snapshot?.Unlocked;
                 NPCRelationship.UnlockType? unlockType = snapshot?.UnlockType;
-                List<string> connectionIDs = snapshot?.ConnectionIDs != null && snapshot.ConnectionIDs.Count > 0
+                List<string>? connectionIDs = snapshot?.ConnectionIDs != null && snapshot.ConnectionIDs.Count > 0
                     ? new List<string>(snapshot.ConnectionIDs)
                     : null;
 
@@ -298,8 +298,8 @@ namespace S1API.Internal.Entities
             // CRITICAL: Always check registry FIRST for connection IDs since they're set via RegisterRelationshipDataToStaticCache
             // Component field (_connectionIds) is never set during prefab configuration in Menu scene
             // Connection IDs are only stored via RegisterRelationshipDataToStaticCache, so we must preserve them from registry
-            List<string> connectionIDs = null;
-            string dealerHomeBuildingName = this.DealerHomeBuildingName;
+            List<string>? connectionIDs = null;
+            string? dealerHomeBuildingName = this.DealerHomeBuildingName;
             
             if (_registry.TryGetValue(normalizedName, out var existingData))
             {
@@ -397,7 +397,7 @@ namespace S1API.Internal.Entities
                     try
                     {
                         var npc = GetComponent<S1NPCs.NPC>();
-                        string npcId = npc != null
+                        string? npcId = npc != null
                             ? ReflectionUtils.TryGetFieldOrProperty(npc, "ID") as string
                             : null;
                         if (!string.IsNullOrEmpty(npcId))
@@ -658,7 +658,7 @@ namespace S1API.Internal.Entities
             // Always check registry in case component field is null on Il2Cpp
             try
             {
-                string buildingName = DealerHomeBuildingName;
+                string? buildingName = DealerHomeBuildingName;
                 
                 // If component field is empty, try to get from registry using multiple fallback strategies
                 if (string.IsNullOrEmpty(buildingName))
@@ -707,7 +707,7 @@ namespace S1API.Internal.Entities
                 
                 if (!string.IsNullOrEmpty(buildingName))
                 {
-                    ApplyDealerHomeBuilding(npc, buildingName);
+                    ApplyDealerHomeBuilding(npc!, buildingName);
                 }
             }
             catch { }
@@ -752,7 +752,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private void ApplyDealerHomeBuilding(S1NPCs.NPC npc, string buildingName = null)
+        private void ApplyDealerHomeBuilding(S1NPCs.NPC npc, string? buildingName = null)
         {
             // Use provided building name or fall back to component field
             if (string.IsNullOrEmpty(buildingName))
@@ -1004,7 +1004,7 @@ namespace S1API.Internal.Entities
             try
             {
                 var npc = GetComponent<S1NPCs.NPC>();
-                string npcId = npc != null
+                string? npcId = npc != null
                     ? ReflectionUtils.TryGetFieldOrProperty(npc, "ID") as string
                     : null;
                 if (!string.IsNullOrEmpty(npcId))
@@ -1037,7 +1037,12 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        internal static bool TryGetIdentityFromRegistry(string prefabName, out string id, out string firstName, out string lastName, out Sprite icon)
+        internal static bool TryGetIdentityFromRegistry(
+            string prefabName,
+            out string? id,
+            out string? firstName,
+            out string? lastName,
+            out Sprite? icon)
         {
             id = null;
             firstName = null;
@@ -1070,7 +1075,12 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        internal static bool TryGetRelationshipDataFromRegistry(string prefabName, out float? relationDelta, out bool? unlocked, out NPCRelationship.UnlockType? unlockType, out List<string> connectionIDs)
+        internal static bool TryGetRelationshipDataFromRegistry(
+            string prefabName,
+            out float? relationDelta,
+            out bool? unlocked,
+            out NPCRelationship.UnlockType? unlockType,
+            out List<string>? connectionIDs)
         {
             relationDelta = null;
             unlocked = null;
@@ -1099,7 +1109,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static AvatarSettingsData CaptureAvatarSettings(S1AvatarFramework.AvatarSettings settings)
+        private static AvatarSettingsData? CaptureAvatarSettings(S1AvatarFramework.AvatarSettings? settings)
         {
             if (settings == null)
                 return null;
@@ -1179,7 +1189,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static AvatarSettingsData CloneAvatarSettingsData(AvatarSettingsData source)
+        private static AvatarSettingsData? CloneAvatarSettingsData(AvatarSettingsData? source)
         {
             if (source == null)
                 return null;
@@ -1239,7 +1249,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static S1AvatarFramework.AvatarSettings CreateAvatarSettings(AvatarSettingsData data)
+        private static S1AvatarFramework.AvatarSettings? CreateAvatarSettings(AvatarSettingsData? data)
         {
             if (data == null)
                 return null;
@@ -1346,13 +1356,13 @@ namespace S1API.Internal.Entities
             internal float EyebrowThickness;
             internal float EyebrowRestingHeight;
             internal float EyebrowRestingAngle;
-            internal string HairPath;
+            internal string? HairPath;
             internal Color HairColor;
-            internal Texture2D ImpostorTexture;
-            internal AvatarImpostorSelection ImpostorSelection;
+            internal Texture2D? ImpostorTexture;
+            internal AvatarImpostorSelection? ImpostorSelection;
             internal Color LeftEyeLidColor;
             internal Color RightEyeLidColor;
-            internal string EyeballMaterialIdentifier;
+            internal string? EyeballMaterialIdentifier;
             internal EyeStateData LeftEye = new EyeStateData();
             internal EyeStateData RightEye = new EyeStateData();
             internal List<LayerSettingData> FaceLayers = new List<LayerSettingData>();
@@ -1368,13 +1378,13 @@ namespace S1API.Internal.Entities
 
         private sealed class LayerSettingData
         {
-            internal string Path;
+            internal string? Path;
             internal Color Color;
         }
 
         private sealed class AccessorySettingData
         {
-            internal string Path;
+            internal string? Path;
             internal Color Color;
         }
     }

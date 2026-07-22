@@ -323,7 +323,7 @@ namespace S1API.Internal.Patches
                     var circleById = circlesInRegion
                         .Where(c => !string.IsNullOrEmpty(GetAssignedNpcId(c)))
                         .GroupBy(c => GetAssignedNpcId(c))
-                        .ToDictionary(g => g.Key, g => g.First());
+                        .ToDictionary(g => g.Key!, g => g.First());
 
                     var rectTransforms = new System.Collections.Generic.Dictionary<S1Relations.RelationCircle, RectTransform>();
                     foreach (var c in circlesInRegion)
@@ -345,10 +345,14 @@ namespace S1API.Internal.Patches
                     {
                         try
                         {
-                            var circle = circlesInRegion.FirstOrDefault(c => GetAssignedNpcId(c) == npc.S1NPC.ID);
+                            var s1Npc = npc.S1NPC;
+                            if (s1Npc == null)
+                                continue;
+
+                            var circle = circlesInRegion.FirstOrDefault(c => GetAssignedNpcId(c) == s1Npc.ID);
                             if (circle == null)
                             {
-                                Logger.Warning($"  No circle found for {npc.S1NPC.ID}");
+                                Logger.Warning($"  No circle found for {s1Npc.ID}");
                                 continue;
                             }
 
@@ -357,7 +361,7 @@ namespace S1API.Internal.Patches
                             var newPos = ComputePlacement(circle, circlesInRegion, circleById, rectTransforms, existingEdges,
                                 gp.spacing, gp.center, gp.right, gp.up, gp.nativeBounds, placedIds);
                             rectTransforms[circle].anchoredPosition = newPos;
-                            placedIds.Add(npc.S1NPC.ID);
+                            placedIds.Add(s1Npc.ID);
                         }
                         catch (System.Exception ex)
                         {
@@ -586,7 +590,7 @@ namespace S1API.Internal.Patches
             System.Collections.Generic.List<(Vector2, Vector2)> existingEdges,
             float spacing, Vector2 gridCenter, Vector2 right, Vector2 up,
             Vector4 nativeBounds,
-            System.Collections.Generic.HashSet<string> placedIds = null)
+            System.Collections.Generic.HashSet<string>? placedIds = null)
         {
             var anchors = GetConnectionPositions(circle, circleById, rectTransforms, placedIds);
 
@@ -733,7 +737,7 @@ namespace S1API.Internal.Patches
             S1Relations.RelationCircle circle,
             System.Collections.Generic.Dictionary<string, S1Relations.RelationCircle> circleById,
             System.Collections.Generic.Dictionary<S1Relations.RelationCircle, RectTransform> rectTransforms,
-            System.Collections.Generic.HashSet<string> placedIds = null)
+            System.Collections.Generic.HashSet<string>? placedIds = null)
         {
             var positions = new System.Collections.Generic.List<Vector2>();
             var seen = new System.Collections.Generic.HashSet<string>();
@@ -861,7 +865,7 @@ namespace S1API.Internal.Patches
             var edges = new System.Collections.Generic.List<(Vector2, Vector2)>();
             var byId = regionCircles
                 .Where(c => !string.IsNullOrEmpty(GetAssignedNpcId(c)))
-                .ToDictionary(c => GetAssignedNpcId(c), c => c);
+                .ToDictionary(c => GetAssignedNpcId(c)!, c => c);
 
             foreach (var circle in regionCircles)
             {

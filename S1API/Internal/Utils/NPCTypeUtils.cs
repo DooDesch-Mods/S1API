@@ -19,7 +19,7 @@ namespace S1API.Internal.Utils
     {
         private static readonly Log Logger = new Log("NPCTypeUtils");
 
-        internal static string TryGetStaticNPCId(Type npcType)
+        internal static string? TryGetStaticNPCId(Type? npcType)
         {
             if (npcType == null)
                 return null;
@@ -41,7 +41,7 @@ namespace S1API.Internal.Utils
             return null;
         }
 
-        internal static string TryResolveNPCIdFromType(Type npcType)
+        internal static string? TryResolveNPCIdFromType(Type? npcType)
         {
             if (npcType == null)
                 return null;
@@ -77,7 +77,7 @@ namespace S1API.Internal.Utils
             return null;
         }
 
-        internal static Type TryResolveBuiltInNPCType(string npcId)
+        internal static Type? TryResolveBuiltInNPCType(string? npcId)
         {
             if (string.IsNullOrWhiteSpace(npcId))
                 return null;

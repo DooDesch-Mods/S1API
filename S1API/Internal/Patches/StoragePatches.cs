@@ -47,14 +47,14 @@ namespace S1API.Internal.Patches
         {
             public int SlotCount;
             public int DisplayRowCount;
-            public string ItemId;
+            public string? ItemId;
         }
 
         /// <summary>
         /// Manually parse the custom name from RenamableConfigurationData JSON.
         /// Handles both compact and pretty-printed formats.
         /// </summary>
-        private static string ParseConfigurationName(string json)
+        private static string? ParseConfigurationName(string? json)
         {
             if (string.IsNullOrEmpty(json))
                 return null;
@@ -88,7 +88,7 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Manually parse StorageSlotMeta from JSON to avoid IL2CPP generic method issues.
         /// </summary>
-        private static StorageSlotMeta ParseStorageSlotMeta(string json)
+        private static StorageSlotMeta? ParseStorageSlotMeta(string? json)
         {
             if (string.IsNullOrEmpty(json))
                 return null;
@@ -249,7 +249,7 @@ namespace S1API.Internal.Patches
                 if (owner == null)
                     return;
 
-                S1Storage.StorageEntity storageEntity = null;
+                S1Storage.StorageEntity? storageEntity = null;
 
 #if IL2CPPMELON
                 storageEntity = owner.TryCast<S1Storage.StorageEntity>();
@@ -336,14 +336,19 @@ namespace S1API.Internal.Patches
                     return false;
 
                 var placeableStorage = gridItem as S1ObjectScripts.PlaceableStorageEntity;
-                if (placeableStorage == null)
+                if (placeableStorage?.StorageEntity == null)
                     return false;
 
                 S1Persistence.PlaceableStorageData storageData;
                 if (!data.TryExtractBaseData<S1Persistence.PlaceableStorageData>(out storageData) || storageData == null)
                     return false;
 
-                int targetSlots = storageData.Contents?.Items?.Length ?? placeableStorage.StorageEntity.ItemSlots.Count;
+                var storageEntity = placeableStorage.StorageEntity;
+                var contents = storageData.Contents;
+                if (contents == null)
+                    return false;
+
+                int targetSlots = contents.Items?.Length ?? storageEntity.ItemSlots.Count;
 
                 // Use non-generic TryGetData to avoid IL2CPP reflection issues
                 if (data.TryGetData(ExtraSlotMetaKey, out string metaJson) && !string.IsNullOrEmpty(metaJson))
@@ -355,9 +360,9 @@ namespace S1API.Internal.Patches
                         if (meta != null)
                         {
                             targetSlots = Math.Max(targetSlots, meta.SlotCount);
-                            if (meta.DisplayRowCount > placeableStorage.StorageEntity.DisplayRowCount)
+                            if (meta.DisplayRowCount > storageEntity.DisplayRowCount)
                             {
-                                placeableStorage.StorageEntity.DisplayRowCount = meta.DisplayRowCount;
+                                storageEntity.DisplayRowCount = meta.DisplayRowCount;
                             }
                         }
                     }
@@ -375,10 +380,10 @@ namespace S1API.Internal.Patches
                 }
 
                 // Expand slots before hydrating contents
-                var wrapper = new StorageEntity(placeableStorage.StorageEntity, placeableStorage);
+                var wrapper = new StorageEntity(storageEntity, placeableStorage!);
                 wrapper.SetSlotCount(targetSlots);
 
-                storageData.Contents.LoadTo(placeableStorage.StorageEntity.ItemSlots);
+                contents.LoadTo(storageEntity.ItemSlots);
 
                 // Load the Configuration (custom name) from save data.
                 // The original loader does this deferred via onLoadComplete, but we apply it
@@ -388,9 +393,10 @@ namespace S1API.Internal.Patches
                     try
                     {
                         var configName = ParseConfigurationName(configJson);
-                        if (!string.IsNullOrEmpty(configName) && placeableStorage.Configuration?.Name != null)
+                        var configurationName = placeableStorage!.Configuration?.Name;
+                        if (!string.IsNullOrEmpty(configName) && configurationName != null)
                         {
-                            placeableStorage.Configuration.Name.SetValue(configName, true);
+                            configurationName.SetValue(configName, true);
                         }
                     }
                     catch (Exception configEx)
@@ -415,7 +421,7 @@ namespace S1API.Internal.Patches
         [HarmonyPatch]
         private static class StorageMenuOpenPatch
         {
-            private static MethodBase TargetMethod()
+            private static MethodBase? TargetMethod()
             {
                 return AccessTools.GetDeclaredMethods(typeof(S1UI.StorageMenu))
                     .Find(method =>

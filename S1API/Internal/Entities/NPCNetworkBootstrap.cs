@@ -156,8 +156,8 @@ namespace S1API.Internal.Entities
 
             while (!AllNetworkPrefabsReady && (Time.realtimeSinceStartup - start) < timeout)
             {
-                NetworkManager nm = null;
-                PrefabObjects spawnables = null;
+                NetworkManager? nm = null;
+                PrefabObjects? spawnables = null;
                 try
                 {
                     nm = InstanceFinder.NetworkManager;
@@ -189,7 +189,7 @@ namespace S1API.Internal.Entities
 
         private static IEnumerator ReadinessMonitor()
         {
-            NetworkManager nm = null;
+            NetworkManager? nm = null;
             var start = Time.realtimeSinceStartup;
             // Wait for NetworkManager
             while (nm == null)

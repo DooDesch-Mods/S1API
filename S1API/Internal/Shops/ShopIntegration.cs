@@ -1,8 +1,10 @@
 #if (IL2CPPMELON)
 using S1UIShop = Il2CppScheduleOne.UI.Shop;
+using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using Il2CppInterop.Runtime;
 #elif MONOMELON
 using S1UIShop = ScheduleOne.UI.Shop;
+using S1ItemFramework = ScheduleOne.ItemFramework;
 using System;
 #endif
 
@@ -30,8 +32,14 @@ namespace S1API.Internal.Shops
             if (shop?.S1ShopInterface == null || item?.S1ItemDefinition == null)
                 return false;
 
-            var storable = item as StorableItemDefinition;
-            if (storable == null)
+            S1ItemFramework.StorableItemDefinition? storableDefinition =
+                (item as global::S1API.Items.Storable.StorableItemDefinition)?.S1StorableItemDefinition;
+
+#pragma warning disable CS0618 // Keep the obsolete wrapper functional during its migration window.
+            storableDefinition ??= (item as StorableItemDefinition)?.S1StorableItemDefinition;
+#pragma warning restore CS0618
+
+            if (storableDefinition == null)
             {
                 Logger.Warning($"Item '{item.ID}' is not storable and cannot be sold in shops.");
                 return false;
@@ -39,7 +47,7 @@ namespace S1API.Internal.Shops
 
             try
             {
-                var listing = CreateListing(storable, customPrice);
+                var listing = CreateListing(item, storableDefinition, customPrice);
                 shop.S1ShopInterface.Listings.Add(listing);
                 listing.Initialize(shop.S1ShopInterface);
                 CreateListingUI(shop.S1ShopInterface, listing);
@@ -93,16 +101,19 @@ namespace S1API.Internal.Shops
             }
         }
 
-        private static S1UIShop.ShopListing CreateListing(StorableItemDefinition item, float? customPrice)
+        private static S1UIShop.ShopListing CreateListing(
+            ItemDefinition item,
+            S1ItemFramework.StorableItemDefinition storableDefinition,
+            float? customPrice)
         {
             var listing = new S1UIShop.ShopListing
             {
-                Item = item.S1StorableItemDefinition,
+                Item = storableDefinition,
                 name = item.Name
             };
 
             // Note: Custom pricing would require modifying the item definition
-            if (customPrice.HasValue && customPrice.Value != item.BasePurchasePrice)
+            if (customPrice.HasValue && customPrice.Value != storableDefinition.BasePurchasePrice)
             {
                 Logger.Warning($"Custom price override requested but not fully supported. Using item's BasePurchasePrice.");
             }
@@ -156,6 +167,13 @@ namespace S1API.Internal.Shops
             var dropdownClickedMethod = GetShopMethod(shop, "DropdownClicked");
             var entryHoveredMethod = GetShopMethod(shop, "EntryHovered");
             var entryUnhoveredMethod = GetShopMethod(shop, "EntryUnhovered");
+
+            if (listingClickedMethod == null || dropdownClickedMethod == null ||
+                entryHoveredMethod == null || entryUnhoveredMethod == null)
+            {
+                Logger.Warning($"Shop '{shop.ShopName}' is missing one or more listing event methods.");
+                return;
+            }
 
             listingUI.onClicked = (Action)System.Delegate.Combine(
                 listingUI.onClicked,
