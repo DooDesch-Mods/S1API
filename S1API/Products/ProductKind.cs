@@ -32,5 +32,11 @@ namespace S1API.Products
             return string.Equals(Id, other.Id, System.StringComparison.OrdinalIgnoreCase)
                    && CompatibilityDrugType == other.CompatibilityDrugType;
         }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return Id;
+        }
     }
 }

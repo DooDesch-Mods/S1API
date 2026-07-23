@@ -1,4 +1,3 @@
-using System.Collections;
 using S1API.Products;
 
 namespace S1API.Tests.Products;
@@ -75,9 +74,48 @@ public sealed class ProductKindRegistryTests
                 .GetProperty(nameof(ProductKind.CompatibilityDrugType))!
                 .SetMethod);
 
-        ICollection snapshot = Assert.IsAssignableFrom<ICollection>(ProductKindRegistry.All);
-        Assert.Throws<NotSupportedException>(
-            () => ((IList)snapshot).Add(productKind));
+        ICollection<ProductKind> snapshot =
+            Assert.IsAssignableFrom<ICollection<ProductKind>>(ProductKindRegistry.All);
+        Assert.True(snapshot.IsReadOnly);
+        Assert.Throws<NotSupportedException>(() => snapshot.Add(productKind));
+    }
+
+    [Fact]
+    public void ProductKindStringIncludesStableDiagnosticIdentity()
+    {
+        ProductKind withoutMapping = new ProductKindBuilder(CreateId()).Build();
+        ProductKind withMapping = new ProductKindBuilder(CreateId())
+            .WithCompatibilityDrugType(DrugType.MDMA)
+            .Build();
+
+        Assert.Equal(withoutMapping.Id, withoutMapping.ToString());
+        Assert.Equal(withMapping.Id, withMapping.ToString());
+    }
+
+    [Fact]
+    public void BuilderReusePreservesIdempotencyAndConflictBehavior()
+    {
+        var builder = new ProductKindBuilder(CreateId())
+            .WithCompatibilityDrugType(DrugType.MDMA);
+
+        ProductKind first = builder.Build();
+        ProductKind repeated = builder.Build();
+
+        Assert.Same(first, repeated);
+        Assert.Throws<InvalidOperationException>(
+            () => builder
+                .WithCompatibilityDrugType(DrugType.Heroin)
+                .Build());
+    }
+
+    [Fact]
+    public void RegistryAllReturnsAnIsolatedSnapshot()
+    {
+        IReadOnlyCollection<ProductKind> before = ProductKindRegistry.All;
+        ProductKind added = new ProductKindBuilder(CreateId()).Build();
+
+        Assert.DoesNotContain(before, productKind => productKind.Id == added.Id);
+        Assert.Contains(ProductKindRegistry.All, productKind => productKind.Id == added.Id);
     }
 
     [Fact]

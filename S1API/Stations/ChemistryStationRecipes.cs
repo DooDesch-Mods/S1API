@@ -21,6 +21,7 @@ namespace S1API.Stations
             new Dictionary<string, ChemistryStationRecipe>(ChemistryStationRecipeId.Comparer);
         private static readonly Dictionary<int, string> NativeRecipeIds = new Dictionary<int, string>();
         private static readonly List<ChemistryStationRecipe> All = new List<ChemistryStationRecipe>();
+        private static volatile bool _hasExplicitRecipeIds;
 
         /// <summary>
         /// Registers a recipe with S1API (idempotent).
@@ -48,7 +49,10 @@ namespace S1API.Stations
 
                 ById[recipe.RecipeID] = recipe;
                 if (recipe.HasExplicitRecipeId)
+                {
                     NativeRecipeIds[nativeInstanceId] = recipe.RecipeID;
+                    _hasExplicitRecipeIds = true;
+                }
                 All.Add(recipe);
                 return recipe;
             }
@@ -97,6 +101,9 @@ namespace S1API.Stations
         {
             recipeId = string.Empty;
             if (ReferenceEquals(recipe, null))
+                return false;
+
+            if (!_hasExplicitRecipeIds)
                 return false;
 
             int instanceId;

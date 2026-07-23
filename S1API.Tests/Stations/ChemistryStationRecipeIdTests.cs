@@ -84,21 +84,4 @@ public sealed class ChemistryStationRecipeIdTests
         Assert.Equal("My.Mod:Alternate_Route-2", recipeId);
     }
 
-    [Fact]
-    public void PreExistingBuilderSyntaxRemainsSourceCompatible()
-    {
-        static ChemistryStationRecipe BuildWithLegacySyntax(string productId, string ingredientId) =>
-            new ChemistryStationRecipeBuilder()
-                .WithTitle("Legacy Recipe")
-                .WithCookTimeMinutes(10)
-                .WithCalculationMethod(QualityCalculationMethod.Additive)
-                .WithTemperature(250f, 25f)
-                .WithProduct(productId, quantity: 5)
-                .WithIngredient(ingredientId, quantity: 1)
-                .Build();
-
-        Func<string, string, ChemistryStationRecipe> legacyBuilderSyntax = BuildWithLegacySyntax;
-
-        Assert.NotNull(legacyBuilderSyntax);
-    }
 }

@@ -30,9 +30,6 @@ namespace S1API.Products
         /// <returns>The most specific available product definition wrapper.</returns>
         internal static ProductDefinition Wrap(S1Product.ProductDefinition definition)
         {
-            if (ReferenceEquals(definition, null))
-                throw new ArgumentNullException(nameof(definition));
-
             return Wrap(definition, null);
         }
 

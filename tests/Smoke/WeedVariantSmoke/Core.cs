@@ -361,15 +361,36 @@ public sealed class Core : MelonMod
 
     private static void CopyDirectory(string sourcePath, string targetPath)
     {
-        Directory.CreateDirectory(targetPath);
-        foreach (var directory in Directory.GetDirectories(sourcePath, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(directory.Replace(sourcePath, targetPath));
+        var normalizedSource = Path.GetFullPath(sourcePath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var normalizedTarget = Path.GetFullPath(targetPath)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-        foreach (var file in Directory.GetFiles(sourcePath, "*.*", SearchOption.AllDirectories))
+        Directory.CreateDirectory(normalizedTarget);
+        foreach (var directory in Directory.GetDirectories(normalizedSource, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(MapChildPath(directory, normalizedSource, normalizedTarget));
+
+        foreach (var file in Directory.GetFiles(normalizedSource, "*.*", SearchOption.AllDirectories))
         {
             if (!file.EndsWith(".meta", StringComparison.OrdinalIgnoreCase))
-                File.Copy(file, file.Replace(sourcePath, targetPath), overwrite: true);
+            {
+                File.Copy(
+                    file,
+                    MapChildPath(file, normalizedSource, normalizedTarget),
+                    overwrite: true);
+            }
         }
+    }
+
+    private static string MapChildPath(
+        string childPath,
+        string normalizedSource,
+        string normalizedTarget)
+    {
+        var relativePath = childPath
+            .Substring(normalizedSource.Length)
+            .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return Path.Combine(normalizedTarget, relativePath);
     }
 
     private void Pass(string evidence)

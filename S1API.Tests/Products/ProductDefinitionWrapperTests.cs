@@ -1,4 +1,6 @@
-#if MONOMELON
+#if IL2CPPMELON
+using NativeProductDefinition = Il2CppScheduleOne.Product.ProductDefinition;
+#elif MONOMELON
 using System.Runtime.CompilerServices;
 using NativeProductDefinition = ScheduleOne.Product.ProductDefinition;
 #endif
@@ -11,6 +13,22 @@ namespace S1API.Tests.Products;
 
 public sealed class ProductDefinitionWrapperTests
 {
+    [Fact]
+    public void PublicNullPreservesLegacyExceptionBehavior()
+    {
+        Assert.Throws<NullReferenceException>(
+            () => ProductDefinitionWrapper.Wrap((ProductDefinition)null!));
+    }
+
+    [Fact]
+    public void NativeNullPreservesLegacyGenericFallback()
+    {
+        ProductDefinition wrapped =
+            ProductDefinitionWrapper.Wrap((NativeProductDefinition)null!);
+
+        Assert.IsType<ProductDefinition>(wrapped);
+    }
+
     [Fact]
     public void ProductDefinitionsPreserveStorableAndPropertySemantics()
     {

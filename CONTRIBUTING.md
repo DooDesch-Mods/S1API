@@ -14,10 +14,20 @@ Please read over the below in full to help you get started and set expectations 
 3. Update all properties in `local.build.props` to proper paths for your local system.
    - Personally, I have two copies of Schedule I locally. This way I can test all four builds independently. 
      You can swap between just one if you switch. It will just be a bit more of a hassle 😊.
-4. If you're using a light IDE / editor, you will need to manually restore packages. 
-   `dotnet restore` should get this done for you.
-    - You also will need to manually build in this case. This is as simple as `dotnet build ./S1API.sln`. 
-    - If you need to build just for `netstandard2.1` or `net6.0`, you can do so using `dotnet build ./S1API.sln -f netstandard2.1`.
+4. Restore, build, and test each runtime with the matching configuration:
+
+   ```powershell
+   dotnet restore S1API.sln -p:Configuration=MonoMelon
+   dotnet build S1API.sln -c MonoMelon --no-restore -p:AutomateLocalDeployment=false
+   dotnet test S1API.Tests/S1API.Tests.csproj -c MonoMelon --no-restore --no-build
+
+   dotnet restore S1API.sln -p:Configuration=Il2CppMelon
+   dotnet build S1API.sln -c Il2CppMelon --no-restore -p:AutomateLocalDeployment=false
+   dotnet test S1API.Tests/S1API.Tests.csproj -c Il2CppMelon --no-restore --no-build
+   ```
+
+   `MonoMelon` and `Il2CppMelon` have different restore graphs. Do not reuse one
+   runtime's restore output for the other runtime's `--no-restore` build.
 
 ## PR Preparations
 Verify your changes will successfully build for all **two** build configurations prior to PR please.

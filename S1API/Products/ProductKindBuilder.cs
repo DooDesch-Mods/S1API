@@ -54,6 +54,10 @@ namespace S1API.Products
         /// <returns>
         /// The newly registered product kind, or the existing instance when an equivalent registration already exists.
         /// </returns>
+        /// <remarks>
+        /// Repeated calls return the existing instance while the builder configuration remains equivalent.
+        /// Changing compatibility metadata after the first successful call creates a conflicting registration.
+        /// </remarks>
         /// <exception cref="InvalidOperationException">
         /// Thrown when the identifier is already registered with different compatibility metadata.
         /// </exception>

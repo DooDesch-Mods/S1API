@@ -108,12 +108,19 @@ namespace S1API.Products
         /// </summary>
         /// <returns>The existing S1API typed wrapper around the native weed definition.</returns>
         /// <exception cref="InvalidOperationException">
-        /// Thrown when called before the product runtime is available, when properties do not
-        /// resolve, when the ID collides with another item family, or when native creation fails.
+        /// Thrown when a name is not configured, when called before the product runtime is available,
+        /// when properties do not resolve, when the ID collides with another item family, or when
+        /// native creation fails.
         /// </exception>
         public WeedDefinition Build()
         {
-            var name = WeedDefinitionBuilderContract.NormalizeName(_name!);
+            if (_name == null)
+            {
+                throw new InvalidOperationException(
+                    "WithName must be called before Build().");
+            }
+
+            var name = WeedDefinitionBuilderContract.NormalizeName(_name);
             var productManager = S1Product.ProductManager.Instance;
             if (productManager == null)
             {

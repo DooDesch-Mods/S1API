@@ -58,17 +58,17 @@ namespace S1API.Products
                     "Cannot build a weed product without a property. Use WithProperty(...) or WithProperties(...).");
             }
 
-            if (requestedCount > MaximumPropertyCount)
-            {
-                throw new InvalidOperationException(
-                    $"A weed product can have at most {MaximumPropertyCount} properties.");
-            }
-
             if (requestedCount != resolvedCount)
             {
                 throw new InvalidOperationException(
                     "Every supplied property must resolve to a distinct native property. " +
                     "Use vanilla property tokens or registered custom properties and remove duplicates.");
+            }
+
+            if (resolvedCount > MaximumPropertyCount)
+            {
+                throw new InvalidOperationException(
+                    $"A weed product can have at most {MaximumPropertyCount} properties.");
             }
         }
 

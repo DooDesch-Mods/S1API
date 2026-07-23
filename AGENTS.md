@@ -7,16 +7,17 @@ S1API.sln orchestrates two primary projects: `S1API/` for the modding API and `S
 When implementing or extending S1API features that mirror or hook into the base game, inspect `../` first to confirm the upstream type, member, and behavior you are targeting. Search the game codebase for the relevant symbols before making API changes. Also use the `../.agents/skills/schedule-one-modding` skill when working with upstream game types so you follow the repository's modding-specific guidance and references. Example: if asked to add `onHourPass` support to `TimeManager`, look for `onHourPass` and `TimeManager` in `../` to verify naming, signatures, and call flow before editing `S1API`, and use the `schedule-one-modding` skill to guide the upstream research and integration approach.
 
 ## Build, Test, and Development Commands
-- `dotnet restore S1API.sln` — fetches dependencies when using a lightweight editor.
-- `dotnet build S1API.sln -c Release` — compiles every target; expect four binaries per platform when configured.
-- `dotnet build S1API/S1API.csproj -f netstandard2.1` — builds the managed-only variant for quick iteration.
+- `dotnet restore S1API.sln -p:Configuration=MonoMelon` — restores the Mono graph.
+- `dotnet build S1API.sln -c MonoMelon --no-restore -p:AutomateLocalDeployment=false` — builds Mono without deploying into a live game.
+- `dotnet test S1API.Tests/S1API.Tests.csproj -c MonoMelon --no-restore --no-build` — runs the Mono contract and compatibility tests.
+- Repeat the restore, build, and test commands with `Il2CppMelon` for the Il2Cpp graph.
 - `docfx docfx.json` (run inside `S1API/`) — regenerates API documentation locally.
 
 ## Coding Style & Naming Conventions
 Follow `CODING_STANDARDS.md`: namespaces mirror folders and internal frameworks live under `S1API.Internal.*`. Use PascalCase for types, methods, and public members; camelCase with a leading `_` for private fields (e.g., `_spawnDelay`). Keep arrow-bodied members concise and mark immutable data as `readonly` or `const`. All modder-facing APIs require XML `<summary>` docs, and conditional code should use the shared `#if (MONOMELON || MONOBEPINEX)` pattern.
 
 ## Testing Guidelines
-We do not yet ship automated tests; treat multiplatform builds as the acceptance gate. Before opening a PR, compile each configuration defined in `local.build.props` and exercise affected gameplay flows in both Mono and Il2Cpp environments. When adding future test projects, prefer xUnit-style naming (`FeatureNameTests`) and wire them into `dotnet test`.
+`S1API.Tests/` contains xUnit contract and compatibility tests. Before opening a PR, restore, build, and test both `MonoMelon` and `Il2CppMelon` with matching configurations. Exercise affected gameplay flows in both runtimes when behavior depends on native lifecycle, networking, save/load, or rendered state.
 
 ## Commit & Pull Request Guidelines
 Write imperative, single-purpose commits; lightweight prefixes such as `fix:` or `feat:` appear in history and are encouraged. Target PRs at `bleeding-edge`, include a short change narrative, reproduction or validation notes, and link any external issue. Screenshots or logs are helpful for UI or networking work. Never modify CI workflows without prior discussion.

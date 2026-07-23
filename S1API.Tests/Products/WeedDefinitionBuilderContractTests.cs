@@ -36,6 +36,15 @@ public sealed class WeedDefinitionBuilderContractTests
         Assert.Throws<ArgumentException>(() => WeedDefinitionBuilderContract.NormalizeName(" "));
     }
 
+    [Fact]
+    public void Build_RequiresNameBeforeAccessingNativeRuntime()
+    {
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () => new WeedDefinitionBuilder("example.mod:missing-name").Build());
+
+        Assert.Equal("WithName must be called before Build().", exception.Message);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(WeedDefinitionBuilderContract.MaximumPropertyCount)]
@@ -56,14 +65,31 @@ public sealed class WeedDefinitionBuilderContractTests
     {
         var count = WeedDefinitionBuilderContract.MaximumPropertyCount + 1;
 
-        Assert.Throws<InvalidOperationException>(
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => WeedDefinitionBuilderContract.ValidatePropertyCounts(count, count));
+
+        Assert.Contains("at most", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ValidatePropertyCounts_RejectsUnresolvedOrDuplicateProperties()
     {
-        Assert.Throws<InvalidOperationException>(
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
             () => WeedDefinitionBuilderContract.ValidatePropertyCounts(2, 1));
+
+        Assert.Contains("distinct native property", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidatePropertyCounts_ReportsResolutionBeforeMaximum()
+    {
+        var requestedCount = WeedDefinitionBuilderContract.MaximumPropertyCount + 1;
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () => WeedDefinitionBuilderContract.ValidatePropertyCounts(
+                requestedCount,
+                WeedDefinitionBuilderContract.MaximumPropertyCount));
+
+        Assert.Contains("distinct native property", exception.Message, StringComparison.Ordinal);
     }
 }
