@@ -12,6 +12,11 @@ smoke
 !tests/Smoke/WeedVariantSmoke/Core.cs
 !tests/Smoke/WeedVariantSmoke/README.md
 !tests/Smoke/WeedVariantSmoke/WeedVariantSmoke.csproj
+!tests/Smoke/Run-CustomProductLifecycleSmoke.ps1
+!tests/Smoke/CustomProductLifecycleSmoke/
+!tests/Smoke/CustomProductLifecycleSmoke/Core.cs
+!tests/Smoke/CustomProductLifecycleSmoke/README.md
+!tests/Smoke/CustomProductLifecycleSmoke/CustomProductLifecycleSmoke.csproj
 .spark
 
 # Build props
