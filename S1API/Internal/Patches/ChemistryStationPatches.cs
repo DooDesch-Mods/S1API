@@ -335,6 +335,19 @@ namespace S1API.Internal.Patches
             return null;
         }
 
+        [HarmonyPatch(typeof(S1StationFramework.StationRecipe), "get_RecipeID")]
+        [HarmonyPrefix]
+        private static bool UseRegisteredRecipeId(
+            S1StationFramework.StationRecipe __instance,
+            ref string __result)
+        {
+            if (!ChemistryStationRecipes.TryGetRegisteredId(__instance, out var recipeId))
+                return true;
+
+            __result = recipeId;
+            return false;
+        }
+
         [HarmonyPatch(typeof(S1StationFramework.StationRecipe), "CalculateQuality")]
         [HarmonyPrefix]
         private static bool UseCustomCalcMethods(S1StationFramework.StationRecipe __instance,
