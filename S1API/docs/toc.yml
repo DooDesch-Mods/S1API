@@ -54,6 +54,8 @@
       href: quests-system.md
     - name: Map POIs
       href: map-pois.md
+    - name: Cutscenes
+      href: cutscenes.md
     - name: Products
       items:
         - name: Overview

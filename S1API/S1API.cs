@@ -1,5 +1,6 @@
 using System;
 using MelonLoader;
+using S1API.Cutscenes;
 using S1API.Internal;
 using S1API.Internal.Diagnostics;
 using S1API.Internal.Entities;
@@ -29,8 +30,19 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            CutsceneManager.Deinitialize();
             MapPOIManager.RemoveAll();
             UnityExceptionTraceHook.Remove();
+        }
+
+        public override void OnUpdate()
+        {
+            CutsceneManager.Tick(UnityEngine.Time.unscaledDeltaTime);
+        }
+
+        public override void OnGUI()
+        {
+            CutsceneManager.DrawPresentation();
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -43,6 +55,7 @@ namespace S1API
 
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
+            CutsceneManager.CleanupForSceneChange();
             SceneStateCleaner.ResetForSceneChange(sceneName, afterUnload: true);
 
             if (sceneName == "Main" || sceneName == "Tutorial")

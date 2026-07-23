@@ -1,0 +1,69 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Configurations>Mono;Il2Cpp</Configurations>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>CutsceneSmoke</AssemblyName>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Mono'">
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <DefineConstants>MONO</DefineConstants>
+    <GamePath>D:\SteamLibrary\steamapps\common\Schedule I_alternate</GamePath>
+    <ManagedPath>$(GamePath)\Schedule I_Data\Managed</ManagedPath>
+    <MelonLoaderPath>$(GamePath)\MelonLoader\net35</MelonLoaderPath>
+    <S1ApiPath>..\..\S1API\bin\MonoMelon\netstandard2.1\S1API.dll</S1ApiPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Il2Cpp'">
+    <TargetFramework>net6.0</TargetFramework>
+    <DefineConstants>IL2CPP</DefineConstants>
+    <GamePath>D:\SteamLibrary\steamapps\common\Schedule I_public</GamePath>
+    <ManagedPath>$(GamePath)\MelonLoader\Il2CppAssemblies</ManagedPath>
+    <MelonLoaderPath>$(GamePath)\MelonLoader\net6</MelonLoaderPath>
+    <S1ApiPath>..\..\S1API\bin\Il2CppMelon\net6.0\S1API.dll</S1ApiPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="S1API">
+      <HintPath>$(S1ApiPath)</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="MelonLoader">
+      <HintPath>$(MelonLoaderPath)\MelonLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(MelonLoaderPath)\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(ManagedPath)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule">
+      <HintPath>$(ManagedPath)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ScreenCaptureModule">
+      <HintPath>$(ManagedPath)\UnityEngine.ScreenCaptureModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(ManagedPath)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Il2Cpp'">
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(MelonLoaderPath)\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(ManagedPath)\Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

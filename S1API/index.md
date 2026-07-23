@@ -80,6 +80,10 @@ _layout: landing
       <h3>Phone apps</h3>
       <p>Add in-game phone applications, icons, screens, and phone-call driven interactions.</p>
     </a>
+    <a class="s1-card" href="docs/cutscenes.md">
+      <h3>Cutscenes</h3>
+      <p>Play local camera-driven cinematics with cross-runtime cleanup, skip controls, fades, and title cards.</p>
+    </a>
     <a class="s1-card" href="docs/law-enforcement.md">
       <h3>Law enforcement</h3>
       <p>Use checkpoint, curfew, patrol, pursuit, and dispatch abstractions for police-oriented mods.</p>
