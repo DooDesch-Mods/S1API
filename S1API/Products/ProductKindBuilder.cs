@@ -4,9 +4,9 @@ using S1API.Internal.Products;
 namespace S1API.Products
 {
     /// <summary>
-    /// Builds and registers immutable logical product-kind descriptors.
+    /// Builds and registers immutable logical product kinds.
     /// </summary>
-    public sealed class ProductKindDescriptorBuilder
+    public sealed class ProductKindBuilder
     {
         private readonly string _id;
         private DrugType? _compatibilityDrugType;
@@ -21,7 +21,7 @@ namespace S1API.Products
         /// <exception cref="ArgumentException">
         /// Thrown when <paramref name="id"/> is empty or does not use the supported namespaced format.
         /// </exception>
-        public ProductKindDescriptorBuilder(string id)
+        public ProductKindBuilder(string id)
         {
             _id = ProductKindId.Normalize(id, nameof(id));
         }
@@ -34,7 +34,7 @@ namespace S1API.Products
         /// <exception cref="ArgumentOutOfRangeException">
         /// Thrown when <paramref name="drugType"/> is not a defined <see cref="DrugType"/> value.
         /// </exception>
-        public ProductKindDescriptorBuilder WithCompatibilityDrugType(DrugType drugType)
+        public ProductKindBuilder WithCompatibilityDrugType(DrugType drugType)
         {
             if (!Enum.IsDefined(typeof(DrugType), drugType))
             {
@@ -49,18 +49,18 @@ namespace S1API.Products
         }
 
         /// <summary>
-        /// Builds and registers the configured descriptor.
+        /// Builds and registers the configured product kind.
         /// </summary>
         /// <returns>
-        /// The newly registered descriptor, or the existing descriptor when an equivalent registration already exists.
+        /// The newly registered product kind, or the existing instance when an equivalent registration already exists.
         /// </returns>
         /// <exception cref="InvalidOperationException">
         /// Thrown when the identifier is already registered with different compatibility metadata.
         /// </exception>
-        public ProductKindDescriptor Build()
+        public ProductKind Build()
         {
-            var descriptor = new ProductKindDescriptor(_id, _compatibilityDrugType);
-            return ProductKindRegistry.Register(descriptor);
+            var productKind = new ProductKind(_id, _compatibilityDrugType);
+            return ProductKindRegistry.Register(productKind);
         }
     }
 }

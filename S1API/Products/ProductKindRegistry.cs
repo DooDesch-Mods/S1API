@@ -5,24 +5,24 @@ using S1API.Internal.Products;
 namespace S1API.Products
 {
     /// <summary>
-    /// Provides process-lifetime lookup access to logical product-kind descriptors.
+    /// Provides process-lifetime lookup access to logical product kinds.
     /// </summary>
     public static class ProductKindRegistry
     {
         private static readonly object Gate = new object();
-        private static readonly Dictionary<string, ProductKindDescriptor> Descriptors =
-            new Dictionary<string, ProductKindDescriptor>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, ProductKind> Kinds =
+            new Dictionary<string, ProductKind>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Gets a read-only snapshot of all registered product kinds, ordered by identifier.
         /// </summary>
-        public static IReadOnlyCollection<ProductKindDescriptor> All
+        public static IReadOnlyCollection<ProductKind> All
         {
             get
             {
                 lock (Gate)
                 {
-                    var snapshot = new List<ProductKindDescriptor>(Descriptors.Values);
+                    var snapshot = new List<ProductKind>(Kinds.Values);
                     snapshot.Sort((left, right) =>
                         StringComparer.OrdinalIgnoreCase.Compare(left.Id, right.Id));
                     return snapshot.AsReadOnly();
@@ -34,62 +34,62 @@ namespace S1API.Products
         /// Gets a registered product kind by identifier.
         /// </summary>
         /// <param name="id">The stable, namespaced product-kind identifier.</param>
-        /// <returns>The registered descriptor, or <see langword="null"/> when the identifier is not registered.</returns>
+        /// <returns>The registered product kind, or <see langword="null"/> when the identifier is not registered.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="id"/> is <see langword="null"/>.</exception>
         /// <exception cref="ArgumentException">
         /// Thrown when <paramref name="id"/> is empty or does not use the supported namespaced format.
         /// </exception>
-        public static ProductKindDescriptor? Get(string id)
+        public static ProductKind? Get(string id)
         {
-            TryGet(id, out ProductKindDescriptor? descriptor);
-            return descriptor;
+            TryGet(id, out ProductKind? productKind);
+            return productKind;
         }
 
         /// <summary>
         /// Attempts to get a registered product kind by identifier.
         /// </summary>
         /// <param name="id">The stable, namespaced product-kind identifier.</param>
-        /// <param name="descriptor">
-        /// The registered descriptor when found; otherwise <see langword="null"/>.
+        /// <param name="productKind">
+        /// The registered product kind when found; otherwise <see langword="null"/>.
         /// </param>
         /// <returns><see langword="true"/> when the identifier is registered; otherwise <see langword="false"/>.</returns>
         /// <exception cref="ArgumentNullException">Thrown when <paramref name="id"/> is <see langword="null"/>.</exception>
         /// <exception cref="ArgumentException">
         /// Thrown when <paramref name="id"/> is empty or does not use the supported namespaced format.
         /// </exception>
-        public static bool TryGet(string id, out ProductKindDescriptor? descriptor)
+        public static bool TryGet(string id, out ProductKind? productKind)
         {
             string normalizedId = ProductKindId.Normalize(id, nameof(id));
             lock (Gate)
             {
-                return Descriptors.TryGetValue(normalizedId, out descriptor);
+                return Kinds.TryGetValue(normalizedId, out productKind);
             }
         }
 
-        internal static ProductKindDescriptor Register(ProductKindDescriptor descriptor)
+        internal static ProductKind Register(ProductKind productKind)
         {
-            if (descriptor == null)
+            if (productKind == null)
             {
-                throw new ArgumentNullException(nameof(descriptor));
+                throw new ArgumentNullException(nameof(productKind));
             }
 
             lock (Gate)
             {
-                if (!Descriptors.TryGetValue(descriptor.Id, out ProductKindDescriptor? existing))
+                if (!Kinds.TryGetValue(productKind.Id, out ProductKind? existing))
                 {
-                    Descriptors.Add(descriptor.Id, descriptor);
-                    return descriptor;
+                    Kinds.Add(productKind.Id, productKind);
+                    return productKind;
                 }
 
-                if (existing.IsEquivalentTo(descriptor))
+                if (existing.IsEquivalentTo(productKind))
                 {
                     return existing;
                 }
 
                 throw new InvalidOperationException(
-                    $"Product kind ID '{descriptor.Id}' is already registered with compatibility drug type "
+                    $"Product kind ID '{productKind.Id}' is already registered with compatibility drug type "
                     + $"'{FormatCompatibility(existing.CompatibilityDrugType)}'; the conflicting registration requested "
-                    + $"'{FormatCompatibility(descriptor.CompatibilityDrugType)}'. Product kind IDs are case-insensitive. "
+                    + $"'{FormatCompatibility(productKind.CompatibilityDrugType)}'. Product kind IDs are case-insensitive. "
                     + "Use a unique namespaced ID or register equivalent metadata.");
             }
         }

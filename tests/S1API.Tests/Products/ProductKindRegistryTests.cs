@@ -18,7 +18,7 @@ public sealed class ProductKindRegistryTests
     [InlineData(".:/")]
     public void ConstructorRejectsInvalidIds(string? id)
     {
-        Assert.ThrowsAny<ArgumentException>(() => new ProductKindDescriptorBuilder(id!));
+        Assert.ThrowsAny<ArgumentException>(() => new ProductKindBuilder(id!));
     }
 
     [Fact]
@@ -28,32 +28,32 @@ public sealed class ProductKindRegistryTests
         string originalId = $"ExampleMod:{suffix}";
         string equivalentId = $"examplemod:{suffix.ToUpperInvariant()}";
 
-        ProductKindDescriptor original = new ProductKindDescriptorBuilder(originalId)
+        ProductKind original = new ProductKindBuilder(originalId)
             .WithCompatibilityDrugType(DrugType.MDMA)
             .Build();
-        ProductKindDescriptor equivalent = new ProductKindDescriptorBuilder(equivalentId)
+        ProductKind equivalent = new ProductKindBuilder(equivalentId)
             .WithCompatibilityDrugType(DrugType.MDMA)
             .Build();
 
         Assert.Same(original, equivalent);
         Assert.Same(original, ProductKindRegistry.Get(equivalentId));
-        Assert.True(ProductKindRegistry.TryGet(originalId.ToUpperInvariant(), out ProductKindDescriptor? found));
+        Assert.True(ProductKindRegistry.TryGet(originalId.ToUpperInvariant(), out ProductKind? found));
         Assert.Same(original, found);
         Assert.Single(
             ProductKindRegistry.All,
-            descriptor => string.Equals(descriptor.Id, originalId, StringComparison.OrdinalIgnoreCase));
+            productKind => string.Equals(productKind.Id, originalId, StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void ConflictingRegistrationFailsWithActionableMetadata()
     {
         string id = CreateId();
-        new ProductKindDescriptorBuilder(id)
+        new ProductKindBuilder(id)
             .WithCompatibilityDrugType(DrugType.MDMA)
             .Build();
 
         InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-            () => new ProductKindDescriptorBuilder(id.ToUpperInvariant())
+            () => new ProductKindBuilder(id.ToUpperInvariant())
                 .WithCompatibilityDrugType(DrugType.Heroin)
                 .Build());
 
@@ -64,35 +64,35 @@ public sealed class ProductKindRegistryTests
     }
 
     [Fact]
-    public void DescriptorAndRegistrySnapshotsAreImmutable()
+    public void ProductKindsAndRegistrySnapshotsAreImmutable()
     {
-        ProductKindDescriptor descriptor = new ProductKindDescriptorBuilder(CreateId()).Build();
+        ProductKind productKind = new ProductKindBuilder(CreateId()).Build();
 
-        Assert.True(typeof(ProductKindDescriptor).IsSealed);
-        Assert.Null(typeof(ProductKindDescriptor).GetProperty(nameof(ProductKindDescriptor.Id))!.SetMethod);
+        Assert.True(typeof(ProductKind).IsSealed);
+        Assert.Null(typeof(ProductKind).GetProperty(nameof(ProductKind.Id))!.SetMethod);
         Assert.Null(
-            typeof(ProductKindDescriptor)
-                .GetProperty(nameof(ProductKindDescriptor.CompatibilityDrugType))!
+            typeof(ProductKind)
+                .GetProperty(nameof(ProductKind.CompatibilityDrugType))!
                 .SetMethod);
 
         ICollection snapshot = Assert.IsAssignableFrom<ICollection>(ProductKindRegistry.All);
         Assert.Throws<NotSupportedException>(
-            () => ((IList)snapshot).Add(descriptor));
+            () => ((IList)snapshot).Add(productKind));
     }
 
     [Fact]
     public void CompatibilityMappingIsOptionalAndValidated()
     {
-        ProductKindDescriptor withoutMapping =
-            new ProductKindDescriptorBuilder(CreateId()).Build();
-        ProductKindDescriptor withMapping = new ProductKindDescriptorBuilder(CreateId())
+        ProductKind withoutMapping =
+            new ProductKindBuilder(CreateId()).Build();
+        ProductKind withMapping = new ProductKindBuilder(CreateId())
             .WithCompatibilityDrugType(DrugType.Shrooms)
             .Build();
 
         Assert.Null(withoutMapping.CompatibilityDrugType);
         Assert.Equal(DrugType.Shrooms, withMapping.CompatibilityDrugType);
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => new ProductKindDescriptorBuilder(CreateId())
+            () => new ProductKindBuilder(CreateId())
                 .WithCompatibilityDrugType((DrugType)int.MaxValue));
     }
 
@@ -108,9 +108,9 @@ public sealed class ProductKindRegistryTests
     }
 
     [Fact]
-    public void RegistryRetainsDescriptorsForTheProcessLifetime()
+    public void RegistryRetainsProductKindsForTheProcessLifetime()
     {
-        (string id, WeakReference reference) = RegisterWithoutRetainingDescriptor();
+        (string id, WeakReference reference) = RegisterWithoutRetainingProductKind();
 
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -120,11 +120,11 @@ public sealed class ProductKindRegistryTests
         Assert.Same(reference.Target, ProductKindRegistry.Get(id));
     }
 
-    private static (string Id, WeakReference Reference) RegisterWithoutRetainingDescriptor()
+    private static (string Id, WeakReference Reference) RegisterWithoutRetainingProductKind()
     {
         string id = CreateId();
-        ProductKindDescriptor descriptor = new ProductKindDescriptorBuilder(id).Build();
-        return (id, new WeakReference(descriptor));
+        ProductKind productKind = new ProductKindBuilder(id).Build();
+        return (id, new WeakReference(productKind));
     }
 
     private static string CreateId()
