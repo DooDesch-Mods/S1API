@@ -6,7 +6,7 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 
 ## Key types
 
-- `S1API.Products.ProductDefinition`: product definition wrapper (inherits `S1API.Items.ItemDefinition`)
+- `S1API.Products.ProductDefinition`: product definition wrapper (inherits `S1API.Items.Storable.StorableItemDefinition`)
 - `S1API.Products.ProductInstance`: product instance wrapper (inherits `S1API.Items.ItemInstance`)
 - `S1API.Products.ProductManager`: access to products discovered in the current save
 - `S1API.Products.ProductDefinitionWrapper`: converts a `ProductDefinition` into a typed subclass when possible
@@ -28,8 +28,8 @@ using S1API.Products;
 
 foreach (var product in ProductManager.DiscoveredProducts)
 {
-    // These are already passed through ProductDefinitionWrapper.Wrap(...)
-    // so you may see WeedDefinition/MethDefinition/etc.
+    // ProductManager, ItemManager, and ProductInstance.Definition all use the same typed factory,
+    // so this may be WeedDefinition, MethDefinition, CocaineDefinition, or ShroomDefinition.
     MelonLoader.MelonLogger.Msg($"{product.ID}: {product.Name} (${product.Price})");
 }
 ```
@@ -42,12 +42,15 @@ Products are also item definitions, so you can look them up by item ID.
 using S1API.Items;
 using S1API.Products;
 
-var def = ItemManager.GetItemDefinition("weed") as ProductDefinition;
+var def = ItemManager.GetDefinition("weed") as ProductDefinition;
 if (def != null)
 {
     MelonLoader.MelonLogger.Msg(def.MarketValue);
 }
 ```
+
+Product definitions preserve the native storable-item inheritance contract, so members such as
+`BasePurchasePrice`, `ResellMultiplier`, and `RequiredRank` are also available.
 
 ## Typed product definitions
 
@@ -82,6 +85,25 @@ foreach (var prop in def.Properties)
     MelonLoader.MelonLogger.Msg(prop.ID);
 }
 ```
+
+## Drug types
+
+Use the API-safe accessors when your mod targets both Mono and IL2CPP:
+
+```csharp
+using System.Collections.Generic;
+using S1API.Products;
+
+DrugType primaryType = def.PrimaryDrugType;
+IReadOnlyList<DrugType> allTypes = def.DrugTypeValues;
+```
+
+The older `DrugType` and `DrugTypes` members remain available as non-error obsolete compatibility
+members. They expose native game types that differ between Mono and IL2CPP, are not cross-runtime
+compatible, and therefore require conditional compilation in cross-runtime mods.
+
+`DrugType.MDMA` and `DrugType.Heroin` mirror values present in the native enum. Their presence does
+not mean that every native product system supports those types.
 
 ## Overriding product effect behavior with callbacks
 

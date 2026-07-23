@@ -4,9 +4,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "S1API", "S1API\S1API.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "S1APILoader", "S1APILoader\S1APILoader.csproj", "{B97277C2-27FE-4BB9-AB5A-D479C8DF6827}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "S1API.ContractTests", "tests\S1API.ContractTests\S1API.ContractTests.csproj", "{B9D813D7-F7DA-441E-B499-6F26B4308596}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "S1API.CompatibilityCompile", "tests\S1API.CompatibilityCompile\S1API.CompatibilityCompile.csproj", "{C6BA8E44-9F61-49DD-96B4-92F6F06A2161}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "S1API.Tests", "S1API.Tests\S1API.Tests.csproj", "{516A4E1C-BDCB-4A58-A35A-08858F8BF077}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -22,13 +20,9 @@ Global
 		{B97277C2-27FE-4BB9-AB5A-D479C8DF6827}.Il2CppMelon|Any CPU.Build.0 = Il2CppMelon|Any CPU
 		{B97277C2-27FE-4BB9-AB5A-D479C8DF6827}.MonoMelon|Any CPU.ActiveCfg = MonoMelon|Any CPU
 		{B97277C2-27FE-4BB9-AB5A-D479C8DF6827}.MonoMelon|Any CPU.Build.0 = MonoMelon|Any CPU
-		{B9D813D7-F7DA-441E-B499-6F26B4308596}.Il2CppMelon|Any CPU.ActiveCfg = Debug|Any CPU
-		{B9D813D7-F7DA-441E-B499-6F26B4308596}.Il2CppMelon|Any CPU.Build.0 = Debug|Any CPU
-		{B9D813D7-F7DA-441E-B499-6F26B4308596}.MonoMelon|Any CPU.ActiveCfg = Debug|Any CPU
-		{B9D813D7-F7DA-441E-B499-6F26B4308596}.MonoMelon|Any CPU.Build.0 = Debug|Any CPU
-		{C6BA8E44-9F61-49DD-96B4-92F6F06A2161}.Il2CppMelon|Any CPU.ActiveCfg = Il2CppMelon|Any CPU
-		{C6BA8E44-9F61-49DD-96B4-92F6F06A2161}.Il2CppMelon|Any CPU.Build.0 = Il2CppMelon|Any CPU
-		{C6BA8E44-9F61-49DD-96B4-92F6F06A2161}.MonoMelon|Any CPU.ActiveCfg = MonoMelon|Any CPU
-		{C6BA8E44-9F61-49DD-96B4-92F6F06A2161}.MonoMelon|Any CPU.Build.0 = MonoMelon|Any CPU
+		{516A4E1C-BDCB-4A58-A35A-08858F8BF077}.Il2CppMelon|Any CPU.ActiveCfg = Il2CppMelon|Any CPU
+		{516A4E1C-BDCB-4A58-A35A-08858F8BF077}.Il2CppMelon|Any CPU.Build.0 = Il2CppMelon|Any CPU
+		{516A4E1C-BDCB-4A58-A35A-08858F8BF077}.MonoMelon|Any CPU.ActiveCfg = MonoMelon|Any CPU
+		{516A4E1C-BDCB-4A58-A35A-08858F8BF077}.MonoMelon|Any CPU.Build.0 = MonoMelon|Any CPU
 	EndGlobalSection
 EndGlobal
