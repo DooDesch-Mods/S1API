@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <Import Project="../github.build.props" Condition="Exists('../github.build.props')" />
+    <Import Project="../local.build.props" Condition="Exists('../local.build.props')" />
+    <Import Project="../ci.build.props" Condition="Exists('../ci.build.props')" />
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Configurations>MonoMelon;Il2CppMelon</Configurations>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'MonoMelon'">
+        <DefineConstants>$(DefineConstants);MONOMELON</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Il2CppMelon'">
+        <DefineConstants>$(DefineConstants);IL2CPPMELON</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+        <PackageReference Include="xunit" Version="2.9.2" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <ProjectReference Include="../S1API/S1API.csproj" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Configuration)' == 'MonoMelon'">
+        <Reference Include="Assembly-CSharp">
+            <HintPath>$(MonoAssembliesPath)/Assembly-CSharp.dll</HintPath>
+        </Reference>
+        <Reference Include="ScheduleOne.Core">
+            <HintPath>$(MonoAssembliesPath)/ScheduleOne.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine">
+            <HintPath>$(MonoAssembliesPath)/UnityEngine.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>$(MonoAssembliesPath)/UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(Configuration)' == 'Il2CppMelon'">
+        <Reference Include="$(MelonLoaderAssembliesPath)\Il2CppInterop.Common.dll" />
+        <Reference Include="$(MelonLoaderAssembliesPath)\Il2CppInterop.Runtime.dll" />
+        <Reference Include="$(Il2CppAssembliesPath)\Assembly-CSharp.dll" />
+        <Reference Include="Il2CppScheduleOne.Core">
+            <HintPath>$(Il2CppAssembliesPath)\Il2CppScheduleOne.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="$(Il2CppAssembliesPath)\Il2Cppmscorlib.dll" />
+        <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.dll" />
+        <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.CoreModule.dll" />
+    </ItemGroup>
+</Project>
