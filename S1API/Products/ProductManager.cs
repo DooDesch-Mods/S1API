@@ -59,21 +59,21 @@ namespace S1API.Products
         /// A list of product definitions discovered on this save.
         /// </summary>
         public static ProductDefinition[] DiscoveredProducts => S1Product.ProductManager.DiscoveredProducts.ToArray()
-            .Select(productDefinition => ProductDefinitionWrapper.Wrap(new ProductDefinition(productDefinition)))
+            .Select(productDefinition => ProductDefinitionWrapper.Wrap(productDefinition))
             .ToArray();
 
         /// <summary>
         /// A list of products currently listed for sale.
         /// </summary>
         public static ProductDefinition[] ListedProducts => S1Product.ProductManager.ListedProducts.ToArray()
-            .Select(productDefinition => ProductDefinitionWrapper.Wrap(new ProductDefinition(productDefinition)))
+            .Select(productDefinition => ProductDefinitionWrapper.Wrap(productDefinition))
             .ToArray();
 
         /// <summary>
         /// A list of favourited products.
         /// </summary>
         public static ProductDefinition[] FavouritedProducts => S1Product.ProductManager.FavouritedProducts.ToArray()
-            .Select(productDefinition => ProductDefinitionWrapper.Wrap(new ProductDefinition(productDefinition)))
+            .Select(productDefinition => ProductDefinitionWrapper.Wrap(productDefinition))
             .ToArray();
 
         /// <summary>

@@ -42,7 +42,7 @@ namespace S1API.Items
             // Check for specific types first (most derived to least derived)
             if (CrossType.Is(itemDefinition,
                     out S1Product.ProductDefinition productDefinition))
-                return new ProductDefinition(productDefinition);
+                return ProductDefinitionWrapper.Wrap(productDefinition);
 
             if (CrossType.Is(itemDefinition,
                     out S1ItemFramework.CashDefinition cashDefinition))
@@ -90,7 +90,7 @@ namespace S1API.Items
             // Check for specific types first (most derived to least derived)
             if (CrossType.Is(itemDefinition,
                     out S1Product.ProductDefinition productDefinition))
-                return new ProductDefinition(productDefinition);
+                return ProductDefinitionWrapper.Wrap(productDefinition);
 
             if (CrossType.Is(itemDefinition,
                     out S1ItemFramework.CashDefinition cashDefinition))
