@@ -6,6 +6,7 @@ S1API provides a comprehensive system for working with products (drugs, goods) i
 
 The Products system allows you to:
 - Access existing product definitions (Weed, Cocaine, Meth, etc.)
+- Create marijuana-family weed variants through the native product lifecycle
 - Work with product property tokens such as `Munchies`, `Energizing`, and `Cyclopean`
 - Retrieve product information and pricing
 - Integrate products with dealers and customers
@@ -28,6 +29,10 @@ foreach (var product in ProductManager.DiscoveredProducts)
 ```
 
 If you already know an item ID, you can resolve it via `ItemManager` and cast to `ProductDefinition`.
+
+To create a weed variant with native registration, saves, and multiplayer
+replication, see [Native Weed Variants](weed-variants.md). Other custom product
+families are not currently exposed by this builder.
 
 ### Drug Types
 
