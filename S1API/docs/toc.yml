@@ -62,6 +62,8 @@
           href: products-system.md
         - name: Products API
           href: products-api.md
+        - name: Native Weed Variants
+          href: weed-variants.md
         - name: ProductPopulator
           href: products-populator.md
         - name: Runtime Additives

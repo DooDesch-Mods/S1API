@@ -68,10 +68,11 @@ Register station-related content at runtime (currently Chemistry Station recipes
 ### Products & Properties
 **Namespace**: `S1API.Products`, `S1API.Properties`
 
-Create sellable products (drugs, goods) with custom properties.
+Access product definitions and create native-family marijuana variants with custom properties.
 
 **Key Classes**:
 - `ProductDefinition` - Product wrapper
+- `WeedItemCreator`, `WeedDefinitionBuilder` - Native-family weed variant creation
 - `WeedDefinition`, `CocaineDefinition`, `MethDefinition` - Specific drugs
 - `Property` - Product property tokens such as `Munchies`, `Energizing`, and `Cyclopean`
 - `ProductPropertyWrapper` - Runtime property access
@@ -471,7 +472,7 @@ Reflection and cross-runtime utilities.
 | Phone App | `S1API.PhoneApp` | [Phone Apps](phone-app.md) |
 | TV App | `S1API.TVApp` | [TV Apps](tv-app.md) |
 | Phone Call | `S1API.PhoneCalls` | [Phone Calls](phone-calls.md) |
-| Custom Product | `S1API.Products` | [Products & Properties](products-system.md) |
+| Weed Variant | `S1API.Products` | [Native Weed Variants](weed-variants.md) |
 | UI Element | `S1API.UI` | [UI](ui.md) |
 
 ### "I want to work with..."

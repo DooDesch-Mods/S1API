@@ -10,8 +10,12 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.ProductInstance`: product instance wrapper (inherits `S1API.Items.ItemInstance`)
 - `S1API.Products.ProductManager`: access to products discovered in the current save
 - `S1API.Products.ProductDefinitionWrapper`: converts a `ProductDefinition` into a typed subclass when possible
+- `S1API.Products.WeedItemCreator`: creates native-family marijuana variants
+- `S1API.Products.WeedDefinitionBuilder`: validates and builds a weed variant through the native creator
 - `S1API.Products.PackagingDefinition`: packaging definition wrapper
 - `S1API.Products.Quality`: API-safe quality enum
+
+For creation and lifecycle guidance, see [Native Weed Variants](weed-variants.md).
 
 ## Getting product definitions
 
