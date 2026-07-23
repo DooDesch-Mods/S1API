@@ -20,6 +20,8 @@ namespace S1API.Stations
     /// </summary>
     public sealed class ChemistryStationRecipeBuilder
     {
+        private string? _recipeId;
+        private bool _hasExplicitRecipeId;
         private string? _title;
         private int _cookTimeMinutes = 180;
         private float _cookTemperature = 250f;
@@ -32,6 +34,25 @@ namespace S1API.Stations
         private QualityCalculationMethod _method = QualityCalculationMethod.Additive;
 
         private readonly List<IngredientSpec> _ingredients = new List<IngredientSpec>();
+
+        /// <summary>
+        /// Sets the stable, mod-namespaced recipe identifier.
+        /// </summary>
+        /// <param name="recipeId">
+        /// A namespaced identifier such as <c>my-mod:alternate-route</c>. IDs are matched
+        /// case-insensitively, and the first registered recipe wins when IDs conflict.
+        /// </param>
+        /// <returns>This builder for method chaining.</returns>
+        /// <remarks>
+        /// Validation occurs during <see cref="Build"/>. When omitted, the legacy
+        /// <c>"{quantity}x{productId}"</c> identifier is preserved.
+        /// </remarks>
+        public ChemistryStationRecipeBuilder WithRecipeId(string recipeId)
+        {
+            _recipeId = recipeId;
+            _hasExplicitRecipeId = true;
+            return this;
+        }
 
         /// <summary>
         /// Sets the UI title for the recipe.
@@ -166,7 +187,11 @@ namespace S1API.Stations
                 throw new InvalidOperationException("ChemistryStationRecipeBuilder requires at least one ingredient (WithIngredient...).");
 
             var title = string.IsNullOrWhiteSpace(_title) ? _productItemId! : _title!;
-            var recipeId = $"{_productQuantity}x{_productItemId}";
+            var recipeId = ChemistryStationRecipeId.Resolve(
+                _hasExplicitRecipeId,
+                _recipeId,
+                _productQuantity,
+                _productItemId!);
 
             var native = BuildInternal();
             var wrapper = new ChemistryStationRecipe(
@@ -178,7 +203,8 @@ namespace S1API.Stations
                 finalLiquidColor: _finalLiquidColor,
                 product: new ChemistryStationRecipeProduct(_productItemId!, _productQuantity),
                 ingredients: BuildIngredientWrappers(),
-                qualityCalculationMethod: _method);
+                qualityCalculationMethod: _method,
+                hasExplicitRecipeId: _hasExplicitRecipeId);
 
             return ChemistryStationRecipes.Register(wrapper);
         }

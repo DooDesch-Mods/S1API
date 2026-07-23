@@ -27,7 +27,8 @@ namespace S1API.Stations
             Color finalLiquidColor,
             ChemistryStationRecipeProduct product,
             IReadOnlyList<ChemistryStationRecipeIngredient> ingredients,
-            QualityCalculationMethod qualityCalculationMethod)
+            QualityCalculationMethod qualityCalculationMethod,
+            bool hasExplicitRecipeId)
         {
             S1StationRecipe = stationRecipe;
             RecipeID = recipeId;
@@ -38,10 +39,14 @@ namespace S1API.Stations
             Product = product;
             Ingredients = ingredients;
             QualityCalculationMethod = qualityCalculationMethod;
+            HasExplicitRecipeId = hasExplicitRecipeId;
         }
 
+        internal bool HasExplicitRecipeId { get; }
+
         /// <summary>
-        /// Game-defined recipe identifier (<c>"{qty}x{productId}"</c>).
+        /// Stable recipe identifier. This is the explicit namespaced ID supplied by the
+        /// builder, or the legacy <c>"{quantity}x{productId}"</c> value when omitted.
         /// </summary>
         public string RecipeID { get; }
 
