@@ -16,6 +16,27 @@ When implementing or extending S1API features that mirror or hook into the base 
 ## Coding Style & Naming Conventions
 Follow `CODING_STANDARDS.md`: namespaces mirror folders and internal frameworks live under `S1API.Internal.*`. Use PascalCase for types, methods, and public members; camelCase with a leading `_` for private fields (e.g., `_spawnDelay`). Keep arrow-bodied members concise and mark immutable data as `readonly` or `const`. All modder-facing APIs require XML `<summary>` docs, and conditional code should use the shared `#if (MONOMELON || MONOBEPINEX)` pattern.
 
+## Public API Stability & Compatibility
+Treat every existing public or protected S1API member as a compatibility contract, including recently added APIs. Prefer additive, narrowly scoped changes and preserve existing mod behavior unless the user explicitly approves a breaking change.
+
+- Preserve source compatibility: do not rename or remove public types or members, move them between namespaces, narrow accessibility, change parameter names used by named arguments, add new required parameters, or introduce overloads that make existing calls ambiguous.
+- Preserve binary compatibility: do not change existing signatures, return types, generic constraints, virtual/abstract shape, enum underlying values, or public field/property shape. Prefer a new overload or member over modifying an existing one.
+- Preserve behavioral compatibility: retain defaults, accepted inputs, null handling, validation order and timing, exception types, builder reuse/snapshot behavior, registration ordering, duplicate/collision policy, logging significance, and no-op/fallback behavior. Do not turn a permissive legacy path into a throwing path as incidental cleanup.
+- Preserve persistent and distributed identity: treat registry keys, recipe/product IDs, save representations, network payloads, and case-sensitivity rules as durable contracts. Never replace a stable identifier merely because another format appears cleaner.
+- Keep runtime behavior aligned across Mono and IL2CPP. A compatibility claim requires separate evidence for both targets when code crosses runtime-specific wrappers, delegates, collections, reflection, serialization, networking, or Unity lifecycle seams.
+
+When an API needs a replacement, keep the old surface as a forwarding shim and mark it `[Obsolete("Use ... instead.", false)]` when practical. The shim must preserve the old call's observable behavior; do not delete it, make the obsolete warning an error, or silently reinterpret its inputs. If compatibility cannot be preserved, stop and present the exact break and migration impact for explicit approval before implementation.
+
+Every public API PR must include a compatibility audit against the target branch:
+
+1. Inventory changed public/protected symbols and durable IDs.
+2. State whether source, binary, behavioral, save, and network compatibility are unchanged.
+3. Add focused tests that freeze legacy behavior, not only tests for the new path. Use compile-only caller fixtures when source compatibility is material and reflection/contract checks when binary shape is material.
+4. Test omitted/default inputs separately from explicit new inputs, including invalid input, null, duplicate registration, repeated builder use, and save/load or multiplayer restoration where applicable.
+5. Include a `Compatibility` section in the PR description. Do not claim compatibility from compilation alone.
+
+Do not disguise API changes as refactors, cleanups, consistency fixes, or nullable improvements. Before changing a surprising legacy behavior, search existing tests, docs, samples, call sites, release history, and relevant native lifecycle behavior to determine whether mods may rely on it.
+
 ## Testing Guidelines
 `S1API.Tests/` contains xUnit contract and compatibility tests. Before opening a PR, restore, build, and test both `MonoMelon` and `Il2CppMelon` with matching configurations. Exercise affected gameplay flows in both runtimes when behavior depends on native lifecycle, networking, save/load, or rendered state.
 
