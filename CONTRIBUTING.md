@@ -29,6 +29,11 @@ Please read over the below in full to help you get started and set expectations 
    `MonoMelon` and `Il2CppMelon` have different restore graphs. Do not reuse one
    runtime's restore output for the other runtime's `--no-restore` build.
 
+`S1API.Tests/` is the repository's committed test suite. Keep game-facing smoke
+mods, launchers, harnesses, disposable saves or installs, logs, screenshots, and
+other runtime evidence local; do not commit anything under `tests/Smoke/`.
+Summarize the smoke scenario and results in the pull request instead.
+
 ## PR Preparations
 Verify your changes will successfully build for all **two** build configurations prior to PR please.
 Ultimately, this just saves you time and gets your changes into the API faster.

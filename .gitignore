@@ -6,17 +6,7 @@ bin/
 *.user
 .vs/
 smoke
-!tests/Smoke/
-!tests/Smoke/Run-WeedVariantSmoke.ps1
-!tests/Smoke/WeedVariantSmoke/
-!tests/Smoke/WeedVariantSmoke/Core.cs
-!tests/Smoke/WeedVariantSmoke/README.md
-!tests/Smoke/WeedVariantSmoke/WeedVariantSmoke.csproj
-!tests/Smoke/Run-CustomProductLifecycleSmoke.ps1
-!tests/Smoke/CustomProductLifecycleSmoke/
-!tests/Smoke/CustomProductLifecycleSmoke/Core.cs
-!tests/Smoke/CustomProductLifecycleSmoke/README.md
-!tests/Smoke/CustomProductLifecycleSmoke/CustomProductLifecycleSmoke.csproj
+/tests/Smoke/
 .spark
 
 # Build props

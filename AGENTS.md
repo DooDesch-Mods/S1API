@@ -40,6 +40,8 @@ Do not disguise API changes as refactors, cleanups, consistency fixes, or nullab
 ## Testing Guidelines
 `S1API.Tests/` contains xUnit contract and compatibility tests. Before opening a PR, restore, build, and test both `MonoMelon` and `Il2CppMelon` with matching configurations. Exercise affected gameplay flows in both runtimes when behavior depends on native lifecycle, networking, save/load, or rendered state.
 
+`S1API.Tests/` is the only test implementation that should be committed to this repository. Keep runtime and in-game smoke mods, launchers, harnesses, disposable saves or installs, logs, screenshots, and generated evidence local and ignored, including everything under `tests/Smoke/`. Do not add `.gitignore` exceptions for smoke-test sources. Record the scenario, commands, runtime matrix, and observed pass/fail evidence in the PR description without committing the smoke implementation or game-derived artifacts.
+
 ## Commit & Pull Request Guidelines
 Write imperative, single-purpose commits; lightweight prefixes such as `fix:` or `feat:` appear in history and are encouraged. Target PRs at `bleeding-edge`, include a short change narrative, reproduction or validation notes, and link any external issue. Screenshots or logs are helpful for UI or networking work. Never modify CI workflows without prior discussion.
 
