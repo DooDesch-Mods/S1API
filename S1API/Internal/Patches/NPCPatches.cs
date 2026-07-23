@@ -1204,6 +1204,8 @@ namespace S1API.Internal.Patches
 
                 if (saveData.TryGetData("MessageConversation", out S1Datas.MSGConversationData convo))
                 {
+                    apiNpc?.EnsureMessageConversationReady(resetDefaults: false);
+
                     if (s1BaseNpc.MSGConversation == null)
                     {
                         Logger.Warning($"NPCLoader_Load_Prefix: MSGConversation is null for '{baseData.ID}'");
