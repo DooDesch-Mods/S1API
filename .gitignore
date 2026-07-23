@@ -6,13 +6,6 @@ bin/
 *.user
 .vs/
 smoke
-!smoke/
-smoke/*
-!smoke/CutsceneSmoke/
-!smoke/CutsceneSmoke/**
-smoke/CutsceneSmoke/artifacts/
-smoke/CutsceneSmoke/bin/
-smoke/CutsceneSmoke/obj/
 .spark
 
 # Build props
