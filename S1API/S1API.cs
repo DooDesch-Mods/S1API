@@ -25,6 +25,9 @@ namespace S1API
 
             if (S1APIPreferences.EnableUnityNullReferenceTraceLogging?.Value == true)
             {
+                MelonLogger.Warning(
+                    "[S1API] Exception trace logging is enabled. If you are " +
+                    "not a mod developer, you probably do not need this enabled.");
                 UnityExceptionTraceHook.Install();
             }
         }
