@@ -71,8 +71,18 @@ namespace S1API.Internal.Products
         {
             if (loadManager == null || string.IsNullOrEmpty(loadManager.LoadedGameFolderPath)) return;
             string saveFolder = loadManager.LoadedGameFolderPath;
-            if (string.Equals(_restoredSaveFolder, saveFolder, StringComparison.OrdinalIgnoreCase)) return;
-            _restoredSaveFolder = saveFolder;
+            lock (Gate)
+            {
+                if (string.Equals(
+                        _restoredSaveFolder,
+                        saveFolder,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                _restoredSaveFolder = saveFolder;
+            }
             try
             {
                 string path = Path.Combine(loadManager.LoadedGameFolderPath, "Modded", "CustomProducts.json");
@@ -98,7 +108,6 @@ namespace S1API.Internal.Products
             {
                 Warn("could not read custom-product descriptors; continuing without them: " + exception.Message);
             }
-            finally { }
         }
 
         private static void RestoreOne(CustomProductSaveDescriptor descriptor)
@@ -132,6 +141,10 @@ namespace S1API.Internal.Products
                     if (!string.Equals(builder.ProductId, descriptor.ProductId, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("provider returned a different product ID; automatic renamed-ID migration is not supported");
                     builder.Build();
+                }
+                else
+                {
+                    RestoreFallback(descriptor);
                 }
             }
             catch (Exception exception)
