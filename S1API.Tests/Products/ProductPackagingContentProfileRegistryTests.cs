@@ -3,6 +3,7 @@ using S1API.Products;
 
 namespace S1API.Tests.Products;
 
+[Collection(CustomProductRegistryCollection.Name)]
 public sealed class ProductPackagingContentProfileRegistryTests : IDisposable
 {
     public ProductPackagingContentProfileRegistryTests()

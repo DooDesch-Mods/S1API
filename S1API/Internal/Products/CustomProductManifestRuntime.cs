@@ -150,7 +150,8 @@ namespace S1API.Internal.Products
                     _hostPayload = manifest.Serialize(_sessionId);
                     _hostHash = manifest.CompatibilityHash;
                     _hostEntryCount = manifest.Entries.Length;
-                    _hostRequiresValidation = manifest.Entries.Length != 0;
+                    _hostRequiresValidation = manifest.Entries.Length != 0 ||
+                        manifest.MixingProfiles.Length != 0;
                 }
                 catch (Exception exception)
                 {
@@ -182,6 +183,25 @@ namespace S1API.Internal.Products
             {
                 for (int i = 0; i < releasedData.Count; i++)
                     releasedData[i].Invoke();
+            }
+        }
+
+        internal static void RefreshHostManifestIfReady()
+        {
+            lock (Gate)
+            {
+                if (!_hostActive || !_hostManifestReady)
+                    return;
+
+                CustomProductManifestData manifest =
+                    CustomProductDefinitionRegistry.CreateManifest();
+                _hostPayload = manifest.Serialize(_sessionId);
+                _hostHash = manifest.CompatibilityHash;
+                _hostEntryCount = manifest.Entries.Length;
+                _hostRequiresValidation = manifest.Entries.Length != 0 ||
+                    manifest.MixingProfiles.Length != 0;
+                Info("host manifest refreshed after dynamic custom-product registration; entries=" +
+                    _hostEntryCount);
             }
         }
 
@@ -756,6 +776,29 @@ namespace S1API.Internal.Products
                     return;
                 }
                 localManifest = _localClientManifest;
+            }
+
+            for (int i = 0; i < manifest.GeneratedDescriptors.Length; i++)
+            {
+                if (!CustomProductSavePersistence.TryRestoreGeneratedDescriptorFromNetwork(
+                        manifest.GeneratedDescriptors[i]))
+                {
+                    RejectClient("generated custom-product descriptor could not be restored safely");
+                    return;
+                }
+            }
+
+            try
+            {
+                localManifest = CustomProductDefinitionRegistry.CreateManifest();
+                lock (Gate)
+                    _localClientManifest = localManifest;
+            }
+            catch (Exception exception)
+            {
+                RejectClient("generated custom-product manifest could not be recreated: " +
+                    exception.GetType().Name);
+                return;
             }
 
             string localHash = localManifest.CompatibilityHash;

@@ -15,7 +15,7 @@ namespace S1API.Internal.Products
     /// </summary>
     internal sealed class CustomProductManifestData
     {
-        internal const int CurrentProtocolVersion = 1;
+        internal const int CurrentProtocolVersion = 2;
         internal const int MaximumEntryCount = 256;
         internal const int MaximumPayloadLength = 65536;
         internal const int MaximumIdentifierLength = 256;
@@ -26,6 +26,10 @@ namespace S1API.Internal.Products
         public string CompatibilityHash = string.Empty;
         public CustomProductManifestEntryData[] Entries =
             Array.Empty<CustomProductManifestEntryData>();
+        public CustomProductMixingProfileManifestEntryData[] MixingProfiles =
+            Array.Empty<CustomProductMixingProfileManifestEntryData>();
+        public CustomProductSaveDescriptorData[] GeneratedDescriptors =
+            Array.Empty<CustomProductSaveDescriptorData>();
 
         internal static CustomProductManifestData Create(
             IEnumerable<CustomProductDefinitionRegistration> registrations)
@@ -57,11 +61,27 @@ namespace S1API.Internal.Products
                     "The custom-product manifest exceeds the supported product count.");
             }
 
+            ProductMixingProfile[] profiles = ProductMixingProfileRegistry.Snapshot();
+            var profileEntries = new List<CustomProductMixingProfileManifestEntryData>(profiles.Length);
+            for (int i = 0; i < profiles.Length; i++)
+                profileEntries.Add(CustomProductMixingProfileManifestEntryData.Create(profiles[i]));
+            profileEntries.Sort(CustomProductMixingProfileManifestEntryData.Compare);
+
+            var generatedDescriptors = new List<CustomProductSaveDescriptorData>();
+            foreach (CustomProductDefinitionRegistration registration in registrations)
+            {
+                if (registration.SaveDescriptor != null && registration.SaveDescriptor.IsGeneratedMix)
+                    generatedDescriptors.Add(registration.SaveDescriptor);
+            }
+            generatedDescriptors.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.ProductId, right.ProductId));
+
             var result = new CustomProductManifestData
             {
-                Entries = entries.ToArray()
+                Entries = entries.ToArray(),
+                MixingProfiles = profileEntries.ToArray(),
+                GeneratedDescriptors = generatedDescriptors.ToArray()
             };
-            result.CompatibilityHash = ComputeManifestHash(result.Entries);
+            result.CompatibilityHash = ComputeManifestHash(result.Entries, result.MixingProfiles);
             return result;
         }
 
@@ -75,7 +95,9 @@ namespace S1API.Internal.Products
                 ProtocolVersion = ProtocolVersion,
                 SessionId = sessionId,
                 CompatibilityHash = CompatibilityHash,
-                Entries = Entries
+                Entries = Entries,
+                MixingProfiles = MixingProfiles,
+                GeneratedDescriptors = GeneratedDescriptors
             };
             string payload = JsonConvert.SerializeObject(snapshot, Formatting.None);
             if (payload.Length > MaximumPayloadLength ||
@@ -149,11 +171,39 @@ namespace S1API.Internal.Products
                 manifest.ProtocolVersion != CurrentProtocolVersion ||
                 !IsSessionId(manifest.SessionId) ||
                 !IsHash(manifest.CompatibilityHash) ||
-                manifest.Entries == null ||
-                manifest.Entries.Length > MaximumEntryCount)
+                manifest.Entries == null || manifest.MixingProfiles == null ||
+                manifest.GeneratedDescriptors == null ||
+                manifest.Entries.Length > MaximumEntryCount ||
+                manifest.MixingProfiles.Length > MaximumEntryCount ||
+                manifest.GeneratedDescriptors.Length > MaximumEntryCount)
             {
                 failure = "manifest protocol, session, hash, or entry count is invalid";
                 return false;
+            }
+
+            var profileKinds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < manifest.MixingProfiles.Length; i++)
+            {
+                if (!manifest.MixingProfiles[i].IsValid() ||
+                    !profileKinds.Add(manifest.MixingProfiles[i].ProductKindId) ||
+                    (i > 0 && CustomProductMixingProfileManifestEntryData.Compare(
+                        manifest.MixingProfiles[i - 1], manifest.MixingProfiles[i]) >= 0))
+                {
+                    failure = "manifest contains an invalid or duplicate mixing profile";
+                    return false;
+                }
+            }
+
+            var generatedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < manifest.GeneratedDescriptors.Length; i++)
+            {
+                CustomProductSaveDescriptorData descriptor = manifest.GeneratedDescriptors[i];
+                if (!descriptor.IsGeneratedMix || !generatedIds.Add(descriptor.ProductId) ||
+                    !CustomProductSavePersistence.IsNetworkGeneratedDescriptorValid(descriptor))
+                {
+                    failure = "manifest contains an invalid generated descriptor";
+                    return false;
+                }
             }
 
             var productIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -176,7 +226,7 @@ namespace S1API.Internal.Products
 
             if (!string.Equals(
                     manifest.CompatibilityHash,
-                    ComputeManifestHash(entries),
+                    ComputeManifestHash(entries, manifest.MixingProfiles),
                     StringComparison.Ordinal))
             {
                 failure = "manifest compatibility hash is invalid";
@@ -189,10 +239,21 @@ namespace S1API.Internal.Products
         internal static string ComputeManifestHash(
             IReadOnlyList<CustomProductManifestEntryData> entries)
         {
+            return ComputeManifestHash(entries,
+                Array.Empty<CustomProductMixingProfileManifestEntryData>());
+        }
+
+        internal static string ComputeManifestHash(
+            IReadOnlyList<CustomProductManifestEntryData> entries,
+            IReadOnlyList<CustomProductMixingProfileManifestEntryData> mixingProfiles)
+        {
             var builder = new StringBuilder();
             builder.Append(CurrentProtocolVersion).Append('|');
             for (int i = 0; i < entries.Count; i++)
                 entries[i].AppendCanonical(builder, includeHash: true);
+            builder.Append("profiles|");
+            for (int i = 0; i < mixingProfiles.Count; i++)
+                mixingProfiles[i].AppendCanonical(builder);
 
             return ComputeHash(builder.ToString());
         }
@@ -226,6 +287,22 @@ namespace S1API.Internal.Products
                 return "local content is missing host product '" + host.Entries[hostIndex].ProductId + "'";
             if (localIndex < local.Entries.Length)
                 return "local product '" + local.Entries[localIndex].ProductId + "' is not registered by the host";
+
+            int profileIndex = 0;
+            while (profileIndex < host.MixingProfiles.Length && profileIndex < local.MixingProfiles.Length)
+            {
+                CustomProductMixingProfileManifestEntryData hostProfile = host.MixingProfiles[profileIndex];
+                CustomProductMixingProfileManifestEntryData localProfile = local.MixingProfiles[profileIndex];
+                if (CustomProductMixingProfileManifestEntryData.Compare(hostProfile, localProfile) != 0)
+                    return "mixing profile registrations differ";
+                string? profileFailure = hostProfile.DescribeMismatch(localProfile);
+                if (profileFailure != null)
+                    return "mixing profile '" + hostProfile.ProductKindId + "' " + profileFailure;
+                profileIndex++;
+            }
+
+            if (profileIndex < host.MixingProfiles.Length || profileIndex < local.MixingProfiles.Length)
+                return "mixing profile registrations differ";
             return "manifest hash differs despite matching scalar identities";
         }
 
@@ -319,7 +396,7 @@ namespace S1API.Internal.Products
                 ProductId = registration.ProductId,
                 OwnerId = registration.OwnerId,
                 ProductKindId = metadata.ProductKind.Id,
-                CompatibilityDrugType = (int)metadata.ProductKind.CompatibilityDrugType!.Value,
+                CompatibilityDrugType = descriptor.CompatibilityDrugType,
                 DescriptorFormatVersion = descriptor.FormatVersion,
                 ProviderId = descriptor.ProviderId,
                 ProviderVersion = descriptor.ProviderVersion,
@@ -478,6 +555,8 @@ namespace S1API.Internal.Products
             Append(builder, descriptor.DefaultQuality.ToString(CultureInfo.InvariantCulture));
             Append(builder, descriptor.PlayerEffectDurationSeconds.ToString(CultureInfo.InvariantCulture));
             Append(builder, descriptor.NpcEffectDurationSeconds.ToString(CultureInfo.InvariantCulture));
+            for (int i = 0; i < descriptor.PropertyIds.Length; i++)
+                AppendIdentifier(builder, descriptor.PropertyIds[i]);
             // Provider data remains local; only its deterministic digest participates in compatibility.
             Append(builder, CustomProductManifestData.ComputeHash(descriptor.ProviderData));
             return CustomProductManifestData.ComputeHash(builder.ToString());

@@ -50,16 +50,23 @@ namespace S1API.Tests.Products
         }
 
         [Fact]
-        public void MismatchedMapCannotEnterAnUnsupportedNativeFamily()
+        public void CustomLogicalKindWithoutNativeEnumCanSelectAnExplicitMixerStrategy()
         {
-            InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
-                () => new ProductMixingProfileBuilder(CreateKind())
-                    .WithMixerMap(ProductMixingMap.Cocaine)
-                    .WithOutputFactory(input =>
-                        new ProductMixingOutputDefinition(input.MixName, input.SourceKind, input.SourcePrice))
-                    .Build());
+            ProductKind futureKind = new ProductKindBuilder(
+                    "consumer-shape:" + Guid.NewGuid().ToString("N"))
+                .Build();
 
-            Assert.Contains("must match", exception.Message);
+            ProductMixingProfile profile = new ProductMixingProfileBuilder(futureKind)
+                .WithMixerMap(ProductMixingMap.Cocaine)
+                .WithOutputFactoryCompatibility("consumer-shape:mix-output", 3)
+                .WithOutputFactory(input => new ProductMixingOutputDefinition(
+                    input.MixName, input.SourceKind, input.SourcePrice))
+                .Build();
+
+            Assert.Same(futureKind, profile.ProductKind);
+            Assert.Equal(ProductMixingMap.Cocaine, profile.MixerMap);
+            Assert.Equal("consumer-shape:mix-output", profile.OutputFactoryIdentity);
+            Assert.Equal(3, profile.OutputFactoryVersion);
         }
 
         private static ProductKind CreateKind()

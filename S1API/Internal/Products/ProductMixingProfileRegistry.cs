@@ -18,7 +18,10 @@ namespace S1API.Internal.Products
                     Profiles.Add(profile.ProductKind.Id, profile);
                     return profile;
                 }
-                if (existing.MixerMap == profile.MixerMap && ReferenceEquals(existing.OutputFactory, profile.OutputFactory))
+                if (existing.MixerMap == profile.MixerMap &&
+                    ReferenceEquals(existing.OutputFactory, profile.OutputFactory) &&
+                    string.Equals(existing.OutputFactoryIdentity, profile.OutputFactoryIdentity, StringComparison.OrdinalIgnoreCase) &&
+                    existing.OutputFactoryVersion == profile.OutputFactoryVersion)
                     return existing;
                 throw new InvalidOperationException("A conflicting mixing profile is already registered for product kind '" + profile.ProductKind.Id + "'.");
             }
@@ -35,6 +38,16 @@ namespace S1API.Internal.Products
         {
             lock (Gate)
                 Profiles.Clear();
+        }
+
+        internal static ProductMixingProfile[] Snapshot()
+        {
+            lock (Gate)
+            {
+                var snapshot = new ProductMixingProfile[Profiles.Count];
+                Profiles.Values.CopyTo(snapshot, 0);
+                return snapshot;
+            }
         }
     }
 }

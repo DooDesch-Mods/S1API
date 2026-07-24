@@ -18,6 +18,10 @@ namespace S1API.Products
             ProductPackagingContentProfileRegistration> Registrations =
                 new Dictionary<ProductPackagingContentKey,
                     ProductPackagingContentProfileRegistration>();
+        private static readonly Dictionary<ProductPackagingContentKey,
+            ProductPackagingContentProfileRegistration> KindRegistrations =
+                new Dictionary<ProductPackagingContentKey,
+                    ProductPackagingContentProfileRegistration>();
 
         /// <summary>
         /// Registers content for one stable product and packaging pair.
@@ -93,6 +97,47 @@ namespace S1API.Products
             }
         }
 
+        /// <summary>
+        /// Registers packaging content as a fallback for every custom product of one logical kind.
+        /// </summary>
+        /// <remarks>
+        /// A product-specific registration still wins. This fallback is useful for generated mixes,
+        /// whose stable product IDs are allocated by the native mixing lifecycle.
+        /// </remarks>
+        public static ProductPackagingContentProfile RegisterForProductKind(
+            string ownerId,
+            string productKindId,
+            string packagingId,
+            ProductPackagingContentProfile profile)
+        {
+            string normalizedOwnerId = NormalizeRequired(ownerId, nameof(ownerId));
+            string normalizedKindId = ProductKindId.Normalize(productKindId, nameof(productKindId));
+            string normalizedPackagingId = NormalizeRequired(packagingId, nameof(packagingId));
+            if (profile == null)
+                throw new ArgumentNullException(nameof(profile));
+
+            var key = new ProductPackagingContentKey(normalizedKindId, normalizedPackagingId);
+            lock (Gate)
+            {
+                if (KindRegistrations.TryGetValue(key, out ProductPackagingContentProfileRegistration? existing))
+                {
+                    if (!string.Equals(existing.OwnerId, normalizedOwnerId, StringComparison.OrdinalIgnoreCase) ||
+                        !ReferenceEquals(existing.Profile, profile))
+                    {
+                        throw new InvalidOperationException(
+                            $"Packaging content fallback for logical kind '{normalizedKindId}' and packaging " +
+                            $"'{normalizedPackagingId}' is already registered.");
+                    }
+
+                    return existing.Profile;
+                }
+
+                KindRegistrations.Add(key, new ProductPackagingContentProfileRegistration(
+                    normalizedOwnerId, key, profile));
+                return profile;
+            }
+        }
+
         internal static bool TryResolve(
             string productId,
             string packagingId,
@@ -100,13 +145,42 @@ namespace S1API.Products
         {
             var key = new ProductPackagingContentKey(productId, packagingId);
             lock (Gate)
-                return Registrations.TryGetValue(key, out registration);
+            {
+                if (Registrations.TryGetValue(key, out registration))
+                    return true;
+            }
+
+            if (CustomProductDefinitionRegistry.TryGetMetadata(productId,
+                    out CustomProductDefinitionMetadata? metadata) &&
+                metadata != null)
+            {
+                return TryResolveForProductKind(
+                    metadata.ProductKind.Id,
+                    packagingId,
+                    out registration);
+            }
+
+            registration = null;
+            return false;
+        }
+
+        internal static bool TryResolveForProductKind(
+            string productKindId,
+            string packagingId,
+            out ProductPackagingContentProfileRegistration? registration)
+        {
+            var key = new ProductPackagingContentKey(productKindId, packagingId);
+            lock (Gate)
+                return KindRegistrations.TryGetValue(key, out registration);
         }
 
         internal static void ResetForTesting()
         {
             lock (Gate)
+            {
                 Registrations.Clear();
+                KindRegistrations.Clear();
+            }
             ProductPackagingContentRuntime.ResetForSceneChange();
         }
 

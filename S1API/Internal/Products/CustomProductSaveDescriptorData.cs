@@ -24,6 +24,7 @@ namespace S1API.Internal.Products
         public string? ProviderId;
         public int ProviderVersion;
         public string ProviderData = string.Empty;
+        public bool IsGeneratedMix;
     }
 
     [Serializable]

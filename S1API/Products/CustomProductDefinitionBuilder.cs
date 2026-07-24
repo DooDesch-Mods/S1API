@@ -57,6 +57,7 @@ namespace S1API.Products
         private ProductDefinition? _representationTemplate;
         private int? _playerEffectDurationSeconds;
         private int? _npcEffectDurationSeconds;
+        private ProductMixingMap? _nativeMixerMap;
         private string? _saveProviderId;
         private int _saveProviderVersion;
         private string _saveProviderData = string.Empty;
@@ -310,6 +311,24 @@ namespace S1API.Products
         }
 
         /// <summary>
+        /// Selects the native product family used to execute a generic custom product.
+        /// </summary>
+        /// <remarks>
+        /// This is an explicit runtime strategy, not logical-kind metadata. It lets a product
+        /// kind with no vanilla <see cref="DrugType"/> use a supported native product and mixer
+        /// implementation without changing that kind's identity.
+        /// </remarks>
+        public CustomProductDefinitionBuilder WithNativeMixerMap(ProductMixingMap mixerMap)
+        {
+            EnsureMutable();
+            if (!Enum.IsDefined(typeof(ProductMixingMap), mixerMap))
+                throw new ArgumentOutOfRangeException(nameof(mixerMap));
+
+            _nativeMixerMap = mixerMap;
+            return this;
+        }
+
+        /// <summary>
         /// Associates this definition with a process-registered provider that can recreate it on a
         /// fresh-process save load.
         /// </summary>
@@ -371,13 +390,16 @@ namespace S1API.Products
                     "WithRepresentationsFrom must be called before Build().");
             }
 
-            if (!_productKind.CompatibilityDrugType.HasValue)
+            if (!_productKind.CompatibilityDrugType.HasValue && !_nativeMixerMap.HasValue)
             {
                 throw new InvalidOperationException(
                     $"Product kind '{_productKind.Id}' does not define a compatibility drug type. " +
-                    "Generic products require ProductKindBuilder.WithCompatibilityDrugType(...) " +
-                    "for native save and product-item data.");
+                    "Configure WithNativeMixerMap(...) to select an explicit native execution strategy.");
             }
+
+            DrugType nativeDrugType = _nativeMixerMap.HasValue
+                ? ProductMixingMapContract.GetNativeDrugType(_nativeMixerMap.Value)
+                : _productKind.CompatibilityDrugType!.Value;
 
             List<NativeEffect> resolvedProperties =
                 PropertyResolver.ResolveToGameProperties(_properties);
@@ -416,7 +438,7 @@ namespace S1API.Products
                     _representationTemplate.S1ProductDefinition.PlayerEffectDuration,
                 _npcEffectDurationSeconds ??
                     _representationTemplate.S1ProductDefinition.NPCEffectDuration,
-                _productKind.CompatibilityDrugType.Value,
+                nativeDrugType,
                 resolvedProperties,
                 nativePackaging,
                 _representationTemplate.S1ProductDefinition);
@@ -445,7 +467,7 @@ namespace S1API.Products
                 BaseAddictiveness = _baseAddictiveness,
                 DefaultQuality = (int)_defaultQuality,
                 ProductKindId = _productKind.Id,
-                CompatibilityDrugType = (int)_productKind.CompatibilityDrugType.Value,
+                CompatibilityDrugType = (int)nativeDrugType,
                 RepresentationTemplateId = _representationTemplate.ID,
                 PlayerEffectDurationSeconds = _playerEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.PlayerEffectDuration,
                 NpcEffectDurationSeconds = _npcEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.NPCEffectDuration,

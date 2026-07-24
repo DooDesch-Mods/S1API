@@ -180,7 +180,8 @@ namespace S1API.Internal.Products
                 S1Product.ProductDefinition? template = S1Registry.GetItem(data.RepresentationTemplateId) as S1Product.ProductDefinition;
                 if (template == null)
                     throw new InvalidOperationException("the saved vanilla representation template is unavailable");
-                ProductKind kind = ProductKindRegistry.Register(new ProductKind(data.ProductKindId, (DrugType)data.CompatibilityDrugType));
+                ProductKind kind = ProductKindRegistry.Get(data.ProductKindId) ??
+                    ProductKindRegistry.Register(new ProductKind(data.ProductKindId, null));
                 List<NativeEffect> properties = PropertyResolver.ResolveToGamePropertiesById(data.PropertyIds ?? Array.Empty<string>());
                 var packaging = new List<NativePackagingDefinition>();
                 foreach (string packagingId in data.PackagingIds ?? Array.Empty<string>())
@@ -251,6 +252,31 @@ namespace S1API.Internal.Products
                     return false;
             }
             return true;
+        }
+
+        internal static bool TryRestoreGeneratedDescriptorFromNetwork(
+            CustomProductSaveDescriptorData data)
+        {
+            if (!data.IsGeneratedMix || !string.IsNullOrEmpty(data.ProviderId) ||
+                data.ProviderVersion != 0 || !string.IsNullOrEmpty(data.ProviderData) ||
+                !TryValidate(data, out CustomProductSaveDescriptor descriptor))
+            {
+                return false;
+            }
+
+            if (!CustomProductDefinitionRegistry.IsRegistered(descriptor.ProductId))
+                RestoreFallback(descriptor);
+            return CustomProductDefinitionRegistry.IsRegistered(descriptor.ProductId);
+        }
+
+        internal static bool IsNetworkGeneratedDescriptorValid(
+            CustomProductSaveDescriptorData data)
+        {
+            return data != null && data.IsGeneratedMix &&
+                   string.IsNullOrEmpty(data.ProviderId) &&
+                   data.ProviderVersion == 0 &&
+                   string.IsNullOrEmpty(data.ProviderData) &&
+                   TryValidate(data, out _);
         }
         private static void Warn(string message) { try { MelonLoader.MelonLogger.Warning("[CustomProductSave] " + message); } catch { } }
     }
