@@ -79,6 +79,37 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     }
 
     [Fact]
+    public void FailedInitialApplyDoesNotRetainOwnership()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition rejectedDefinition = CreateDefinition();
+        NativeProductDefinition correctedDefinition = CreateDefinition();
+        _runtimeAdapter.NextApplyException =
+            new InvalidOperationException("Native registration failed.");
+
+        Assert.Throws<InvalidOperationException>(
+            () => CustomProductDefinitionRegistry.Register(
+                "examplemod",
+                productId,
+                "Rejected Product",
+                50f,
+                rejectedDefinition));
+
+        NativeProductDefinition registered = CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Corrected Product",
+            75f,
+            correctedDefinition);
+
+        Assert.Same(correctedDefinition, registered);
+        Assert.Same(
+            correctedDefinition,
+            _runtimeAdapter.RegisteredDefinitions[productId]);
+        Assert.Equal(2, _runtimeAdapter.ApplyCount);
+    }
+
+    [Fact]
     public void PreLoadRestoresDefinitionsBeforeLoadAndLoadCompletePreservesSavedPrice()
     {
         string productId = CreateProductId();
@@ -118,6 +149,7 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     [InlineData("owner", "product", " ", 1f)]
     [InlineData("owner", "product", "name", float.NaN)]
     [InlineData("owner", "product", "name", float.PositiveInfinity)]
+    [InlineData("owner", "product", "name", float.NegativeInfinity)]
     public void InvalidRegistrationMetadataFailsBeforeRuntimeMutation(
         string? ownerId,
         string? productId,
@@ -155,12 +187,12 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         string productId = CreateProductId();
         WeakReference reference = RegisterWithoutRetainingDefinition(productId);
 
+        _runtimeAdapter.ResetSceneState();
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GC.Collect();
 
         Assert.True(reference.IsAlive);
-        _runtimeAdapter.ResetSceneState();
         CustomProductDefinitionRegistry.InvokePreLoadForTesting();
         Assert.Same(reference.Target, _runtimeAdapter.RegisteredDefinitions[productId]);
     }
@@ -224,9 +256,18 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         internal int CreatedProductsCount =>
             0;
 
+        internal Exception? NextApplyException { get; set; }
+
         public bool Apply(CustomProductDefinitionRegistration registration)
         {
             ApplyCount++;
+
+            if (NextApplyException != null)
+            {
+                Exception exception = NextApplyException;
+                NextApplyException = null;
+                throw exception;
+            }
 
             RegisteredDefinitions.TryAdd(
                 registration.ProductId,

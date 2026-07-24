@@ -17,6 +17,7 @@ namespace S1API.Internal.Products
     internal static class CustomProductDefinitionRegistry
     {
         private static readonly object Gate = new object();
+        private static readonly object ApplyGate = new object();
         private static readonly Dictionary<string, CustomProductDefinitionRegistration>
             Registrations =
                 new Dictionary<string, CustomProductDefinitionRegistration>(
@@ -52,42 +53,70 @@ namespace S1API.Internal.Products
                     "Initial product price must be a finite value.");
             }
 
-            CustomProductDefinitionRegistration registration;
-            lock (Gate)
+            lock (ApplyGate)
             {
-                if (Registrations.TryGetValue(
-                        normalizedProductId,
-                        out CustomProductDefinitionRegistration? existing))
+                CustomProductDefinitionRegistration registration;
+                bool added = false;
+                lock (Gate)
                 {
-                    if (!string.Equals(
-                            existing.OwnerId,
-                            normalizedOwnerId,
-                            StringComparison.OrdinalIgnoreCase))
+                    if (Registrations.TryGetValue(
+                            normalizedProductId,
+                            out CustomProductDefinitionRegistration? existing))
                     {
-                        throw new InvalidOperationException(
-                            $"Custom product ID '{normalizedProductId}' is already owned by " +
-                            $"'{existing.OwnerId}' and cannot be registered by " +
-                            $"'{normalizedOwnerId}'. Product ownership is case-insensitive.");
+                        if (!string.Equals(
+                                existing.OwnerId,
+                                normalizedOwnerId,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new InvalidOperationException(
+                                $"Custom product ID '{normalizedProductId}' is already owned " +
+                                $"by '{existing.OwnerId}' and cannot be registered by " +
+                                $"'{normalizedOwnerId}'. Product ownership is " +
+                                "case-insensitive.");
+                        }
+
+                        registration = existing;
+                    }
+                    else
+                    {
+                        registration = new CustomProductDefinitionRegistration(
+                            normalizedOwnerId,
+                            normalizedProductId,
+                            normalizedProductName,
+                            initialPrice,
+                            definition);
+                        Registrations.Add(normalizedProductId, registration);
+                        added = true;
                     }
 
-                    registration = existing;
+                    EnsureHooked();
                 }
-                else
+
+                try
                 {
-                    registration = new CustomProductDefinitionRegistration(
-                        normalizedOwnerId,
-                        normalizedProductId,
-                        normalizedProductName,
-                        initialPrice,
-                        definition);
-                    Registrations.Add(normalizedProductId, registration);
+                    _runtimeAdapter.Apply(registration);
+                }
+                catch
+                {
+                    if (added)
+                    {
+                        lock (Gate)
+                        {
+                            if (Registrations.TryGetValue(
+                                    normalizedProductId,
+                                    out CustomProductDefinitionRegistration? current) &&
+                                ReferenceEquals(current, registration))
+                            {
+                                Registrations.Remove(normalizedProductId);
+                            }
+                        }
+                    }
+
+                    throw;
                 }
 
-                EnsureHooked();
+                return registration.Definition;
             }
-
-            _runtimeAdapter.Apply(registration);
-            return registration.Definition;
         }
 
         private static string NormalizeRequired(string value, string parameterName)
@@ -128,18 +157,21 @@ namespace S1API.Internal.Products
 
         private static void ApplyAll(string phase)
         {
-            foreach (CustomProductDefinitionRegistration registration in Snapshot())
+            lock (ApplyGate)
             {
-                try
+                foreach (CustomProductDefinitionRegistration registration in Snapshot())
                 {
-                    _runtimeAdapter.Apply(registration);
-                }
-                catch (Exception exception)
-                {
-                    MelonLoader.MelonLogger.Error(
-                        $"[CustomProductDefinitionRegistry] Failed to restore product " +
-                        $"'{registration.ProductId}' owned by '{registration.OwnerId}' during " +
-                        $"{phase}: {exception}");
+                    try
+                    {
+                        _runtimeAdapter.Apply(registration);
+                    }
+                    catch (Exception exception)
+                    {
+                        MelonLoader.MelonLogger.Error(
+                            $"[CustomProductDefinitionRegistry] Failed to restore product " +
+                            $"'{registration.ProductId}' owned by " +
+                            $"'{registration.OwnerId}' during {phase}: {exception}");
+                    }
                 }
             }
         }
@@ -161,17 +193,20 @@ namespace S1API.Internal.Products
             if (runtimeAdapter == null)
                 throw new ArgumentNullException(nameof(runtimeAdapter));
 
-            lock (Gate)
+            lock (ApplyGate)
             {
-                if (_hooked)
+                lock (Gate)
                 {
-                    GameLifecycle.OnPreLoad -= OnPreLoad;
-                    GameLifecycle.OnLoadComplete -= OnLoadComplete;
-                }
+                    if (_hooked)
+                    {
+                        GameLifecycle.OnPreLoad -= OnPreLoad;
+                        GameLifecycle.OnLoadComplete -= OnLoadComplete;
+                    }
 
-                Registrations.Clear();
-                _runtimeAdapter = runtimeAdapter;
-                _hooked = false;
+                    Registrations.Clear();
+                    _runtimeAdapter = runtimeAdapter;
+                    _hooked = false;
+                }
             }
         }
 
