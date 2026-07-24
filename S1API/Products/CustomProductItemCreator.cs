@@ -1,3 +1,5 @@
+using S1API.Console;
+
 namespace S1API.Products
 {
     /// <summary>
@@ -14,6 +16,14 @@ namespace S1API.Products
         /// required by native save and product-item data.
         /// </param>
         /// <returns>A new custom product definition builder.</returns>
+        /// <remarks>
+        /// Keep this durable ID namespaced for saves and multiplayer. If you do
+        /// not want to type the namespace when testing through the console,
+        /// register the short name with
+        /// <see cref="ConsoleItemAliases"/> after
+        /// <see cref="CustomProductDefinitionBuilder.Build"/> so
+        /// <c>give &lt;alias&gt;</c> resolves it locally.
+        /// </remarks>
         public static CustomProductDefinitionBuilder CreateBuilder(
             string id,
             ProductKind productKind)

@@ -13,6 +13,7 @@ register the same stable IDs before native item save data is restored.
 
 ```csharp
 using System;
+using S1API.Console;
 using S1API.Items;
 using S1API.Lifecycle;
 using S1API.Products;
@@ -65,8 +66,19 @@ GameLifecycle.OnPreLoad += () =>
             playerSeconds: 120,
             npcSeconds: 180)
         .Build();
+
+    ConsoleItemAliases.Register(
+        alias: "focus-tablet",
+        canonicalItemId: focusTablet.ProductId);
 };
 ```
+
+Don't want to type the namespace in the console? Keep the durable namespaced
+item ID and register the short name with `ConsoleItemAliases` after `Build()`.
+The example above accepts both `give focus-tablet` and
+`give example.mod:products/focus-tablet`. The alias is a local console
+convenience only: created items still use the canonical ID, and aliases are not
+saved, networked, or included in compatibility manifests.
 
 The compatibility drug type remains optional metadata. A generic product needs
 a native execution representation: use compatibility metadata when it is
