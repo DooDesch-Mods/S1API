@@ -6,6 +6,8 @@ S1API.sln orchestrates two primary projects: `S1API/` for the modding API and `S
 ## Research Workflow
 When implementing or extending S1API features that mirror or hook into the base game, inspect `../` first to confirm the upstream type, member, and behavior you are targeting. Search the game codebase for the relevant symbols before making API changes. Also use the `../.agents/skills/schedule-one-modding` skill when working with upstream game types so you follow the repository's modding-specific guidance and references. Example: if asked to add `onHourPass` support to `TimeManager`, look for `onHourPass` and `TimeManager` in `../` to verify naming, signatures, and call flow before editing `S1API`, and use the `schedule-one-modding` skill to guide the upstream research and integration approach.
 
+Treat native icon, mugshot, and preview generators as shared render rigs rather than ordinary synchronous helpers. Multiple captures must be serialized, with the rig fully reset and at least one settled frame (`Update` plus `WaitForEndOfFrame` where appearance state is applied late) between subjects. A managed lock alone does not prevent Unity/GPU transition frames from combining the outgoing and incoming subjects. During visual iteration, render and inspect one targeted capture first; run the complete runtime/save/scene matrix only after that capture is correct.
+
 ## Build, Test, and Development Commands
 - `dotnet restore S1API.sln -p:Configuration=MonoMelon` — restores the Mono graph.
 - `dotnet build S1API.sln -c MonoMelon --no-restore -p:AutomateLocalDeployment=false` — builds Mono without deploying into a live game.
