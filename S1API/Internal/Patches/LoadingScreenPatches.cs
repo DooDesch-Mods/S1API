@@ -67,6 +67,8 @@ namespace S1API.Internal.Patches
             if (!IsGameLoading())
                 return true;
 
+            ProductPackagingContentRuntime.QueueRegisteredIconsForLoading();
+
             bool waitForMugshots =
                 ShouldWaitForMugshots() &&
                 !NPCAppearance.MugshotsProcessingComplete;
