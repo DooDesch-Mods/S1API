@@ -236,7 +236,18 @@ namespace S1API.Internal.Products
             }
 
             QueueGeneratedIcon(registration);
-            return false;
+            return TryGetLooseProductIcon(
+                registration,
+                productId,
+                out icon);
+        }
+
+        internal static void QueueRegisteredIconsForLoading()
+        {
+            ProductPackagingContentProfileRegistration[] registrations =
+                ProductPackagingContentProfileRegistry.Snapshot();
+            for (int i = 0; i < registrations.Length; i++)
+                QueueGeneratedIcon(registrations[i]);
         }
 
         internal static void ResetForSceneChange()
@@ -436,6 +447,18 @@ namespace S1API.Internal.Products
         private static void QueueGeneratedIcon(
             ProductPackagingContentProfileRegistration registration)
         {
+            lock (IconGate)
+            {
+                if (GeneratedIcons.TryGetValue(
+                        registration.Key,
+                        out GeneratedPackagingIcon? generated) &&
+                    generated.Icon != null &&
+                    generated.Texture != null)
+                {
+                    return;
+                }
+            }
+
             bool startProcessor = false;
             int generation;
             lock (IconQueueGate)
@@ -559,6 +582,29 @@ namespace S1API.Internal.Products
                 // RuntimePreviewGenerator uses a shared render rig. Give its
                 // temporary model a frame to leave the rig before the next pair.
                 yield return null;
+            }
+        }
+
+        private static bool TryGetLooseProductIcon(
+            ProductPackagingContentProfileRegistration registration,
+            string productId,
+            out Sprite? icon)
+        {
+            icon = null;
+            try
+            {
+                icon =
+                    global::S1API.Items.ItemManager.GetDefinition(productId)
+                        ?.Icon;
+                return icon != null;
+            }
+            catch (Exception exception)
+            {
+                LogFailureOnce(
+                    registration,
+                    "loose-icon lookup",
+                    exception.Message);
+                return false;
             }
         }
 

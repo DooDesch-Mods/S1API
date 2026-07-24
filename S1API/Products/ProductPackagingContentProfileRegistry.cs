@@ -174,6 +174,21 @@ namespace S1API.Products
                 return KindRegistrations.TryGetValue(key, out registration);
         }
 
+        internal static ProductPackagingContentProfileRegistration[] Snapshot()
+        {
+            lock (Gate)
+            {
+                var snapshot =
+                    new ProductPackagingContentProfileRegistration[
+                        Registrations.Count + KindRegistrations.Count];
+                Registrations.Values.CopyTo(snapshot, 0);
+                KindRegistrations.Values.CopyTo(
+                    snapshot,
+                    Registrations.Count);
+                return snapshot;
+            }
+        }
+
         internal static void ResetForTesting()
         {
             lock (Gate)

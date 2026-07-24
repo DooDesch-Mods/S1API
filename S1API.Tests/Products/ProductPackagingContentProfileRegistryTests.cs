@@ -79,6 +79,40 @@ public sealed class ProductPackagingContentProfileRegistryTests : IDisposable
     }
 
     [Fact]
+    public void SnapshotIncludesProductAndKindRegistrations()
+    {
+        string productId = CreateProductId();
+        string productKindId = CreateProductId();
+        ProductPackagingContentProfile profile = CreateProfile();
+
+        ProductPackagingContentProfileRegistry.Register(
+            "examplemod",
+            productId,
+            "baggie",
+            profile);
+        ProductPackagingContentProfileRegistry.RegisterForProductKind(
+            "examplemod",
+            productKindId,
+            "baggie",
+            profile);
+
+        ProductPackagingContentProfileRegistration[] snapshot =
+            ProductPackagingContentProfileRegistry.Snapshot();
+
+        Assert.Equal(2, snapshot.Length);
+        Assert.Contains(
+            snapshot,
+            registration =>
+                registration.Key.ProductId == productId &&
+                registration.Key.PackagingId == "baggie");
+        Assert.Contains(
+            snapshot,
+            registration =>
+                registration.Key.ProductId == productKindId &&
+                registration.Key.PackagingId == "baggie");
+    }
+
+    [Fact]
     public void RegisteredProductWithUnregisteredPackagingPreservesNativeFallback()
     {
         string productId = CreateProductId();

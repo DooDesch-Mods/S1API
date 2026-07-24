@@ -67,6 +67,11 @@ namespace S1API.Internal.Patches
             if (!IsGameLoading())
                 return true;
 
+            if (_isWaitingForRenderedIcons)
+                return false;
+
+            ProductPackagingContentRuntime.QueueRegisteredIconsForLoading();
+
             bool waitForMugshots =
                 ShouldWaitForMugshots() &&
                 !NPCAppearance.MugshotsProcessingComplete;
@@ -76,9 +81,6 @@ namespace S1API.Internal.Patches
                     ProductPackagingContentRuntime.GeneratedIconWorkComplete);
             if (!waitForMugshots && !waitForProductIcons)
                 return true;
-
-            if (_isWaitingForRenderedIcons)
-                return false;
 
             _isWaitingForRenderedIcons = true;
             _waitForMugshots = waitForMugshots;
