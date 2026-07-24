@@ -78,17 +78,18 @@ public sealed class ProductPackagingContentProfileRegistryTests : IDisposable
     }
 
     [Fact]
-    public void UnregisteredPairPreservesNativeFallback()
+    public void RegisteredProductWithUnregisteredPackagingPreservesNativeFallback()
     {
+        string productId = CreateProductId();
         ProductPackagingContentProfileRegistry.Register(
             "examplemod",
-            CreateProductId(),
+            productId,
             "baggie",
             CreateProfile());
 
         Assert.False(
             ProductPackagingContentProfileRegistry.TryResolve(
-                CreateProductId(),
+                productId,
                 "jar",
                 out _));
     }
