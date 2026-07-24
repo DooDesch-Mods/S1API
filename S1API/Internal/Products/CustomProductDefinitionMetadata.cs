@@ -1,3 +1,9 @@
+#if IL2CPPMELON
+using S1Product = Il2CppScheduleOne.Product;
+#elif MONOMELON
+using S1Product = ScheduleOne.Product;
+#endif
+
 using System;
 using System.Collections.Generic;
 using S1API.Products;
@@ -16,7 +22,8 @@ namespace S1API.Internal.Products
             : this(
                 productKind,
                 defaultQuality,
-                Array.Empty<PackagingDefinition>())
+                Array.Empty<PackagingDefinition>(),
+                null)
         {
         }
 
@@ -24,6 +31,15 @@ namespace S1API.Internal.Products
             ProductKind productKind,
             Quality defaultQuality,
             IReadOnlyList<PackagingDefinition> validPackaging)
+            : this(productKind, defaultQuality, validPackaging, null)
+        {
+        }
+
+        internal CustomProductDefinitionMetadata(
+            ProductKind productKind,
+            Quality defaultQuality,
+            IReadOnlyList<PackagingDefinition> validPackaging,
+            S1Product.ProductDefinition? representationTemplate)
         {
             ProductKind = productKind;
             DefaultQuality = defaultQuality;
@@ -32,6 +48,7 @@ namespace S1API.Internal.Products
 
             ValidPackaging =
                 new List<PackagingDefinition>(validPackaging).AsReadOnly();
+            RepresentationTemplate = representationTemplate;
         }
 
         internal ProductKind ProductKind { get; }
@@ -39,5 +56,7 @@ namespace S1API.Internal.Products
         internal Quality DefaultQuality { get; }
 
         internal IReadOnlyList<PackagingDefinition> ValidPackaging { get; }
+
+        internal S1Product.ProductDefinition? RepresentationTemplate { get; }
     }
 }

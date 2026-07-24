@@ -101,7 +101,125 @@ native-backed item equality; do not use `ReferenceEquals` across lookup calls.
 The template's icon, stored/held representations, functional product,
 consumption animation, and item UI references are shared rather than cloned.
 The builder does not export, embed, or redistribute those game assets. Its
-station representation is deliberately not copied.
+station representation is deliberately not copied unless a presentation
+profile supplies a station visual.
+
+## Custom presentation profiles
+
+`ProductPresentationProfile` lets a generic custom product use mod-owned visuals
+without subclassing a native drug family. Register the profile by stable product
+ID before building the definition:
+
+```csharp
+using S1API.Products;
+using UnityEngine;
+
+// Load once through S1API.AssetBundles, MAPI's embedded GLB loader, or another
+// local mod-owned asset path. Providers should return this reusable prefab source.
+GameObject pillVisual = LoadPillVisual();
+
+ProductPresentationProfile pillProfile =
+    new ProductPresentationProfileBuilder()
+        .WithLooseVisual(() => pillVisual)
+        .WithGeneratedIconFromLooseVisual(size: 512)
+        .Require(
+            ProductPresentationContext.Stored,
+            ProductPresentationContext.Held,
+            ProductPresentationContext.Station,
+            ProductPresentationContext.FunctionalProduct)
+        .Build();
+
+ProductPresentationProfileRegistry.RegisterForProduct(
+    ownerId: "example.mod",
+    productId: "example.mod:products/focus-tablet",
+    profile: pillProfile);
+```
+
+The loose visual is the deterministic default for the stored, held, station,
+and functional-product contexts. Providers may author the desired root
+transform directly. For reusable source objects, pass a
+`ProductPresentationTransform` to set an explicit local position, Euler
+rotation, and scale on S1API's cloned visual root:
+
+```csharp
+var pillPose =
+    new ProductPresentationTransform(
+        localPosition: Vector3.zero,
+        localEulerAngles:
+            (Quaternion.Euler(78f, 0f, -8f) *
+             Quaternion.Euler(0f, 90f, 0f)).eulerAngles,
+        localScale: Vector3.one * 0.06f);
+
+ProductPresentationProfile profile =
+    new ProductPresentationProfileBuilder()
+        .WithLooseVisual(() => pillVisual, pillPose)
+        .WithHeldVisual(() => heldPillVisual, heldPose)
+        .WithStationVisual(() => stationPillVisual, stationPose)
+        .WithIcon(() => pillIcon)
+        .WithConsumptionPrefab(() => pillConsumeAnimationPrefab)
+        .Build();
+```
+
+Visual providers return a `GameObject` prefab source. S1API clones the source
+and preserves its root local position, rotation, and scale unless an explicit
+presentation transform overrides them. A loose transform follows the loose
+provider into fallback contexts; a context-specific provider and transform
+take precedence. S1API also clones the representation template's native
+stored-item, equippable, station-item, and functional-product scaffolds,
+replacing only their family-specific visual setter. This keeps native storage
+footprints, station modules, draggable behavior, first-person equip behavior,
+and consumption wiring intact.
+
+The held context also creates a third-person `AvatarEquippable` under the
+deterministic resource path
+`S1API/ProductPresentation/{productId}/Held`. Every peer must register the same
+product and profile locally before that path is received over the network.
+S1API does not transmit the mesh, materials, textures, definition, or profile.
+
+An explicit consumption provider must return a prefab containing the native
+`ProductConsumeAnimation` component. Generated icons reuse the base game's
+`IconGenerator` through `S1API.Rendering.IconFactory`; explicit sprites can be
+supplied with `WithIcon`. S1API preserves the representation template's icon
+while capture is queued, waits for the native `@IconGenerator` rig, yields
+through a complete render frame, and rejects transparent cold-start captures.
+The loading screen stays open until queued product icons complete or reach the
+bounded retry timeout. `MugshotGenerator` remains reserved for avatar/accessory
+previews. The generated icon is the loose inventory icon only.
+`ProductIconManager` packaging combinations are intentionally unchanged.
+
+Automatic icon fitting targets 72% of the native thumbnail camera by default.
+Adjust the framing or preserve the authored scale with the additive overload:
+
+```csharp
+.WithGeneratedIconFromLooseVisual(
+    size: 512,
+    fitToCamera: true,
+    cameraFill: 0.82f)
+```
+
+Set `fitToCamera: false` when the provider's scale is already authored for the
+base-game thumbnail rig. The loose presentation transform controls icon
+rotation; `cameraFill` controls only automatic scale fitting. Direct
+`IconFactory.GenerateIcon` and `GenerateIconSprite` overloads expose the same
+framing controls.
+
+Profiles may instead be registered by `ProductKind` with
+`RegisterForProductKind`. A product-ID profile always wins over a kind profile,
+and both key types are case-insensitive. The first owner wins; an owner may
+repeat the same profile registration idempotently but cannot silently replace
+it with another profile.
+
+Missing optional providers preserve the original template reference. Provider
+exceptions, null results, incompatible native scaffolds, and icon-rendering
+failures also preserve that reference and log a warning. `Require(...)` changes
+those conditions into an actionable registration error once the relevant
+native scene service is available. Profiles and generated prefabs are retained
+for the process lifetime and reapplied during pre-load and load-complete
+restoration.
+
+Presentation profiles affect only generic custom products registered with
+`CustomProductDefinitionBuilder`. Vanilla definitions, native-family builders,
+and legacy custom registrations are not modified.
 
 ## Loose and packaged instances
 
@@ -159,7 +277,8 @@ Supported in this milestone:
   S1API custom-product lifecycle registry;
 - stable loose and packaged item instances;
 - fixed name, description, price, effects, legality, addictiveness, quality,
-  packaging policy, and borrowed consumption references;
+  packaging policy, borrowed consumption references, and optional mod-owned
+  loose presentation profiles;
 - same-mod save/load and native item network serialization; and
 - explicit discovery, Product Manager listing, and existing shop integration.
 
@@ -167,9 +286,8 @@ Not supported:
 
 - mixing, generated variants, native family conversion, or production-station
   recipes;
-- custom models, icons, loose/stored/held providers, consumption providers, or
-  Product Manager UI categories;
 - packaged contents, composite package icons, or packaging-content save data;
+- custom packaging definitions or Product Manager UI categories;
 - definition transfer to a peer without the defining mod; or
 - recovery of a saved custom item after its mod or stable definition ID is
   removed.
@@ -185,4 +303,6 @@ This API is additive. Existing `ProductDefinition`, `ProductInstance`,
 behavior, save IDs, and network payloads are unchanged. The wrapper factory
 selects `CustomProductDefinition` only for definitions registered with the new
 builder metadata; all previous generic and native-family fallback behavior
-remains intact.
+remains intact. Presentation-profile registration is opt-in, and definitions
+without a resolved profile keep the exact representation references selected by
+`WithRepresentationsFrom`.

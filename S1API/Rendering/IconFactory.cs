@@ -21,8 +21,9 @@ namespace S1API.Rendering
     /// <summary>
     /// Factory for generating item icons using the game's IconGenerator and MugshotGenerator.
     /// <para>
-    /// <b>Item Icon Generation (Experimental):</b> Direct item icon generation using IconGenerator is experimental.
-    /// Use <see cref="GenerateIcon"/> for static mesh item models.
+    /// <b>Item Icon Generation:</b> Use
+    /// <see cref="GenerateIcon(Transform, int, bool)"/> for static mesh item models.
+    /// S1API centers and fits the model to the game's fixed item-thumbnail camera.
     /// </para>
     /// <para>
     /// <b>Accessory Icon Generation (Confirmed Working):</b> Accessory icon generation using MugshotGenerator
@@ -41,6 +42,28 @@ namespace S1API.Rendering
             S1DevUtils.IconGenerator.Instance;
 
         /// <summary>
+        /// INTERNAL: Whether the active scene provides a complete item-icon rendering rig.
+        /// </summary>
+        internal static bool IsItemIconGeneratorReady
+        {
+            get
+            {
+                try
+                {
+                    S1DevUtils.IconGenerator generator = S1IconGenerator;
+                    return generator != null &&
+                           generator.CameraPosition != null &&
+                           generator.MainContainer != null &&
+                           generator.ItemContainer != null;
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
         /// INTERNAL: Reference to the game's MugshotGenerator instance.
         /// </summary>
         internal static S1AvatarFramework.MugshotGenerator S1MugshotGenerator =>
@@ -52,10 +75,65 @@ namespace S1API.Rendering
         /// <param name="model">The model to generate an icon for.</param>
         /// <param name="size">The size of the square icon (default 512).</param>
         /// <param name="bakeSkinnedMeshes">If true, bakes SkinnedMeshRenderers to static MeshRenderers to ensure correct bounds (default true).</param>
-        /// <returns>A Texture2D containing the icon, or null if generation failed.</returns>
-        public static Texture2D? GenerateIcon(Transform model, int size = 512, bool bakeSkinnedMeshes = true)
+        /// <returns>
+        /// A Texture2D containing the icon, or null if generation failed or the render pipeline
+        /// produced a transparent cold-start capture.
+        /// </returns>
+        /// <remarks>
+        /// This synchronous method requires a render-ready Main or Tutorial scene. Product
+        /// presentation profiles use a loading-screen queue that waits and retries automatically.
+        /// </remarks>
+        public static Texture2D? GenerateIcon(
+            Transform model,
+            int size = 512,
+            bool bakeSkinnedMeshes = true) =>
+            GenerateIcon(
+                model,
+                size,
+                bakeSkinnedMeshes,
+                fitToCamera: true,
+                cameraFill: 0.72f);
+
+        /// <summary>
+        /// Generates a preview texture with explicit native-camera framing controls.
+        /// </summary>
+        /// <param name="model">The model to generate an icon for.</param>
+        /// <param name="size">The size of the square icon.</param>
+        /// <param name="bakeSkinnedMeshes">
+        /// Whether to bake skinned renderers to static renderers before capture.
+        /// </param>
+        /// <param name="fitToCamera">
+        /// Whether to fit renderer bounds to the native fixed thumbnail camera. Set false
+        /// to preserve the model's authored scale.
+        /// </param>
+        /// <param name="cameraFill">
+        /// The target share of the native camera's vertical view when fitting, greater than
+        /// zero through 2. Values above 1 intentionally crop the model.
+        /// </param>
+        /// <returns>
+        /// A Texture2D containing the icon, or null if generation failed or produced no
+        /// visible pixels.
+        /// </returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="cameraFill"/> is not greater than zero through 2.
+        /// </exception>
+        public static Texture2D? GenerateIcon(
+            Transform model,
+            int size,
+            bool bakeSkinnedMeshes,
+            bool fitToCamera,
+            float cameraFill = 0.72f)
         {
-            if (S1IconGenerator == null)
+            if (cameraFill <= 0f || cameraFill > 2f)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(cameraFill),
+                    cameraFill,
+                    "Icon camera fill must be greater than zero and at most 2.");
+            }
+
+            S1DevUtils.IconGenerator generator = S1IconGenerator;
+            if (generator == null)
             {
                 Logger.Error("IconGenerator not found in scene. Cannot generate icon.");
                 return null;
@@ -67,20 +145,23 @@ namespace S1API.Rendering
                 return null;
             }
 
+            Transform? originalParent = model.parent;
+            Vector3 originalPos = model.localPosition;
+            Quaternion originalRot = model.localRotation;
+            Vector3 originalScale = model.localScale;
+            bool wasActive = model.gameObject.activeSelf;
+            int originalSize = generator.IconSize;
+            bool originalModifyLighting = generator.ModifyLighting;
+            List<SkinnedMeshRendererState>? bakedRenderers = null;
+            Texture2D? texture = null;
+
             try
             {
-                // Store original transform state for restoration after generation
-                Transform? originalParent = model.parent;
-                Vector3 originalPos = model.localPosition;
-                Quaternion originalRot = model.localRotation;
-                Vector3 originalScale = model.localScale;
-                bool wasActive = model.gameObject.activeSelf;
-
                 // Parent to ItemContainer first (like the game expects) then position
-                model.SetParent(S1IconGenerator.ItemContainer, false);
+                model.SetParent(generator.ItemContainer, false);
                 model.localPosition = Vector3.zero;
-                model.localRotation = Quaternion.identity;
-                model.localScale = Vector3.one;
+                model.localRotation = originalRot;
+                model.localScale = originalScale;
                 
                 // Now activate and set layers (after parenting)
                 model.gameObject.SetActive(true);
@@ -89,13 +170,18 @@ namespace S1API.Rendering
                 if (iconLayer != -1)
                 {
                     // Set layers recursively on ItemContainer to match game's approach
-                    S1DevUtils.LayerUtility.SetLayerRecursively(S1IconGenerator.ItemContainer.gameObject, iconLayer);
+                    S1DevUtils.LayerUtility.SetLayerRecursively(
+                        generator.ItemContainer.gameObject,
+                        iconLayer);
                 }
 
-                Logger.Msg($"Icon generation for '{model.name}': world pos={model.position}, layer={model.gameObject.layer} ({LayerMask.LayerToName(model.gameObject.layer)}), container pos={S1IconGenerator.ItemContainer.position}");
+                Logger.Msg(
+                    $"Icon generation for '{model.name}': world pos={model.position}, " +
+                    $"layer={model.gameObject.layer} " +
+                    $"({LayerMask.LayerToName(model.gameObject.layer)}), " +
+                    $"container pos={generator.ItemContainer.position}");
 
                 // Bake SkinnedMeshRenderers if requested to fix bounds calculation issues
-                System.Collections.Generic.List<SkinnedMeshRendererState>? bakedRenderers = null;
                 if (bakeSkinnedMeshes)
                 {
                     bakedRenderers = BakeSkinnedMeshRenderers(model.gameObject);
@@ -103,40 +189,54 @@ namespace S1API.Rendering
                 }
 
                 // Center the model in the container to ensure it's in view of the camera
-                CenterModelInContainer(model, S1IconGenerator.ItemContainer);
+                CenterModelInContainer(model, generator.ItemContainer);
+                if (fitToCamera)
+                {
+                    FitModelToGeneratorCamera(
+                        model,
+                        generator.ItemContainer,
+                        generator.CameraPosition,
+                        cameraFill);
+                    CenterModelInContainer(model, generator.ItemContainer);
+                }
 
                 // Temporarily override IconGenerator state
-                int originalSize = S1IconGenerator.IconSize;
-                bool originalModifyLighting = S1IconGenerator.ModifyLighting;
+                generator.IconSize = size;
+                generator.ModifyLighting = true;
 
-                S1IconGenerator.IconSize = size;
-                S1IconGenerator.ModifyLighting = true;
-
-                Texture2D texture = S1IconGenerator.GetTexture(model);
+                texture = generator.GetTexture(model);
                 Logger.Msg($"Generated texture: {(texture != null ? $"{texture.width}x{texture.height}" : "null")}");
-
-                // Restore original state
-                S1IconGenerator.IconSize = originalSize;
-                S1IconGenerator.ModifyLighting = originalModifyLighting;
-
-                // Restore SkinnedMeshRenderers if they were baked
-                if (bakedRenderers != null)
+                if (texture != null && !HasVisibleContent(texture))
                 {
-                    RestoreSkinnedMeshRenderers(bakedRenderers);
+                    Logger.Warning(
+                        $"Generated texture for '{model.name}' contains no visible pixels. " +
+                        "Retry after the scene render pipeline has warmed up.");
+                    UnityEngine.Object.Destroy(texture);
+                    texture = null;
                 }
-                
-                model.SetParent(originalParent, false);
-                model.localPosition = originalPos;
-                model.localRotation = originalRot;
-                model.localScale = originalScale;
-                model.gameObject.SetActive(wasActive);
 
                 return texture;
             }
             catch (System.Exception ex)
             {
                 Logger.Error($"Failed to generate icon for {model.name}: {ex.Message}");
+                if (texture != null)
+                    UnityEngine.Object.Destroy(texture);
                 return null;
+            }
+            finally
+            {
+                generator.IconSize = originalSize;
+                generator.ModifyLighting = originalModifyLighting;
+
+                if (bakedRenderers != null)
+                    RestoreSkinnedMeshRenderers(bakedRenderers);
+
+                model.SetParent(originalParent, false);
+                model.localPosition = originalPos;
+                model.localRotation = originalRot;
+                model.localScale = originalScale;
+                model.gameObject.SetActive(wasActive);
             }
         }
 
@@ -174,6 +274,38 @@ namespace S1API.Rendering
         /// <returns>A Sprite containing the icon, or null if generation failed.</returns>
         public static Sprite? GenerateIconSprite(Transform model, int size = 512, bool bakeSkinnedMeshes = true) =>
             ImageUtils.TextureToSprite(GenerateIcon(model, size, bakeSkinnedMeshes));
+
+        /// <summary>
+        /// Generates a preview sprite with explicit native-camera framing controls.
+        /// </summary>
+        /// <param name="model">The model to generate an icon for.</param>
+        /// <param name="size">The size of the square icon.</param>
+        /// <param name="bakeSkinnedMeshes">
+        /// Whether to bake skinned renderers to static renderers before capture.
+        /// </param>
+        /// <param name="fitToCamera">
+        /// Whether to fit renderer bounds to the native fixed thumbnail camera.
+        /// </param>
+        /// <param name="cameraFill">
+        /// The target share of the native camera's vertical view when fitting.
+        /// </param>
+        /// <returns>A Sprite containing the icon, or null if generation failed.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="cameraFill"/> is not greater than zero through 2.
+        /// </exception>
+        public static Sprite? GenerateIconSprite(
+            Transform model,
+            int size,
+            bool bakeSkinnedMeshes,
+            bool fitToCamera,
+            float cameraFill = 0.72f) =>
+            ImageUtils.TextureToSprite(
+                GenerateIcon(
+                    model,
+                    size,
+                    bakeSkinnedMeshes,
+                    fitToCamera,
+                    cameraFill));
 
         /// <summary>
         /// Generates an icon as a Sprite for a packaging ID and product ID.
@@ -344,32 +476,11 @@ namespace S1API.Rendering
         /// </summary>
         private static void CenterModelInContainer(Transform model, Transform container)
         {
-            var renderers = model.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0) return;
-
-            Bounds bounds = new Bounds(model.position, Vector3.zero);
-            bool hasBounds = false;
-
-            foreach (var r in renderers)
-            {
-                if (!r.enabled) continue; // Skip disabled renderers (like baked SkinnedMeshRenderers)
-                
-                if (!hasBounds)
-                {
-                    bounds = r.bounds;
-                    hasBounds = true;
-                }
-                else
-                {
-                    bounds.Encapsulate(r.bounds);
-                }
-            }
-
-            if (hasBounds)
+            if (TryGetRendererBounds(model, out Bounds bounds))
             {
                 // Calculate how far the center of bounds is from the container pivot
                 Vector3 centerOffset = container.position - bounds.center;
-                
+
                 // We only want to center, we don't want to mess up scale or anything.
                 // Moving the model position shifts the bounds center to the container position.
                 model.position += centerOffset;
@@ -380,6 +491,104 @@ namespace S1API.Rendering
             {
                 Logger.Warning($"Could not calculate bounds for {model.name} (no enabled renderers?). Icon might be empty.");
             }
+        }
+
+        /// <summary>
+        /// Fits an arbitrary model to the fixed camera framing used by the game's item-icon rig.
+        /// The caller restores the model's original scale after capture.
+        /// </summary>
+        private static void FitModelToGeneratorCamera(
+            Transform model,
+            Transform container,
+            Camera camera,
+            float cameraFill)
+        {
+            if (!TryGetRendererBounds(model, out Bounds bounds))
+                return;
+
+            float largestDimension =
+                Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+            float cameraDistance =
+                Vector3.Distance(camera.transform.position, container.position);
+            float visibleHeight =
+                2f *
+                cameraDistance *
+                Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad);
+            float targetDimension = visibleHeight * cameraFill;
+            if (largestDimension <= Mathf.Epsilon ||
+                targetDimension <= Mathf.Epsilon)
+            {
+                return;
+            }
+
+            float scaleFactor = targetDimension / largestDimension;
+            model.localScale *= scaleFactor;
+            Logger.Msg(
+                $"Fit model '{model.name}' to native icon camera. " +
+                $"Bounds={bounds.size}, target={targetDimension:F3}, scale={scaleFactor:F3}");
+        }
+
+        private static bool TryGetRendererBounds(
+            Transform model,
+            out Bounds bounds)
+        {
+            Renderer[] renderers = model.GetComponentsInChildren<Renderer>();
+            bounds = new Bounds(model.position, Vector3.zero);
+            bool hasBounds = false;
+
+            foreach (Renderer renderer in renderers)
+            {
+                if (!renderer.enabled)
+                    continue;
+
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            return hasBounds;
+        }
+
+        /// <summary>
+        /// INTERNAL: Detects the transparent cold-start captures produced before the icon
+        /// render pipeline has completed a frame.
+        /// </summary>
+        internal static bool HasVisibleContent(Texture2D texture)
+        {
+            if (texture == null || texture.width <= 0 || texture.height <= 0)
+                return false;
+
+            const int sampleCount = 12;
+            for (int y = 0; y < sampleCount; y++)
+            {
+                int pixelY =
+                    Mathf.Clamp(
+                        Mathf.RoundToInt(
+                            (texture.height - 1) *
+                            ((y + 0.5f) / sampleCount)),
+                        0,
+                        texture.height - 1);
+                for (int x = 0; x < sampleCount; x++)
+                {
+                    int pixelX =
+                        Mathf.Clamp(
+                            Mathf.RoundToInt(
+                                (texture.width - 1) *
+                                ((x + 0.5f) / sampleCount)),
+                            0,
+                            texture.width - 1);
+                    if (texture.GetPixel(pixelX, pixelY).a > 0.02f)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         #endregion

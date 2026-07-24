@@ -55,5 +55,7 @@ namespace S1API.Internal.Products
         internal S1Product.ProductDefinition Definition { get; }
 
         internal CustomProductDefinitionMetadata? Metadata { get; }
+
+        internal CustomProductPresentationState? PresentationState { get; set; }
     }
 }

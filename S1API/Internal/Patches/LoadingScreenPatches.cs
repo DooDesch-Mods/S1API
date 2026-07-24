@@ -11,6 +11,7 @@ using S1DevUtilities = ScheduleOne.DevUtilities;
 using HarmonyLib;
 using MelonLoader;
 using S1API.Entities;
+using S1API.Internal.Products;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using System;
@@ -22,8 +23,8 @@ using UnityEngine.SceneManagement;
 namespace S1API.Internal.Patches
 {
     /// <summary>
-    /// INTERNAL: Patches the LoadingScreen to delay closing until NPC mugshot generation is complete.
-    /// This ensures players see the loading screen while S1API NPC portraits are being generated.
+    /// INTERNAL: Patches the LoadingScreen to delay closing until queued rendered icons complete.
+    /// This ensures players see the loading screen while S1API portraits and product icons generate.
     /// </summary>
     [HarmonyPatch]
     internal static class LoadingScreenPatches
@@ -42,7 +43,10 @@ namespace S1API.Internal.Patches
         {
             if (_isWaitingForMugshots)
             {
-                __result = "Generating NPC Mugshots...";
+                __result =
+                    CustomProductPresentationRuntime.GeneratedIconWorkComplete
+                        ? "Generating NPC Mugshots..."
+                        : "Generating Product Icons...";
             }
         }
 
@@ -59,29 +63,39 @@ namespace S1API.Internal.Patches
             if (!IsGameLoading())
                 return true;
 
-            if (S1APIPreferences.EnableMugshotLoadingScreen?.Value == false)
-                return true;
-
-            if (!_hasCustomNpcTypes)
-                return true;
-
-            if (!HasCustomNpcInstances() && !HasOutstandingMugshotWork())
-                return true;
-
-            if (NPCAppearance.MugshotsProcessingComplete)
+            bool waitForMugshots =
+                ShouldWaitForMugshots() &&
+                !NPCAppearance.MugshotsProcessingComplete;
+            bool waitForProductIcons =
+                !CustomProductPresentationRuntime.GeneratedIconWorkComplete;
+            if (!waitForMugshots && !waitForProductIcons)
                 return true;
 
             if (_isWaitingForMugshots)
                 return false;
 
             _isWaitingForMugshots = true;
-            MelonCoroutines.Start(WaitForMugshotsThenClose(__instance));
+            MelonCoroutines.Start(
+                WaitForRenderedIconsThenClose(
+                    __instance,
+                    waitForMugshots));
 
             return false;
         }
 
         private static bool HasCustomNpcInstances() =>
             NPC.All.Any(npc => npc != null && npc.IsCustomNPC);
+
+        private static bool ShouldWaitForMugshots()
+        {
+            if (S1APIPreferences.EnableMugshotLoadingScreen?.Value == false ||
+                !_hasCustomNpcTypes)
+            {
+                return false;
+            }
+
+            return HasCustomNpcInstances() || HasOutstandingMugshotWork();
+        }
 
         /// <summary>
         /// Check if we're currently in the final phase of game loading where NPC mugshots should complete.
@@ -150,27 +164,33 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Coroutine that waits for mugshot generation to complete, then closes the loading screen
         /// </summary>
-        private static IEnumerator WaitForMugshotsThenClose(S1UI.LoadingScreen loadingScreen)
+        private static IEnumerator WaitForRenderedIconsThenClose(
+            S1UI.LoadingScreen loadingScreen,
+            bool waitForMugshots)
         {
             const float START_TIMEOUT = 5f;
             const float TIMEOUT = 90f;
             float startTimer = 0f;
             float timer = 0f;
 
-            while (!HasOutstandingMugshotWork() && !NPCAppearance.MugshotsProcessingComplete && startTimer < START_TIMEOUT)
+            while (waitForMugshots &&
+                   !HasOutstandingMugshotWork() &&
+                   !NPCAppearance.MugshotsProcessingComplete &&
+                   startTimer < START_TIMEOUT)
             {
                 yield return new WaitForSeconds(0.1f);
                 startTimer += 0.1f;
             }
 
-            if (!HasOutstandingMugshotWork() && !NPCAppearance.MugshotsProcessingComplete)
-            {
-                _isWaitingForMugshots = false;
-                CloseLoadingScreenDirectly(loadingScreen);
-                yield break;
-            }
+            if (waitForMugshots &&
+                !HasOutstandingMugshotWork() &&
+                !NPCAppearance.MugshotsProcessingComplete)
+                waitForMugshots = false;
 
-            while (!NPCAppearance.MugshotsProcessingComplete && timer < TIMEOUT)
+            while ((!CustomProductPresentationRuntime.GeneratedIconWorkComplete ||
+                    (waitForMugshots &&
+                     !NPCAppearance.MugshotsProcessingComplete)) &&
+                   timer < TIMEOUT)
             {
                 yield return new WaitForSeconds(0.1f);
                 timer += 0.1f;
@@ -181,7 +201,11 @@ namespace S1API.Internal.Patches
             if (timer >= TIMEOUT)
             {
                 int remaining = GetMugshotQueueCount();
-                Logger.Warning($"Mugshot generation timeout reached after {TIMEOUT}s. {remaining} NPCs may have incomplete portraits.");
+                Logger.Warning(
+                    $"Rendered icon generation timeout reached after {TIMEOUT}s. " +
+                    $"{remaining} NPCs may have incomplete portraits; " +
+                    $"product icons complete: " +
+                    $"{CustomProductPresentationRuntime.GeneratedIconWorkComplete}.");
             }
             
             CloseLoadingScreenDirectly(loadingScreen);

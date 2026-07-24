@@ -8,6 +8,7 @@ using NativeDrugTypeContainer = ScheduleOne.Product.DrugTypeContainer;
 
 using S1API.Items;
 using S1API.Products;
+using S1API.Rendering;
 
 namespace S1API.Tests.Products;
 
@@ -134,6 +135,161 @@ public sealed class ProductApiCompatibilityTests
         AssertSingleOptionalParameter(setListed, "listed", true);
     }
 
+    [Fact]
+    public void ProductPresentationProfileApiIsAdditiveAndRuntimeAgnostic()
+    {
+        Assert.True(typeof(ProductPresentationProfile).IsSealed);
+        Assert.True(typeof(ProductPresentationProfileBuilder).IsSealed);
+        Assert.True(typeof(ProductPresentationTransform).IsSealed);
+        Assert.True(typeof(ProductPresentationProfileRegistry).IsAbstract);
+        Assert.True(typeof(ProductPresentationProfileRegistry).IsSealed);
+        Assert.Equal(
+            new[]
+            {
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6
+            },
+            Enum.GetValues<ProductPresentationContext>()
+                .Select(value => (int)value));
+
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithLooseVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithStoredVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithHeldVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithStationVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(
+                ProductPresentationProfileBuilder
+                    .WithFunctionalProductVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithIcon),
+            typeof(Func<UnityEngine.Sprite>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithConsumptionPrefab),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithLooseVisual),
+            typeof(Func<UnityEngine.GameObject>),
+            typeof(ProductPresentationTransform));
+
+        System.Reflection.ConstructorInfo? presentationTransform =
+            typeof(ProductPresentationTransform).GetConstructor(
+                new[]
+                {
+                    typeof(UnityEngine.Vector3),
+                    typeof(UnityEngine.Vector3),
+                    typeof(UnityEngine.Vector3)
+                });
+        Assert.NotNull(presentationTransform);
+        Assert.NotNull(
+            typeof(ProductPresentationTransform).GetProperty(
+                nameof(ProductPresentationTransform.LocalPosition)));
+        Assert.NotNull(
+            typeof(ProductPresentationTransform).GetProperty(
+                nameof(ProductPresentationTransform.LocalEulerAngles)));
+        Assert.NotNull(
+            typeof(ProductPresentationTransform).GetProperty(
+                nameof(ProductPresentationTransform.LocalScale)));
+
+        System.Reflection.MethodInfo generatedIcon =
+            typeof(ProductPresentationProfileBuilder).GetMethod(
+                nameof(
+                    ProductPresentationProfileBuilder
+                        .WithGeneratedIconFromLooseVisual),
+                new[] { typeof(int) })!;
+        Assert.NotNull(generatedIcon);
+        AssertSingleOptionalParameter(generatedIcon, "size", 512);
+        Assert.NotNull(
+            typeof(ProductPresentationProfileBuilder).GetMethod(
+                nameof(
+                    ProductPresentationProfileBuilder
+                        .WithGeneratedIconFromLooseVisual),
+                new[]
+                {
+                    typeof(int),
+                    typeof(bool),
+                    typeof(float)
+                }));
+
+        Assert.NotNull(
+            typeof(IconFactory).GetMethod(
+                nameof(IconFactory.GenerateIcon),
+                new[]
+                {
+                    typeof(UnityEngine.Transform),
+                    typeof(int),
+                    typeof(bool)
+                }));
+        Assert.NotNull(
+            typeof(IconFactory).GetMethod(
+                nameof(IconFactory.GenerateIcon),
+                new[]
+                {
+                    typeof(UnityEngine.Transform),
+                    typeof(int),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(float)
+                }));
+        Assert.NotNull(
+            typeof(IconFactory).GetMethod(
+                nameof(IconFactory.GenerateIconSprite),
+                new[]
+                {
+                    typeof(UnityEngine.Transform),
+                    typeof(int),
+                    typeof(bool)
+                }));
+        Assert.NotNull(
+            typeof(IconFactory).GetMethod(
+                nameof(IconFactory.GenerateIconSprite),
+                new[]
+                {
+                    typeof(UnityEngine.Transform),
+                    typeof(int),
+                    typeof(bool),
+                    typeof(bool),
+                    typeof(float)
+                }));
+
+        System.Reflection.MethodInfo registerProduct =
+            typeof(ProductPresentationProfileRegistry).GetMethod(
+                nameof(ProductPresentationProfileRegistry.RegisterForProduct),
+                new[]
+                {
+                    typeof(string),
+                    typeof(string),
+                    typeof(ProductPresentationProfile)
+                })!;
+        System.Reflection.MethodInfo registerKind =
+            typeof(ProductPresentationProfileRegistry).GetMethod(
+                nameof(
+                    ProductPresentationProfileRegistry.RegisterForProductKind),
+                new[]
+                {
+                    typeof(string),
+                    typeof(ProductKind),
+                    typeof(ProductPresentationProfile)
+                })!;
+        Assert.NotNull(registerProduct);
+        Assert.NotNull(registerKind);
+        Assert.Equal(typeof(ProductPresentationProfile), registerProduct.ReturnType);
+        Assert.Equal(typeof(ProductPresentationProfile), registerKind.ReturnType);
+    }
+
     private static void AssertObsoleteCompatibilityShim(
         System.Reflection.MemberInfo member,
         string expectedMessage)
@@ -156,5 +312,17 @@ public sealed class ProductApiCompatibilityTests
         Assert.Equal(expectedName, parameter.Name);
         Assert.True(parameter.IsOptional);
         Assert.Equal(expectedDefault, parameter.DefaultValue);
+    }
+
+    private static void AssertBuilderMethod(
+        string name,
+        params Type[] parameterTypes)
+    {
+        System.Reflection.MethodInfo? method =
+            typeof(ProductPresentationProfileBuilder).GetMethod(
+                name,
+                parameterTypes);
+        Assert.NotNull(method);
+        Assert.Equal(typeof(ProductPresentationProfileBuilder), method.ReturnType);
     }
 }

@@ -15,6 +15,9 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.CustomProductItemCreator`: creates generic non-mixable product builders
 - `S1API.Products.CustomProductDefinitionBuilder`: validates and lifecycle-registers a fixed generic product
 - `S1API.Products.CustomProductDefinition`: typed wrapper for a registered generic custom product
+- `S1API.Products.ProductPresentationProfileBuilder`: configures mod-owned loose presentation contexts
+- `S1API.Products.ProductPresentationTransform`: overrides a cloned context visual's local transform
+- `S1API.Products.ProductPresentationProfileRegistry`: registers profiles by stable product ID or logical product kind
 - `S1API.Products.PackagingDefinition`: packaging definition wrapper
 - `S1API.Products.Quality`: API-safe quality enum
 
