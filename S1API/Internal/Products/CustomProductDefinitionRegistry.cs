@@ -148,19 +148,44 @@ namespace S1API.Internal.Products
             if (ReferenceEquals(definition, null))
                 return false;
 
+            string productId;
+            try
+            {
+                productId = definition.ID;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return TryGetMetadata(productId, definition, out metadata);
+        }
+
+        internal static bool TryGetMetadata(
+            string productId,
+            S1Product.ProductDefinition definition,
+            out CustomProductDefinitionMetadata? metadata)
+        {
+            metadata = null;
+            if (string.IsNullOrEmpty(productId) ||
+                ReferenceEquals(definition, null))
+            {
+                return false;
+            }
+
             lock (Gate)
             {
-                foreach (CustomProductDefinitionRegistration registration in Registrations.Values)
+                if (!Registrations.TryGetValue(
+                        productId,
+                        out CustomProductDefinitionRegistration? registration) ||
+                    registration.Metadata == null ||
+                    !AreSameDefinition(registration.Definition, definition))
                 {
-                    if (registration.Metadata != null &&
-                        AreSameDefinition(registration.Definition, definition))
-                    {
-                        metadata = registration.Metadata;
-                        return true;
-                    }
+                    return false;
                 }
 
-                return false;
+                metadata = registration.Metadata;
+                return true;
             }
         }
 

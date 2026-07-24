@@ -12,6 +12,7 @@ Create the logical kind once, then build the definition during
 register the same stable IDs before native item save data is restored.
 
 ```csharp
+using System;
 using S1API.Items;
 using S1API.Lifecycle;
 using S1API.Products;
@@ -22,16 +23,32 @@ ProductKind focusTabletKind = new ProductKindBuilder(
     .WithCompatibilityDrugType(DrugType.MDMA)
     .Build();
 
+CustomProductDefinition? focusTablet = null;
+
 GameLifecycle.OnPreLoad += () =>
 {
+    if (focusTablet != null)
+        return;
+
     var representationTemplate =
         ItemManager.GetDefinition("weed") as ProductDefinition;
     var baggie = ProductPopulator.GetPackaging("baggie");
 
-    if (representationTemplate == null || baggie == null)
-        return;
+    if (representationTemplate == null)
+    {
+        throw new InvalidOperationException(
+            "Cannot register example.mod:products/focus-tablet: " +
+            "the representation template 'weed' is unavailable during OnPreLoad.");
+    }
 
-    CustomProductDefinition focusTablet = CustomProductItemCreator
+    if (baggie == null)
+    {
+        throw new InvalidOperationException(
+            "Cannot register example.mod:products/focus-tablet: " +
+            "the required packaging 'baggie' is unavailable during OnPreLoad.");
+    }
+
+    focusTablet = CustomProductItemCreator
         .CreateBuilder(
             "example.mod:products/focus-tablet",
             focusTabletKind)
@@ -76,6 +93,11 @@ product.
   return the same wrapper. Another builder claiming the same ID fails
   deterministically.
 
+The repeated-`Build()` guarantee applies only to that builder instance. As with
+existing typed product wrappers, registry and Product Manager lookups may return
+a different wrapper for the same native definition. Compare the stable ID or
+native-backed item equality; do not use `ReferenceEquals` across lookup calls.
+
 The template's icon, stored/held representations, functional product,
 consumption animation, and item UI references are shared rather than cloned.
 The builder does not export, embed, or redistribute those game assets. Its
@@ -109,9 +131,21 @@ native created-products list.
 On the authoritative host/server, discovery is explicit:
 
 ```csharp
-focusTablet.Discover();
-focusTablet.SetListed();
+GameLifecycle.OnLoadComplete += () =>
+{
+    CustomProductDefinition definition = focusTablet ??
+        throw new InvalidOperationException(
+            "The custom product was not registered during OnPreLoad.");
+
+    definition.Discover();
+    definition.SetListed();
+};
 ```
+
+Definitions created during `OnPreLoad` must defer discovery and listing until
+`OnLoadComplete`, when `ProductManager.Instance` and the network session are
+available. Subscribe to these lifecycle events once; `SetListed` throws when
+called before Product Manager initialization.
 
 Pass `listForSale: true` to `Discover` only when discovery should also list the
 product. Shop inventory remains separate; call the existing

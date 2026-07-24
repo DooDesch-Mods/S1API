@@ -95,6 +95,12 @@ namespace S1API.Internal.Products
             return definition;
         }
 
+        internal static void Destroy(S1Product.ProductDefinition definition)
+        {
+            if (!ReferenceEquals(definition, null))
+                Object.Destroy(definition);
+        }
+
 #if (IL2CPPMELON)
         private static Il2CppReferenceArray<S1Packaging.PackagingDefinition>
             CreatePackagingArray(

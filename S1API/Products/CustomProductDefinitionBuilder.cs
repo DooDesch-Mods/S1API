@@ -1,9 +1,11 @@
 #if (IL2CPPMELON)
 using NativeEffect = Il2CppScheduleOne.Effects.Effect;
 using NativePackagingDefinition = Il2CppScheduleOne.Product.Packaging.PackagingDefinition;
+using S1Product = Il2CppScheduleOne.Product;
 #elif MONOMELON
 using NativeEffect = ScheduleOne.Effects.Effect;
 using NativePackagingDefinition = ScheduleOne.Product.Packaging.PackagingDefinition;
+using S1Product = ScheduleOne.Product;
 #endif
 
 using System;
@@ -368,9 +370,6 @@ namespace S1API.Products
                     _validPackaging[i].S1PackagingDefinition);
             }
 
-            var metadata = new CustomProductDefinitionMetadata(
-                _productKind,
-                _defaultQuality);
             var nativeDefinition = CustomProductDefinitionFactory.Create(
                 _id,
                 _name,
@@ -387,25 +386,77 @@ namespace S1API.Products
                 nativePackaging,
                 _representationTemplate.S1ProductDefinition);
 
-            var registeredDefinition =
-                CustomProductDefinitionRegistry.Register(
-                    _ownerId,
-                    _id,
-                    _name,
-                    _productPrice,
-                    nativeDefinition,
-                    metadata);
-            if (!ReferenceEquals(registeredDefinition, nativeDefinition))
+            var packagingSnapshot =
+                new List<PackagingDefinition>(nativePackaging.Count);
+            for (int i = 0; i < nativePackaging.Count; i++)
             {
-                throw new InvalidOperationException(
-                    $"Product ID '{_id}' is already registered by this owner with another " +
-                    "definition. Product IDs are case-insensitive; reuse the original builder " +
-                    "or choose a unique stable namespaced ID.");
+                packagingSnapshot.Add(
+                    new PackagingDefinition(nativePackaging[i]));
             }
+
+            var metadata = new CustomProductDefinitionMetadata(
+                _productKind,
+                _defaultQuality,
+                packagingSnapshot);
+            RegisterCreatedDefinition(
+                _ownerId,
+                _id,
+                _name,
+                _productPrice,
+                nativeDefinition,
+                metadata,
+                CustomProductDefinitionFactory.Destroy);
 
             _builtDefinition =
                 new CustomProductDefinition(nativeDefinition, metadata);
             return _builtDefinition;
+        }
+
+        internal static S1Product.ProductDefinition RegisterCreatedDefinition(
+            string ownerId,
+            string productId,
+            string productName,
+            float initialPrice,
+            S1Product.ProductDefinition nativeDefinition,
+            CustomProductDefinitionMetadata metadata,
+            Action<S1Product.ProductDefinition> destroy)
+        {
+            if (destroy == null)
+                throw new ArgumentNullException(nameof(destroy));
+
+            try
+            {
+                S1Product.ProductDefinition registeredDefinition =
+                    CustomProductDefinitionRegistry.Register(
+                        ownerId,
+                        productId,
+                        productName,
+                        initialPrice,
+                        nativeDefinition,
+                        metadata);
+                if (ReferenceEquals(registeredDefinition, nativeDefinition))
+                    return registeredDefinition;
+
+                throw new InvalidOperationException(
+                    $"Product ID '{productId}' is already registered by this owner with another " +
+                    "definition. Product IDs are case-insensitive; reuse the original builder " +
+                    "or choose a unique stable namespaced ID.");
+            }
+            catch
+            {
+                try
+                {
+                    destroy(nativeDefinition);
+                }
+                catch (Exception cleanupException)
+                {
+                    MelonLoader.MelonLogger.Error(
+                        $"Failed to destroy rejected custom product '{productId}': " +
+                        cleanupException);
+                }
+
+                throw;
+            }
         }
 
         private void EnsureMutable()

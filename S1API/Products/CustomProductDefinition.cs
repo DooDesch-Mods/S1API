@@ -73,26 +73,8 @@ namespace S1API.Products
         /// <summary>
         /// Gets an immutable snapshot of packaging accepted by this product.
         /// </summary>
-        public IReadOnlyList<PackagingDefinition> ValidPackaging
-        {
-            get
-            {
-                var wrappers = new List<PackagingDefinition>();
-                if (S1ProductDefinition.ValidPackaging != null)
-                {
-                    for (int i = 0;
-                         i < S1ProductDefinition.ValidPackaging.Length;
-                         i++)
-                    {
-                        wrappers.Add(
-                            new PackagingDefinition(
-                                S1ProductDefinition.ValidPackaging[i]));
-                    }
-                }
-
-                return wrappers.AsReadOnly();
-            }
-        }
+        public IReadOnlyList<PackagingDefinition> ValidPackaging =>
+            _metadata.ValidPackaging;
 
         /// <summary>
         /// Creates a loose product instance using <see cref="DefaultQuality"/>.
