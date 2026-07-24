@@ -188,7 +188,10 @@ namespace S1API.Internal.Products
                 {
                     NativePackagingDefinition? item = S1Registry.GetItem(packagingId) as NativePackagingDefinition;
                     if (item == null)
-                        throw new InvalidOperationException("saved packaging '" + packagingId + "' is unavailable");
+                    {
+                        Warn("saved packaging '" + packagingId + "' is unavailable; restoring the product without that packaging");
+                        continue;
+                    }
                     packaging.Add(item);
                 }
                 var native = CustomProductDefinitionFactory.Create(
