@@ -21,6 +21,7 @@ using S1API.Items;
 using S1API.Logging;
 using S1API.Stations;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace S1API.Internal.Patches
 {
@@ -33,14 +34,20 @@ namespace S1API.Internal.Patches
         private static readonly Log Logger = new Log("ChemistryStationPatches");
         private static readonly ConditionalWeakTable<object, CanvasInjectionState> CanvasStateTable =
             new ConditionalWeakTable<object, CanvasInjectionState>();
+        private static readonly MethodInfo? SetSelectedRecipeMethod =
+            AccessTools.Method(
+                typeof(S1UIStations.ChemistryStationInterface),
+                "SetSelectedRecipe");
 
         private static bool _loggedRecipeEntriesMissing;
         private static bool _loggedChemistryStationUiMissing;
+        private static bool _loggedSetSelectedRecipeMissing;
 
         private sealed class CanvasInjectionState
         {
             public readonly HashSet<string> LoggedRecipeConflicts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             public readonly HashSet<string> LoggedEntryConflicts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public readonly HashSet<int> ClickBoundEntryIds = new HashSet<int>();
         }
 
         private static CanvasInjectionState GetCanvasState(object canvas)
@@ -222,9 +229,6 @@ namespace S1API.Internal.Patches
             }
 
             var registered = ChemistryStationRecipes.GetAllNative();
-            if (registered.Count == 0)
-                return;
-
             var state = GetCanvasState(canvas);
             for (int i = 0; i < registered.Count; i++)
             {
@@ -266,6 +270,59 @@ namespace S1API.Internal.Patches
                 {
                     Logger.Warning($"[S1API] Failed to create StationRecipeEntry for '{id}': {ex.Message}");
                 }
+            }
+
+            EnsureRecipeEntryClickHandlers(canvas, entries, state);
+        }
+
+        private static void EnsureRecipeEntryClickHandlers(
+            object canvas,
+#if IL2CPPMELON
+            Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry> entries,
+#else
+            List<S1UIStations.StationRecipeEntry> entries,
+#endif
+            CanvasInjectionState state)
+        {
+            if (SetSelectedRecipeMethod == null)
+            {
+                if (!_loggedSetSelectedRecipeMissing)
+                {
+                    _loggedSetSelectedRecipeMissing = true;
+                    Logger.Warning(
+                        "[S1API] Chemistry station selection method could not be resolved. Recipe click binding will be skipped.");
+                }
+
+                return;
+            }
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                S1UIStations.StationRecipeEntry entry = entries[i];
+                if (entry == null || entry.Button == null)
+                    continue;
+
+                int instanceId = entry.GetInstanceID();
+                if (!state.ClickBoundEntryIds.Add(instanceId))
+                    continue;
+
+                entry.Button.onClick.AddListener(
+                    (UnityAction)(() => SelectRecipeFromClick(canvas, entry)));
+            }
+        }
+
+        private static void SelectRecipeFromClick(
+            object canvas,
+            S1UIStations.StationRecipeEntry entry)
+        {
+            try
+            {
+                SetSelectedRecipeMethod?.Invoke(canvas, new object[] { entry });
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"[S1API] Chemistry Station recipe click selection failed: {ex.Message}");
             }
         }
 
