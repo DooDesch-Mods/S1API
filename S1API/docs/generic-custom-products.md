@@ -73,6 +73,11 @@ The compatibility drug type is required because the native generic
 logical kind into a native enum member, native family definition, or mixable
 product.
 
+To give the logical kind a Product Manager section, separately register
+[`ProductKindMetadata`](product-kinds.md#register-presentation-and-product-manager-metadata).
+This catalog metadata does not change definition construction, discovery, or
+listing.
+
 ## Builder contract and defaults
 
 - Product and product-kind IDs are durable, case-insensitive, and namespaced.
@@ -170,6 +175,14 @@ replacing only their family-specific visual setter. This keeps native storage
 footprints, station modules, draggable behavior, first-person equip behavior,
 and consumption wiring intact.
 
+For runtime-imported GLB sources, keep one reusable source active beneath a
+persistent root positioned outside the playable scene; providers should return
+that source rather than importing the model again. Ensure its child renderers
+are enabled. If a normal-mapped mesh has no tangent data, recalculate tangents
+once after import so the native icon lighting can shade it correctly. These are
+source-preparation requirements, not icon texture-import settings: generated
+icons are ordinary runtime `Sprite` objects with transparent backgrounds.
+
 The held context also creates a third-person `AvatarEquippable` under the
 deterministic resource path
 `S1API/ProductPresentation/{productId}/Held`. Every peer must register the same
@@ -186,6 +199,15 @@ The loading screen stays open until queued product icons complete or reach the
 bounded retry timeout. `MugshotGenerator` remains reserved for avatar/accessory
 previews. The generated icon is the loose inventory icon only.
 `ProductIconManager` packaging combinations are intentionally unchanged.
+Before creating the sprite, S1API copies the native preview capture into an
+RGBA32, non-mipmapped texture with bilinear filtering and clamp wrapping. This
+normalization is required for reliable `UnityEngine.UI.Image` rendering; using
+the native preview texture directly can appear as a solid gray rectangle even
+when exporting that texture produces a valid transparent PNG.
+Product Manager entries cache their sprite when initialized; S1API refreshes
+S1API-managed product and favourite entries after generated-icon completion.
+Mods should still register the presentation profile before building the
+definition so the generation request is queued during loading.
 
 Automatic icon fitting targets 72% of the native thumbnail camera by default.
 Adjust the framing or preserve the authored scale with the additive overload:
@@ -287,7 +309,7 @@ Not supported:
 - mixing, generated variants, native family conversion, or production-station
   recipes;
 - packaged contents, composite package icons, or packaging-content save data;
-- custom packaging definitions or Product Manager UI categories;
+- custom packaging definitions;
 - definition transfer to a peer without the defining mod; or
 - recovery of a saved custom item after its mod or stable definition ID is
   removed.
@@ -305,4 +327,8 @@ selects `CustomProductDefinition` only for definitions registered with the new
 builder metadata; all previous generic and native-family fallback behavior
 remains intact. Presentation-profile registration is opt-in, and definitions
 without a resolved profile keep the exact representation references selected by
-`WithRepresentationsFrom`.
+`WithRepresentationsFrom`. Product-kind metadata registration is also opt-in;
+it adds only native-facing presentation metadata and S1API-owned Product
+Manager sections. It does not change product IDs, definition serialization,
+save data, network payloads, discovery state, listing state, vanilla sections,
+or native enum values.

@@ -606,13 +606,18 @@ namespace S1API.Internal.Products
                     model.transform,
                     profile,
                     ProductPresentationContext.Loose);
-                texture =
+                Texture2D? renderedTexture =
                     IconFactory.GenerateIcon(
                         model.transform,
                         profile.GeneratedIconSize,
                         bakeSkinnedMeshes: true,
                         fitToCamera: profile.FitGeneratedIconToCamera,
                         cameraFill: profile.GeneratedIconCameraFill);
+                if (renderedTexture != null)
+                    texture =
+                        CreateUiTexture(
+                            renderedTexture,
+                            request.Product.ProductId);
             }
             finally
             {
@@ -636,6 +641,51 @@ namespace S1API.Internal.Products
             texture = null;
             error = "the generated texture could not be converted to a sprite";
             return GeneratedIconAttemptResult.Failure;
+        }
+
+        private static Texture2D? CreateUiTexture(
+            Texture2D renderedTexture,
+            string productId)
+        {
+            Texture2D? uiTexture = null;
+            try
+            {
+                byte[] encoded = renderedTexture.EncodeToPNG();
+                uiTexture =
+                    new Texture2D(
+                        2,
+                        2,
+                        TextureFormat.RGBA32,
+                        mipChain: false)
+                    {
+                        name = $"S1API_ProductIcon_{productId}",
+                        filterMode = FilterMode.Bilinear,
+                        wrapMode = TextureWrapMode.Clamp
+                    };
+                if (!uiTexture.LoadImage(encoded, markNonReadable: false))
+                {
+                    Object.Destroy(uiTexture);
+                    return null;
+                }
+
+                uiTexture.Apply(
+                    updateMipmaps: false,
+                    makeNoLongerReadable: false);
+                return uiTexture;
+            }
+            catch (Exception exception)
+            {
+                if (uiTexture != null)
+                    Object.Destroy(uiTexture);
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Could not normalize generated icon "
+                    + $"texture for '{productId}': {exception.Message}");
+                return null;
+            }
+            finally
+            {
+                Object.Destroy(renderedTexture);
+            }
         }
 
         private static void LogGeneratedIconFailure(
