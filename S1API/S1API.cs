@@ -5,6 +5,7 @@ using S1API.Internal;
 using S1API.Internal.Diagnostics;
 using S1API.Internal.Entities;
 using S1API.Internal.Lifecycle;
+using S1API.Internal.Products;
 using S1API.Lifecycle;
 using S1API.Map;
 
@@ -30,6 +31,7 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            ProductPackagingContentRuntime.ResetForSceneChange();
             CutsceneManager.Deinitialize();
             MapPOIManager.RemoveAll();
             UnityExceptionTraceHook.Remove();
@@ -60,6 +62,7 @@ namespace S1API
 
             if (sceneName == "Main" || sceneName == "Tutorial")
             {
+                ProductPackagingContentRuntime.ResetForSceneChange();
                 MapPOIManager.ResetForSceneChange();
             }
 

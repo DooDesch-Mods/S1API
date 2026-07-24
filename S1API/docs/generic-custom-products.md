@@ -185,7 +185,7 @@ through a complete render frame, and rejects transparent cold-start captures.
 The loading screen stays open until queued product icons complete or reach the
 bounded retry timeout. `MugshotGenerator` remains reserved for avatar/accessory
 previews. The generated icon is the loose inventory icon only.
-`ProductIconManager` packaging combinations are intentionally unchanged.
+Filled packaging uses the separate packaging-content API below.
 
 Automatic icon fitting targets 72% of the native thumbnail camera by default.
 Adjust the framing or preserve the authored scale with the additive overload:
@@ -220,6 +220,76 @@ restoration.
 Presentation profiles affect only generic custom products registered with
 `CustomProductDefinitionBuilder`. Vanilla definitions, native-family builders,
 and legacy custom registrations are not modified.
+
+## Filled packaging contents and composite icons
+
+`ProductPackagingContentProfile` supplies the mod-owned content rendered inside
+one game-owned packaging shell. Profiles are keyed by both product ID and
+packaging ID, so a baggie and jar can use different counts and transforms:
+
+```csharp
+var pillInBaggie =
+    new ProductPackagingContentProfileBuilder()
+        .WithContent(() => pillVisualPrefab)
+        .AddPlacement(
+            new ProductPresentationTransform(
+                new Vector3(0f, 0.01f, 0f),
+                Vector3.zero,
+                Vector3.one))
+        .Build();
+
+ProductPackagingContentProfileRegistry.Register(
+    ownerId: "example.mod",
+    productId: "example.mod:products/focus-tablet",
+    packagingId: "baggie",
+    profile: pillInBaggie);
+
+var pillsInJar =
+    new ProductPackagingContentProfileBuilder()
+        .WithContent(() => pillVisualPrefab)
+        .AddPlacements(
+            jarPlacement1,
+            jarPlacement2,
+            jarPlacement3,
+            jarPlacement4,
+            jarPlacement5)
+        .Build();
+
+ProductPackagingContentProfileRegistry.Register(
+    ownerId: "example.mod",
+    productId: "example.mod:products/focus-tablet",
+    packagingId: "jar",
+    profile: pillsInJar);
+```
+
+Each placement creates one clone of the provider's prefab. If no placements are
+specified, S1API creates one clone and preserves its authored local transform.
+The same composite is used for filled stored items, equipped items, and the
+packaged inventory icon.
+
+S1API applies content to individual runtime objects and temporary icon-shell
+clones. It does not mutate the shared vanilla `PackagingDefinition` prefabs.
+Unregistered product/packaging pairs continue through the native visual and icon
+paths unchanged. If a registered provider fails or returns `null`, S1API removes
+any partial owned objects and preserves that same native fallback.
+
+Generated composite icons are single-flight and cached once per registered pair
+for the active `Main` or `Tutorial` scene. S1API owns both the generated
+`Sprite` and `Texture2D`; it destroys them when that scene unloads and recreates
+them lazily after a later load. Repeated calls reuse the scene cache and never
+append entries to the game's serialized icon list.
+
+Requests made through `ProductIconManager` enter a serialized render queue.
+S1API preserves the native fallback for the current frame, waits for the shared
+icon rig to settle, and then renders one registered product/packaging pair at a
+time. Later lookups use the cached composite. This prevents adjacent baggie,
+jar, or other packaging captures from appearing together during a render
+transition.
+
+Functional packing stations already parent real `FunctionalProduct` instances
+into their game-owned packaging objects, so this profile intentionally does not
+replace that interaction. Custom packaging definitions, packaging asset
+networking, and extra packaging save data remain outside this API.
 
 ## Loose and packaged instances
 
@@ -286,8 +356,8 @@ Not supported:
 
 - mixing, generated variants, native family conversion, or production-station
   recipes;
-- packaged contents, composite package icons, or packaging-content save data;
-- custom packaging definitions or Product Manager UI categories;
+- custom packaging definitions, packaging asset networking, additional
+  packaging-content save data, or Product Manager UI categories;
 - definition transfer to a peer without the defining mod; or
 - recovery of a saved custom item after its mod or stable definition ID is
   removed.
