@@ -28,10 +28,13 @@ namespace S1API.Products
     /// </para>
     /// <para>
     /// Presentation references are borrowed from an existing product through
-    /// <see cref="WithRepresentationsFrom(ProductDefinition)"/>. Custom presentation providers,
-    /// packaged-content visuals, product-manager UI tabs, station recipes, and mixing are outside
-    /// this builder's scope. Register the same definition before save-item restoration on every
-    /// participating peer; the game cannot restore or transmit a definition supplied by a missing mod.
+    /// <see cref="WithRepresentationsFrom(ProductDefinition)"/>. A registered
+    /// <see cref="ProductPresentationProfile"/> may replace the generic product's loose presentation
+    /// contexts while preserving the borrowed native scaffolds. Packaged-content visuals,
+    /// product-manager UI tabs, station recipes, and mixing remain outside this builder's scope.
+    /// Register the same definition and presentation profile before save-item restoration on every
+    /// participating peer; the game cannot restore or transmit definitions or assets supplied by a
+    /// missing mod.
     /// </para>
     /// </remarks>
     public sealed class CustomProductDefinitionBuilder
@@ -397,7 +400,8 @@ namespace S1API.Products
             var metadata = new CustomProductDefinitionMetadata(
                 _productKind,
                 _defaultQuality,
-                packagingSnapshot);
+                packagingSnapshot,
+                _representationTemplate.S1ProductDefinition);
             RegisterCreatedDefinition(
                 _ownerId,
                 _id,

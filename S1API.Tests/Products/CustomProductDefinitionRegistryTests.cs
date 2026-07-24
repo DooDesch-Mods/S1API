@@ -13,6 +13,7 @@ using S1API.Products;
 
 namespace S1API.Tests.Products;
 
+[Collection(CustomProductRegistryCollection.Name)]
 public sealed class CustomProductDefinitionRegistryTests : IDisposable
 {
     private readonly FakeRuntimeAdapter _runtimeAdapter = new FakeRuntimeAdapter();

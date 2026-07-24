@@ -7,6 +7,7 @@ using S1Product = ScheduleOne.Product;
 using System;
 using System.Collections.Generic;
 using S1API.Lifecycle;
+using S1API.Products;
 
 namespace S1API.Internal.Products
 {
@@ -25,6 +26,8 @@ namespace S1API.Internal.Products
 
         private static ICustomProductDefinitionRuntimeAdapter _runtimeAdapter =
             CustomProductDefinitionRuntimeAdapter.Instance;
+        private static ICustomProductPresentationRuntime _presentationRuntime =
+            CustomProductPresentationRuntime.Instance;
         private static bool _hooked;
 
         /// <summary>
@@ -115,12 +118,35 @@ namespace S1API.Internal.Products
 
                 try
                 {
+                    ProductPresentationProfileRegistration? profile =
+                        ResolvePresentationProfile(registration);
+                    if (profile != null)
+                        _presentationRuntime.Apply(registration, profile);
+
                     _runtimeAdapter.Apply(registration);
+
+                    if (profile == null)
+                        _presentationRuntime.Apply(registration, null);
                 }
                 catch
                 {
                     if (added)
                     {
+                        if (registration.PresentationState != null)
+                        {
+                            try
+                            {
+                                _presentationRuntime.Apply(registration, null);
+                            }
+                            catch (Exception rollbackException)
+                            {
+                                MelonLoader.MelonLogger.Error(
+                                    "[CustomProductDefinitionRegistry] Failed to restore " +
+                                    $"presentation fallbacks after rejecting " +
+                                    $"'{normalizedProductId}': {rollbackException}");
+                            }
+                        }
+
                         lock (Gate)
                         {
                             if (Registrations.TryGetValue(
@@ -234,6 +260,7 @@ namespace S1API.Internal.Products
                     try
                     {
                         _runtimeAdapter.Apply(registration);
+                        ApplyPresentationProfile(registration);
                     }
                     catch (Exception exception)
                     {
@@ -258,7 +285,8 @@ namespace S1API.Internal.Products
         }
 
         internal static void ResetForTesting(
-            ICustomProductDefinitionRuntimeAdapter runtimeAdapter)
+            ICustomProductDefinitionRuntimeAdapter runtimeAdapter,
+            ICustomProductPresentationRuntime? presentationRuntime = null)
         {
             if (runtimeAdapter == null)
                 throw new ArgumentNullException(nameof(runtimeAdapter));
@@ -275,14 +303,29 @@ namespace S1API.Internal.Products
 
                     Registrations.Clear();
                     _runtimeAdapter = runtimeAdapter;
+                    _presentationRuntime =
+                        presentationRuntime ?? CustomProductPresentationRuntime.Instance;
                     _hooked = false;
                 }
             }
+
+            ProductPresentationProfileRegistry.ResetForTesting();
         }
 
         internal static void RestoreRuntimeAdapterForTesting()
         {
-            ResetForTesting(CustomProductDefinitionRuntimeAdapter.Instance);
+            ResetForTesting(
+                CustomProductDefinitionRuntimeAdapter.Instance,
+                CustomProductPresentationRuntime.Instance);
+        }
+
+        internal static void ApplyPresentationProfiles()
+        {
+            lock (ApplyGate)
+            {
+                foreach (CustomProductDefinitionRegistration registration in Snapshot())
+                    ApplyPresentationProfile(registration);
+            }
         }
 
         internal static void InvokePreLoadForTesting()
@@ -303,6 +346,28 @@ namespace S1API.Internal.Products
                    (left is UnityEngine.Object leftObject &&
                     right is UnityEngine.Object rightObject &&
                     leftObject == rightObject);
+        }
+
+        private static void ApplyPresentationProfile(
+            CustomProductDefinitionRegistration registration)
+        {
+            _presentationRuntime.Apply(
+                registration,
+                ResolvePresentationProfile(registration));
+        }
+
+        private static ProductPresentationProfileRegistration?
+            ResolvePresentationProfile(
+                CustomProductDefinitionRegistration registration)
+        {
+            if (registration.Metadata == null)
+                return null;
+
+            ProductPresentationProfileRegistry.TryResolve(
+                registration.ProductId,
+                registration.Metadata.ProductKind.Id,
+                out ProductPresentationProfileRegistration? profile);
+            return profile;
         }
     }
 }

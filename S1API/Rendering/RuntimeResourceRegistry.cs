@@ -176,9 +176,56 @@ namespace S1API.Rendering
             return asset;
         }
 
+        /// <summary>
+        /// Removes only registrations at a path that still reference the expected asset.
+        /// </summary>
+        internal static bool UnregisterAssetIfMatches(
+            string resourcePath,
+            Object expectedAsset)
+        {
+            if (string.IsNullOrEmpty(resourcePath) ||
+                ReferenceEquals(expectedAsset, null))
+            {
+                return false;
+            }
+
+            bool removed = false;
+            if (_registeredAssets.TryGetValue(
+                    resourcePath,
+                    out Object? registered) &&
+                AreSameAsset(registered, expectedAsset))
+            {
+                removed = _registeredAssets.Remove(resourcePath);
+            }
+
+            string typedPrefix = resourcePath + "|";
+            var typedKeys = new List<string>();
+            foreach (KeyValuePair<string, Object> entry in _typedAssets)
+            {
+                if (entry.Key.StartsWith(
+                        typedPrefix,
+                        StringComparison.Ordinal) &&
+                    AreSameAsset(entry.Value, expectedAsset))
+                {
+                    typedKeys.Add(entry.Key);
+                }
+            }
+
+            for (int i = 0; i < typedKeys.Count; i++)
+                removed = _typedAssets.Remove(typedKeys[i]) || removed;
+
+            return removed;
+        }
+
         #endregion
 
         #region Private Implementation
+
+        private static bool AreSameAsset(Object left, Object right)
+        {
+            return ReferenceEquals(left, right) ||
+                   (left != null && right != null && left == right);
+        }
 
         /// <summary>
         /// Gets a typed key for the typed asset dictionary.
