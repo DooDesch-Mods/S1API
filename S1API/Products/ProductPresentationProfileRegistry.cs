@@ -192,9 +192,14 @@ namespace S1API.Products
             if (TryResolve(productId, productKindId, out ProductPresentationProfileRegistration? registration) &&
                 registration != null)
             {
-                identity =
+                string readableIdentity =
                     registration.OwnerId.Length + ":" + registration.OwnerId +
                     registration.Key.Length + ":" + registration.Key;
+                identity = readableIdentity.Length <=
+                           CustomProductManifestData.MaximumIdentifierLength
+                    ? readableIdentity
+                    : "sha256:" + CustomProductManifestData.ComputeHash(
+                        readableIdentity.ToLowerInvariant());
                 return true;
             }
 

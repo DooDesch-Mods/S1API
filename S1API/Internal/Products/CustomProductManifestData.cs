@@ -70,8 +70,14 @@ namespace S1API.Internal.Products
             if (!IsSessionId(sessionId))
                 throw new InvalidOperationException("The custom-product session ID is invalid.");
 
-            SessionId = sessionId;
-            string payload = JsonConvert.SerializeObject(this, Formatting.None);
+            var snapshot = new CustomProductManifestData
+            {
+                ProtocolVersion = ProtocolVersion,
+                SessionId = sessionId,
+                CompatibilityHash = CompatibilityHash,
+                Entries = Entries
+            };
+            string payload = JsonConvert.SerializeObject(snapshot, Formatting.None);
             if (payload.Length > MaximumPayloadLength ||
                 Encoding.UTF8.GetByteCount(payload) > MaximumPayloadLength)
             {

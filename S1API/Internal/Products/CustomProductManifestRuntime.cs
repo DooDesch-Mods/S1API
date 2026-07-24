@@ -18,7 +18,6 @@ using FishNetTransporting = FishNet.Transporting;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using HarmonyLib;
 using MelonLoader;
 using S1API.Lifecycle;
 
@@ -58,6 +57,8 @@ namespace S1API.Internal.Products
         private static CustomProductManifestData? _pendingClientManifest;
         private static CustomProductManifestData? _localClientManifest;
 #if IL2CPPMELON
+        private static MethodInfo? _broadcastToConnectionMethod;
+        private static Type? _broadcastServerManagerType;
         private static Il2CppSystem.Action<FishNetConnection.NetworkConnection,
             CustomProductManifestAckBroadcast>? _acknowledgementReceiver;
         private static Il2CppSystem.Action<FishNetConnection.NetworkConnection,
@@ -379,10 +380,14 @@ namespace S1API.Internal.Products
         internal static bool AuthorizeHostPlayerData(
             object player,
             FishNetConnection.NetworkConnection connection,
-            object[] arguments)
+            object[] arguments,
+            MethodBase originalMethod)
         {
-            if (player == null || connection == null || arguments == null)
+            if (player == null || connection == null || arguments == null ||
+                originalMethod == null)
+            {
                 return true;
+            }
 
             int connectionId = connection.ClientId;
             lock (Gate)
@@ -395,7 +400,10 @@ namespace S1API.Internal.Products
                     {
                         PendingHostDataByConnection.Add(
                             connectionId,
-                            new PendingHostData(player, (object[])arguments.Clone()));
+                            new PendingHostData(
+                                player,
+                                (object[])arguments.Clone(),
+                                originalMethod));
                     }
                     return false;
                 }
@@ -418,7 +426,10 @@ namespace S1API.Internal.Products
                 {
                     PendingHostDataByConnection.Add(
                         connectionId,
-                        new PendingHostData(player, (object[])arguments.Clone()));
+                        new PendingHostData(
+                            player,
+                            (object[])arguments.Clone(),
+                            originalMethod));
                 }
                 return false;
             }
@@ -594,27 +605,52 @@ namespace S1API.Internal.Products
 #if IL2CPPMELON
         private static void BroadcastToConnection<T>(object serverManager, object connection, T message)
         {
-            foreach (MethodInfo method in serverManager.GetType().GetMethods(
-                         BindingFlags.Instance | BindingFlags.Public))
+            MethodInfo method = ResolveBroadcastToConnectionMethod(serverManager.GetType());
+            method.MakeGenericMethod(typeof(T)).Invoke(serverManager, new object[]
             {
-                if (method.Name != "Broadcast" || !method.IsGenericMethodDefinition ||
-                    method.GetParameters().Length != 4 ||
-                    method.GetParameters()[0].ParameterType.Name != "NetworkConnection")
+                connection,
+                message!,
+                true,
+                FishNetTransporting.Channel.Reliable
+            });
+        }
+
+        private static MethodInfo ResolveBroadcastToConnectionMethod(Type serverManagerType)
+        {
+            lock (Gate)
+            {
+                if (_broadcastToConnectionMethod != null &&
+                    _broadcastServerManagerType == serverManagerType)
                 {
-                    continue;
+                    return _broadcastToConnectionMethod;
                 }
 
-                method.MakeGenericMethod(typeof(T)).Invoke(serverManager, new object[]
+                foreach (MethodInfo method in serverManagerType.GetMethods(
+                             BindingFlags.Instance | BindingFlags.Public))
                 {
-                    connection,
-                    message!,
-                    true,
-                    FishNetTransporting.Channel.Reliable
-                });
-                return;
+                    ParameterInfo[] parameters = method.GetParameters();
+                    if (method.Name != "Broadcast" ||
+                        !method.IsGenericMethodDefinition ||
+                        method.GetGenericArguments().Length != 1 ||
+                        parameters.Length != 4 ||
+                        parameters[0].ParameterType !=
+                        typeof(FishNetConnection.NetworkConnection) ||
+                        !parameters[1].ParameterType.IsGenericParameter ||
+                        parameters[2].ParameterType != typeof(bool) ||
+                        parameters[3].ParameterType !=
+                        typeof(FishNetTransporting.Channel))
+                    {
+                        continue;
+                    }
+
+                    _broadcastServerManagerType = serverManagerType;
+                    _broadcastToConnectionMethod = method;
+                    return method;
+                }
             }
 
-            throw new MissingMethodException("FishNet ServerManager.Broadcast<T>(NetworkConnection, T, bool, Channel)");
+            throw new MissingMethodException(
+                "FishNet ServerManager.Broadcast<T>(NetworkConnection, T, bool, Channel)");
         }
 #endif
 
@@ -946,19 +982,21 @@ namespace S1API.Internal.Products
         {
             private readonly object _player;
             private readonly object[] _arguments;
+            private readonly MethodBase _method;
 
-            internal PendingHostData(object player, object[] arguments)
+            internal PendingHostData(
+                object player,
+                object[] arguments,
+                MethodBase method)
             {
                 _player = player;
                 _arguments = arguments;
+                _method = method;
             }
 
             internal void Invoke()
             {
-                MethodInfo? method = AccessTools.Method(
-                    _player.GetType(),
-                    "ReceivePlayerData");
-                method?.Invoke(_player, _arguments);
+                _method.Invoke(_player, _arguments);
             }
         }
 

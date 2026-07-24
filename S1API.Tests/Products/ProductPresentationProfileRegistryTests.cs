@@ -181,6 +181,38 @@ public sealed class ProductPresentationProfileRegistryTests : IDisposable
     }
 
     [Fact]
+    public void OverlongManifestIdentityUsesABoundedCaseInsensitiveDigest()
+    {
+        string ownerId = "owner-" + new string('o', 150);
+        string productId = "example:" + new string('p', 110);
+        ProductPresentationProfile profile = CreateProfile();
+        ProductPresentationProfileRegistry.RegisterForProduct(
+            ownerId,
+            productId,
+            profile);
+        Assert.True(ProductPresentationProfileRegistry.TryGetManifestIdentity(
+            productId,
+            string.Empty,
+            out string lowerIdentity));
+
+        ProductPresentationProfileRegistry.ResetForTesting();
+        ProductPresentationProfileRegistry.RegisterForProduct(
+            ownerId.ToUpperInvariant(),
+            productId.ToUpperInvariant(),
+            profile);
+        Assert.True(ProductPresentationProfileRegistry.TryGetManifestIdentity(
+            productId,
+            string.Empty,
+            out string upperIdentity));
+
+        Assert.StartsWith("sha256:", lowerIdentity, StringComparison.Ordinal);
+        Assert.Equal(lowerIdentity, upperIdentity);
+        Assert.True(
+            lowerIdentity.Length <=
+            CustomProductManifestData.MaximumIdentifierLength);
+    }
+
+    [Fact]
     public void ConflictingOwnerFailsWithActionableIdentity()
     {
         string productId = CreateId();

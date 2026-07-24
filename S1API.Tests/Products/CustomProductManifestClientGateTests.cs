@@ -129,6 +129,31 @@ public sealed class CustomProductManifestClientGateTests
         Assert.True(finalizeCall > restoreCall);
     }
 
+    [Fact]
+    public void DeferredHostPlayerDataReplaysTheExactInterceptedOverload()
+    {
+        var target = new OverloadedPlayerDataReceiver();
+        MethodInfo selected = typeof(OverloadedPlayerDataReceiver).GetMethod(
+            nameof(OverloadedPlayerDataReceiver.ReceivePlayerData),
+            new[] { typeof(int) })!;
+        Type pendingType = typeof(CustomProductManifestRuntime).GetNestedType(
+            "PendingHostData",
+            BindingFlags.NonPublic)!;
+        object pending = Activator.CreateInstance(
+            pendingType,
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            args: new object[] { target, new object[] { 7 }, selected },
+            culture: null)!;
+
+        pendingType.GetMethod(
+            "Invoke",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(pending, null);
+
+        Assert.Equal(7, target.IntegerValue);
+        Assert.Null(target.StringValue);
+    }
+
     private static int FindMetadataToken(byte[] il, int token)
     {
         byte[] bytes = BitConverter.GetBytes(token);
@@ -142,5 +167,21 @@ public sealed class CustomProductManifestClientGateTests
         }
 
         return -1;
+    }
+
+    private sealed class OverloadedPlayerDataReceiver
+    {
+        internal int IntegerValue { get; private set; }
+        internal string? StringValue { get; private set; }
+
+        public void ReceivePlayerData(int value)
+        {
+            IntegerValue = value;
+        }
+
+        public void ReceivePlayerData(string value)
+        {
+            StringValue = value;
+        }
     }
 }

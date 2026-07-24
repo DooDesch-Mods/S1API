@@ -66,6 +66,33 @@ public sealed class CustomProductManifestDataTests
     }
 
     [Fact]
+    public void SerializeDoesNotMutateTheManifestWhenItSucceedsOrFails()
+    {
+        var manifest = new CustomProductManifestData
+        {
+            SessionId = "original-session",
+            Entries = Array.Empty<CustomProductManifestEntryData>()
+        };
+        manifest.CompatibilityHash =
+            CustomProductManifestData.ComputeManifestHash(manifest.Entries);
+
+        string payload = manifest.Serialize(new string('a', 32));
+
+        Assert.Equal("original-session", manifest.SessionId);
+        Assert.True(CustomProductManifestData.TryDeserialize(
+            payload,
+            out CustomProductManifestData serialized,
+            out string failure),
+            failure);
+        Assert.Equal(new string('a', 32), serialized.SessionId);
+
+        manifest.Entries = new[] { CreateEntry(new string('x', 65536)) };
+        Assert.Throws<InvalidOperationException>(
+            () => manifest.Serialize(new string('b', 32)));
+        Assert.Equal("original-session", manifest.SessionId);
+    }
+
+    [Fact]
     public void ManifestRejectsEntryCountAndUnsafeIdentifierBounds()
     {
         var tooManyEntries = new CustomProductManifestData

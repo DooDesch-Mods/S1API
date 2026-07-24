@@ -8,6 +8,7 @@ using S1Persistence = ScheduleOne.Persistence;
 using S1Player = ScheduleOne.PlayerScripts.Player;
 #endif
 
+using System.Reflection;
 using HarmonyLib;
 using S1API.Internal.Products;
 
@@ -61,7 +62,10 @@ namespace S1API.Internal.Patches
 
         [HarmonyPatch(typeof(S1Player), nameof(S1Player.ReceivePlayerData))]
         [HarmonyPrefix]
-        private static bool ReceivePlayerDataPrefix(object __instance, object[] __args)
+        private static bool ReceivePlayerDataPrefix(
+            object __instance,
+            object[] __args,
+            MethodBase __originalMethod)
         {
             if (__args.Length == 0 || !(__args[0] is S1Connection connection))
                 return true;
@@ -69,7 +73,8 @@ namespace S1API.Internal.Patches
             return CustomProductManifestRuntime.AuthorizeHostPlayerData(
                 __instance,
                 connection,
-                __args);
+                __args,
+                __originalMethod);
         }
     }
 }
