@@ -194,6 +194,7 @@ namespace S1API.Internal.Patches
             }
 
             while ((!CustomProductPresentationRuntime.GeneratedIconWorkComplete ||
+                    !ProductPackagingContentRuntime.GeneratedIconWorkComplete ||
                     (waitForMugshots &&
                      !NPCAppearance.MugshotsProcessingComplete)) &&
                    timer < TIMEOUT)
@@ -212,7 +213,7 @@ namespace S1API.Internal.Patches
                     $"Rendered icon generation timeout reached after {TIMEOUT}s. " +
                     $"{remaining} NPCs may have incomplete portraits; " +
                     $"product icons complete: " +
-                    $"{CustomProductPresentationRuntime.GeneratedIconWorkComplete}.");
+                    $"{CustomProductPresentationRuntime.GeneratedIconWorkComplete && ProductPackagingContentRuntime.GeneratedIconWorkComplete}.");
             }
             
             CloseLoadingScreenDirectly(loadingScreen);
