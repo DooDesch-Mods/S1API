@@ -9,6 +9,11 @@ using S1API.Internal.Utils;
 using UnityEngine;
 using Object = UnityEngine.Object;
 #if MONOMELON
+using GiveCommandArguments = System.Collections.Generic.List<string>;
+#elif IL2CPPMELON
+using GiveCommandArguments = Il2CppSystem.Collections.Generic.List<string>;
+#endif
+#if MONOMELON
 using S1Console = ScheduleOne.Console;
 using S1CommandListScreen = ScheduleOne.CommandListScreen;
 using TMPro;
@@ -33,21 +38,13 @@ namespace S1API.Internal.Patches
         /// Resolves a short item alias before the native give command performs
         /// its ordinary registry lookup.
         /// </summary>
-#if MONOMELON
+#if MONOMELON || IL2CPPMELON
         [HarmonyPatch(
             typeof(S1Console.AddItemToInventoryCommand),
             nameof(S1Console.AddItemToInventoryCommand.Execute))]
         [HarmonyPrefix]
         private static void ResolveGiveItemAlias(
-            System.Collections.Generic.List<string> args)
-#elif IL2CPPMELON
-        [HarmonyPatch(
-            typeof(S1Console.AddItemToInventoryCommand),
-            nameof(S1Console.AddItemToInventoryCommand.Execute))]
-        [HarmonyPrefix]
-        private static void ResolveGiveItemAlias(
-            Il2CppSystem.Collections.Generic.List<string> args)
-#endif
+            GiveCommandArguments args)
         {
             if (args == null || args.Count == 0 || args[0] == null)
                 return;
@@ -56,6 +53,7 @@ namespace S1API.Internal.Patches
                 args[0],
                 ItemManager.IsItemRegistered);
         }
+#endif
 
         /// <summary>
         /// Discover and register custom console commands derived from BaseConsoleCommand.

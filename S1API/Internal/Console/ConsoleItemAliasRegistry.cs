@@ -127,8 +127,7 @@ namespace S1API.Internal.Console
                 if (IsAsciiLetterOrDigit(character) ||
                     character == '.' ||
                     character == '_' ||
-                    character == '-' ||
-                    character == '/')
+                    character == '-')
                 {
                     continue;
                 }
@@ -136,7 +135,7 @@ namespace S1API.Internal.Console
                 throw new ArgumentException(
                     $"Console item alias contains invalid character " +
                     $"'{character}' at position {i}. Use ASCII letters, " +
-                    "digits, '.', '_', '-', or '/'; aliases do not include a " +
+                    "digits, '.', '_', or '-'; aliases do not include a " +
                     "namespace.",
                     nameof(alias));
             }

@@ -175,6 +175,7 @@ public sealed class ConsoleItemAliasRegistryTests : IDisposable
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("mod:mdma")]
+    [InlineData("products/mdma")]
     [InlineData("two words")]
     [InlineData("mdma$")]
     public void InvalidAliasesAreRejected(string? alias)
