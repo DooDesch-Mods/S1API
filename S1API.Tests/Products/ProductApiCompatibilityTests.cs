@@ -136,6 +136,30 @@ public sealed class ProductApiCompatibilityTests
     }
 
     [Fact]
+    public void CustomProductSaveProviderApiIsAdditiveAndVersioned()
+    {
+        var providerMethod = typeof(CustomProductDefinitionBuilder).GetMethod(
+            nameof(CustomProductDefinitionBuilder.WithSaveProvider),
+            new[] { typeof(string), typeof(int), typeof(string) });
+        var register = typeof(CustomProductSaveProviderRegistry).GetMethod(
+            nameof(CustomProductSaveProviderRegistry.Register),
+            new[] { typeof(ICustomProductSaveProvider) });
+
+        Assert.NotNull(providerMethod);
+        Assert.Equal(typeof(CustomProductDefinitionBuilder), providerMethod.ReturnType);
+        Assert.Equal(new[] { "providerId", "providerVersion", "providerData" },
+            providerMethod.GetParameters().Select(parameter => parameter.Name));
+        var providerData = providerMethod.GetParameters()[2];
+        Assert.Equal("providerData", providerData.Name);
+        Assert.True(providerData.HasDefaultValue);
+        Assert.Equal(string.Empty, providerData.DefaultValue);
+        Assert.NotNull(register);
+        Assert.Equal(typeof(ICustomProductSaveProvider), register.ReturnType);
+        Assert.Equal(typeof(int), typeof(CustomProductSaveDescriptor)
+            .GetProperty(nameof(CustomProductSaveDescriptor.FormatVersion))!.PropertyType);
+    }
+
+    [Fact]
     public void ProductPresentationProfileApiIsAdditiveAndRuntimeAgnostic()
     {
         Assert.True(typeof(ProductPresentationProfile).IsSealed);

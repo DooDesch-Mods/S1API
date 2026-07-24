@@ -57,6 +57,12 @@ namespace S1API.Products
         private ProductDefinition? _representationTemplate;
         private int? _playerEffectDurationSeconds;
         private int? _npcEffectDurationSeconds;
+        private string? _saveProviderId;
+        private int _saveProviderVersion;
+        private string _saveProviderData = string.Empty;
+
+        /// <summary>Gets the stable product ID this builder will create.</summary>
+        public string ProductId => _id;
         private CustomProductDefinition? _builtDefinition;
 
         /// <summary>
@@ -304,6 +310,32 @@ namespace S1API.Products
         }
 
         /// <summary>
+        /// Associates this definition with a process-registered provider that can recreate it on a
+        /// fresh-process save load.
+        /// </summary>
+        /// <param name="providerId">The stable, namespaced provider ID.</param>
+        /// <param name="providerVersion">The provider's non-negative scalar payload version.</param>
+        /// <param name="providerData">Bounded provider-owned scalar data; never pass assets or paths.</param>
+        /// <returns>This builder.</returns>
+        public CustomProductDefinitionBuilder WithSaveProvider(
+            string providerId,
+            int providerVersion,
+            string providerData = "")
+        {
+            EnsureMutable();
+            if (providerVersion < 0)
+                throw new ArgumentOutOfRangeException(nameof(providerVersion));
+            if (providerData == null)
+                throw new ArgumentNullException(nameof(providerData));
+            if (providerData.Length > CustomProductSavePersistence.MaximumStringLength)
+                throw new ArgumentOutOfRangeException(nameof(providerData));
+            _saveProviderId = ProductKindId.Normalize(providerId, nameof(providerId));
+            _saveProviderVersion = providerVersion;
+            _saveProviderData = providerData;
+            return this;
+        }
+
+        /// <summary>
         /// Builds and registers the generic product through S1API's process-lifetime custom-product
         /// lifecycle registry.
         /// </summary>
@@ -402,6 +434,25 @@ namespace S1API.Products
                 _defaultQuality,
                 packagingSnapshot,
                 _representationTemplate.S1ProductDefinition);
+            var saveDescriptor = new CustomProductSaveDescriptorData
+            {
+                ProductId = _id,
+                OwnerId = _ownerId,
+                ProductName = _name,
+                Description = _description,
+                InitialPrice = _productPrice,
+                LegalStatus = (int)_legalStatus,
+                BaseAddictiveness = _baseAddictiveness,
+                DefaultQuality = (int)_defaultQuality,
+                ProductKindId = _productKind.Id,
+                CompatibilityDrugType = (int)_productKind.CompatibilityDrugType.Value,
+                RepresentationTemplateId = _representationTemplate.ID,
+                PlayerEffectDurationSeconds = _playerEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.PlayerEffectDuration,
+                NpcEffectDurationSeconds = _npcEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.NPCEffectDuration,
+                ProviderId = _saveProviderId,
+                ProviderVersion = _saveProviderVersion,
+                ProviderData = _saveProviderData
+            };
             RegisterCreatedDefinition(
                 _ownerId,
                 _id,
@@ -409,6 +460,7 @@ namespace S1API.Products
                 _productPrice,
                 nativeDefinition,
                 metadata,
+                saveDescriptor,
                 CustomProductDefinitionFactory.Destroy);
 
             _builtDefinition =
@@ -425,6 +477,27 @@ namespace S1API.Products
             CustomProductDefinitionMetadata metadata,
             Action<S1Product.ProductDefinition> destroy)
         {
+            return RegisterCreatedDefinition(
+                ownerId,
+                productId,
+                productName,
+                initialPrice,
+                nativeDefinition,
+                metadata,
+                null,
+                destroy);
+        }
+
+        internal static S1Product.ProductDefinition RegisterCreatedDefinition(
+            string ownerId,
+            string productId,
+            string productName,
+            float initialPrice,
+            S1Product.ProductDefinition nativeDefinition,
+            CustomProductDefinitionMetadata metadata,
+            CustomProductSaveDescriptorData? saveDescriptor,
+            Action<S1Product.ProductDefinition> destroy)
+        {
             if (destroy == null)
                 throw new ArgumentNullException(nameof(destroy));
 
@@ -437,7 +510,8 @@ namespace S1API.Products
                         productName,
                         initialPrice,
                         nativeDefinition,
-                        metadata);
+                        metadata,
+                        saveDescriptor);
                 if (ReferenceEquals(registeredDefinition, nativeDefinition))
                     return registeredDefinition;
 

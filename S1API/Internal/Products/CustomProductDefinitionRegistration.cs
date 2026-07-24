@@ -34,7 +34,8 @@ namespace S1API.Internal.Products
             string productName,
             float initialPrice,
             S1Product.ProductDefinition definition,
-            CustomProductDefinitionMetadata? metadata)
+            CustomProductDefinitionMetadata? metadata,
+            CustomProductSaveDescriptorData? saveDescriptor = null)
         {
             OwnerId = ownerId;
             ProductId = productId;
@@ -42,6 +43,7 @@ namespace S1API.Internal.Products
             InitialPrice = initialPrice;
             Definition = definition;
             Metadata = metadata;
+            SaveDescriptor = saveDescriptor;
         }
 
         internal string OwnerId { get; }
@@ -55,6 +57,8 @@ namespace S1API.Internal.Products
         internal S1Product.ProductDefinition Definition { get; }
 
         internal CustomProductDefinitionMetadata? Metadata { get; }
+
+        internal CustomProductSaveDescriptorData? SaveDescriptor { get; }
 
         internal CustomProductPresentationState? PresentationState { get; set; }
     }

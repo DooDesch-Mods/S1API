@@ -58,6 +58,50 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     }
 
     [Fact]
+    public void SaveDescriptorsAreStableScalarSnapshotsOrderedByProductId()
+    {
+        string secondId = "examplemod:zeta-save";
+        string firstId = "examplemod:alpha-save";
+        CustomProductDefinitionMetadata metadata = CreateMetadata(firstId);
+        CustomProductDefinitionRegistry.Register(
+            "examplemod", secondId, "Zeta", 80f, CreateDefinition(), metadata,
+            new CustomProductSaveDescriptorData
+            {
+                ProductId = secondId,
+                OwnerId = "examplemod",
+                ProductName = "Zeta",
+                Description = "scalar",
+                InitialPrice = 80f,
+                ProductKindId = "examplemod:kind",
+                RepresentationTemplateId = "weed",
+                ProviderId = "examplemod:provider",
+                ProviderVersion = 1,
+                ProviderData = "v1"
+            });
+        CustomProductDefinitionRegistry.Register(
+            "examplemod", firstId, "Alpha", 50f, CreateDefinition(), metadata,
+            new CustomProductSaveDescriptorData
+            {
+                ProductId = firstId,
+                OwnerId = "examplemod",
+                ProductName = "Alpha",
+                Description = "scalar",
+                InitialPrice = 50f,
+                ProductKindId = "examplemod:kind",
+                RepresentationTemplateId = "weed"
+            });
+
+        CustomProductSaveDescriptorData[] descriptors =
+            CustomProductDefinitionRegistry.GetSaveDescriptors();
+
+        Assert.Equal(new[] { firstId, secondId }, descriptors.Select(item => item.ProductId));
+        Assert.Equal("examplemod:provider", descriptors[1].ProviderId);
+        Assert.Equal("v1", descriptors[1].ProviderData);
+        Assert.DoesNotContain(descriptors, item => item.GetType().GetFields()
+            .Any(field => typeof(UnityEngine.Object).IsAssignableFrom(field.FieldType)));
+    }
+
+    [Fact]
     public void ConflictingOwnerFailsWithActionableIdentity()
     {
         string productId = CreateProductId();
