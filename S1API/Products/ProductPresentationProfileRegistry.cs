@@ -184,6 +184,24 @@ namespace S1API.Products
             }
         }
 
+        internal static bool TryGetManifestIdentity(
+            string productId,
+            string productKindId,
+            out string identity)
+        {
+            if (TryResolve(productId, productKindId, out ProductPresentationProfileRegistration? registration) &&
+                registration != null)
+            {
+                identity =
+                    registration.OwnerId.Length + ":" + registration.OwnerId +
+                    registration.Key.Length + ":" + registration.Key;
+                return true;
+            }
+
+            identity = string.Empty;
+            return false;
+        }
+
         internal static void ResetForTesting()
         {
             lock (Gate)

@@ -51,6 +51,22 @@ namespace S1API.Internal.Products
             }
         }
 
+        internal static bool IsProviderAvailable(
+            string? providerId,
+            int descriptorVersion)
+        {
+            if (string.IsNullOrEmpty(providerId))
+                return true;
+
+            lock (Gate)
+            {
+                return Providers.TryGetValue(
+                           providerId,
+                           out ICustomProductSaveProvider? provider) &&
+                       descriptorVersion <= provider.MaximumDescriptorVersion;
+            }
+        }
+
         internal static void Save(string saveFolderPath)
         {
             CustomProductSaveDescriptorData[] descriptors = CustomProductDefinitionRegistry.GetSaveDescriptors();
