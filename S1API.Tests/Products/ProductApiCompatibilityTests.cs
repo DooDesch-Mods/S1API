@@ -290,6 +290,65 @@ public sealed class ProductApiCompatibilityTests
         Assert.Equal(typeof(ProductPresentationProfile), registerKind.ReturnType);
     }
 
+    [Fact]
+    public void ProductKindMetadataApiIsAdditiveAndKeepsOptInDefaults()
+    {
+        Assert.True(typeof(ProductKindMetadata).IsSealed);
+        Assert.True(typeof(ProductKindMetadataBuilder).IsSealed);
+        Assert.True(typeof(ProductKindMetadataRegistry).IsAbstract);
+        Assert.True(typeof(ProductKindMetadataRegistry).IsSealed);
+
+        Assert.Equal(
+            typeof(ProductKind),
+            typeof(ProductKindMetadata)
+                .GetProperty(nameof(ProductKindMetadata.ProductKind))!
+                .PropertyType);
+        Assert.Equal(
+            typeof(UnityEngine.Color),
+            typeof(ProductKindMetadata)
+                .GetProperty(nameof(ProductKindMetadata.Color))!
+                .PropertyType);
+        Assert.Equal(
+            typeof(UnityEngine.Sprite),
+            typeof(ProductKindMetadata)
+                .GetProperty(nameof(ProductKindMetadata.Icon))!
+                .PropertyType);
+        Assert.Equal(
+            typeof(IReadOnlyList<string>),
+            typeof(ProductKindMetadata)
+                .GetProperty(nameof(ProductKindMetadata.SearchAliases))!
+                .PropertyType);
+
+        var visibility = typeof(ProductKindMetadataBuilder).GetMethod(
+            nameof(ProductKindMetadataBuilder.WithProductManagerVisibility),
+            new[] { typeof(bool) });
+        Assert.NotNull(visibility);
+        Assert.Equal(
+            typeof(ProductKindMetadataBuilder),
+            visibility.ReturnType);
+        AssertSingleOptionalParameter(visibility, "visible", true);
+
+        Assert.Equal(
+            new[] { "productKind" },
+            typeof(ProductKindMetadataBuilder)
+                .GetConstructors()
+                .Single()
+                .GetParameters()
+                .Select(parameter => parameter.Name));
+        Assert.NotNull(
+            typeof(ProductKindMetadataRegistry).GetMethod(
+                nameof(ProductKindMetadataRegistry.Get),
+                new[] { typeof(string) }));
+        Assert.NotNull(
+            typeof(ProductKindMetadataRegistry).GetMethod(
+                nameof(ProductKindMetadataRegistry.Get),
+                new[] { typeof(ProductKind) }));
+        Assert.NotNull(
+            typeof(ProductKindMetadata).GetMethod(
+                nameof(ProductKindMetadata.MatchesSearch),
+                new[] { typeof(string) }));
+    }
+
     private static void AssertObsoleteCompatibilityShim(
         System.Reflection.MemberInfo member,
         string expectedMessage)

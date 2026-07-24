@@ -58,7 +58,7 @@ namespace S1API.Internal.Products
             internal CustomProductPresentationState State { get; }
         }
 
-        private enum GeneratedIconAttemptResult
+        internal enum GeneratedIconAttemptResult
         {
             Success,
             Retry,
@@ -606,23 +606,33 @@ namespace S1API.Internal.Products
                     model.transform,
                     profile,
                     ProductPresentationContext.Loose);
-                texture =
+                Texture2D? renderedTexture =
                     IconFactory.GenerateIcon(
                         model.transform,
                         profile.GeneratedIconSize,
                         bakeSkinnedMeshes: true,
                         fitToCamera: profile.FitGeneratedIconToCamera,
                         cameraFill: profile.GeneratedIconCameraFill);
+                if (renderedTexture == null)
+                {
+                    error = "the native renderer returned no visible pixels";
+                    return GetGeneratedTextureFailureResult(
+                        rendererProducedTexture: false);
+                }
+
+                if (!TryCreateUiTexture(
+                        renderedTexture,
+                        request.Product.ProductId,
+                        out texture,
+                        out error))
+                {
+                    return GetGeneratedTextureFailureResult(
+                        rendererProducedTexture: true);
+                }
             }
             finally
             {
                 Object.Destroy(model);
-            }
-
-            if (texture == null)
-            {
-                error = "the native renderer returned no visible pixels";
-                return GeneratedIconAttemptResult.Retry;
             }
 
             icon = global::S1API.Utils.ImageUtils.TextureToSprite(texture);
@@ -636,6 +646,69 @@ namespace S1API.Internal.Products
             texture = null;
             error = "the generated texture could not be converted to a sprite";
             return GeneratedIconAttemptResult.Failure;
+        }
+
+        internal static GeneratedIconAttemptResult
+            GetGeneratedTextureFailureResult(bool rendererProducedTexture)
+        {
+            return rendererProducedTexture
+                ? GeneratedIconAttemptResult.Failure
+                : GeneratedIconAttemptResult.Retry;
+        }
+
+        private static bool TryCreateUiTexture(
+            Texture2D renderedTexture,
+            string productId,
+            out Texture2D? uiTexture,
+            out string error)
+        {
+            uiTexture = null;
+            try
+            {
+                byte[]? encoded = renderedTexture.EncodeToPNG();
+                if (encoded == null || encoded.Length == 0)
+                {
+                    error = "the generated texture could not be encoded as PNG";
+                    return false;
+                }
+
+                uiTexture =
+                    new Texture2D(
+                        2,
+                        2,
+                        TextureFormat.RGBA32,
+                        mipChain: false)
+                    {
+                        name = $"S1API_ProductIcon_{productId}",
+                        filterMode = FilterMode.Bilinear,
+                        wrapMode = TextureWrapMode.Clamp
+                    };
+                if (!uiTexture.LoadImage(encoded, markNonReadable: false))
+                {
+                    Object.Destroy(uiTexture);
+                    uiTexture = null;
+                    error =
+                        "the generated PNG could not be decoded into a UI texture";
+                    return false;
+                }
+
+                error = string.Empty;
+                return true;
+            }
+            catch (Exception exception)
+            {
+                if (uiTexture != null)
+                    Object.Destroy(uiTexture);
+                uiTexture = null;
+                error =
+                    $"generated icon texture normalization failed: "
+                    + exception.Message;
+                return false;
+            }
+            finally
+            {
+                Object.Destroy(renderedTexture);
+            }
         }
 
         private static void LogGeneratedIconFailure(

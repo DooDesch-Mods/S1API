@@ -1,9 +1,27 @@
+using S1API.Internal.Patches;
 using S1API.Internal.Products;
 
 namespace S1API.Tests.Products;
 
 public sealed class ProductPackagingContentRuntimeContractTests
 {
+    [Theory]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    public void LoadingScreenWaitsForEitherProductIconQueue(
+        bool looseIconWorkComplete,
+        bool packagingIconWorkComplete,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            LoadingScreenPatches.HasOutstandingProductIconWork(
+                looseIconWorkComplete,
+                packagingIconWorkComplete));
+    }
+
     [Fact]
     public void OwnedRootIdentityIsCaseInsensitiveForTheRegisteredPair()
     {

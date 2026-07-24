@@ -15,14 +15,18 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.CustomProductItemCreator`: creates generic non-mixable product builders
 - `S1API.Products.CustomProductDefinitionBuilder`: validates and lifecycle-registers a fixed generic product
 - `S1API.Products.CustomProductDefinition`: typed wrapper for a registered generic custom product
+- `S1API.Products.ProductKindMetadata`: immutable logical-kind display, search, and Product Manager metadata
+- `S1API.Products.ProductKindMetadataBuilder`: configures logical-kind display, search, and Product Manager behavior
+- `S1API.Products.ProductKindMetadataRegistry`: looks up immutable logical-kind metadata
 - `S1API.Products.ProductPresentationProfileBuilder`: configures mod-owned loose presentation contexts
 - `S1API.Products.ProductPresentationTransform`: overrides a cloned context visual's local transform
 - `S1API.Products.ProductPresentationProfileRegistry`: registers profiles by stable product ID or logical product kind
 - `S1API.Products.PackagingDefinition`: packaging definition wrapper
 - `S1API.Products.Quality`: API-safe quality enum
 
-For creation and lifecycle guidance, see [Native Weed Variants](weed-variants.md)
-and [Generic Custom Products](generic-custom-products.md).
+For creation and lifecycle guidance, see [Logical Product Kinds](product-kinds.md),
+[Native Weed Variants](weed-variants.md), and
+[Generic Custom Products](generic-custom-products.md).
 
 ## Getting product definitions
 
