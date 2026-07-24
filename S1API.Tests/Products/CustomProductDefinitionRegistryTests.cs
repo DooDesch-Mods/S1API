@@ -6,6 +6,7 @@ using NativeProductDefinition = ScheduleOne.Product.ProductDefinition;
 
 using System.Runtime.CompilerServices;
 using S1API.Internal.Products;
+using S1API.Products;
 
 namespace S1API.Tests.Products;
 
@@ -195,6 +196,65 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         Assert.True(reference.IsAlive);
         CustomProductDefinitionRegistry.InvokePreLoadForTesting();
         Assert.Same(reference.Target, _runtimeAdapter.RegisteredDefinitions[productId]);
+    }
+
+    [Fact]
+    public void GenericMetadataSurvivesLifecycleRegistrationAndSelectsCustomWrapper()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition definition = CreateDefinition();
+        var productKind =
+            new ProductKindBuilder($"{productId}/kind")
+                .WithCompatibilityDrugType(DrugType.MDMA)
+                .Build();
+        var metadata =
+            new CustomProductDefinitionMetadata(
+                productKind,
+                Quality.Premium);
+
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Metadata Product",
+            20f,
+            definition,
+            metadata);
+
+        Assert.True(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                definition,
+                out CustomProductDefinitionMetadata? retained));
+        Assert.Same(metadata, retained);
+
+#if MONOMELON
+        CustomProductDefinition wrapped =
+            Assert.IsType<CustomProductDefinition>(
+                ProductDefinitionWrapper.Wrap(definition));
+        Assert.Same(productKind, wrapped.ProductKind);
+        Assert.Equal(Quality.Premium, wrapped.DefaultQuality);
+#endif
+    }
+
+    [Fact]
+    public void LegacyLifecycleRegistrationRetainsGenericWrapperFallback()
+    {
+        NativeProductDefinition definition = CreateDefinition();
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            CreateProductId(),
+            "Legacy Lifecycle Product",
+            20f,
+            definition);
+
+        Assert.False(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                definition,
+                out CustomProductDefinitionMetadata? metadata));
+        Assert.Null(metadata);
+#if MONOMELON
+        Assert.IsType<ProductDefinition>(
+            ProductDefinitionWrapper.Wrap(definition));
+#endif
     }
 
     [Theory]

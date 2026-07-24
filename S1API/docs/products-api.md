@@ -12,10 +12,14 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.ProductDefinitionWrapper`: converts a `ProductDefinition` into a typed subclass when possible
 - `S1API.Products.WeedItemCreator`: creates native-family marijuana variants
 - `S1API.Products.WeedDefinitionBuilder`: validates and builds a weed variant through the native creator
+- `S1API.Products.CustomProductItemCreator`: creates generic non-mixable product builders
+- `S1API.Products.CustomProductDefinitionBuilder`: validates and lifecycle-registers a fixed generic product
+- `S1API.Products.CustomProductDefinition`: typed wrapper for a registered generic custom product
 - `S1API.Products.PackagingDefinition`: packaging definition wrapper
 - `S1API.Products.Quality`: API-safe quality enum
 
-For creation and lifecycle guidance, see [Native Weed Variants](weed-variants.md).
+For creation and lifecycle guidance, see [Native Weed Variants](weed-variants.md)
+and [Generic Custom Products](generic-custom-products.md).
 
 ## Getting product definitions
 
@@ -29,7 +33,7 @@ using S1API.Products;
 foreach (var product in ProductManager.DiscoveredProducts)
 {
     // ProductManager, ItemManager, and ProductInstance.Definition all use the same typed factory,
-    // so this may be WeedDefinition, MethDefinition, CocaineDefinition, or ShroomDefinition.
+    // so this may be a native-family wrapper or a registered CustomProductDefinition.
     MelonLoader.MelonLogger.Msg($"{product.ID}: {product.Name} (${product.Price})");
 }
 ```

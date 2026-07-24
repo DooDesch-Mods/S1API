@@ -1,4 +1,5 @@
 using System;
+using S1API.Internal.Products;
 using S1API.Internal.Utils;
 #if (IL2CPPMELON)
 using S1Product = Il2CppScheduleOne.Product;
@@ -48,6 +49,13 @@ namespace S1API.Products
 
             if (CrossType.Is<S1Product.ShroomDefinition>(definition, out var shroom))
                 return new ShroomDefinition(shroom);
+
+            if (CustomProductDefinitionRegistry.TryGetMetadata(
+                    definition,
+                    out CustomProductDefinitionMetadata? metadata))
+            {
+                return new CustomProductDefinition(definition, metadata!);
+            }
 
             return fallback ?? new ProductDefinition(definition);
         }
