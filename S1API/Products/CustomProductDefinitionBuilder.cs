@@ -10,6 +10,7 @@ using S1Product = ScheduleOne.Product;
 
 using System;
 using System.Collections.Generic;
+using S1API.Console;
 using S1API.Internal.Products;
 using S1API.Internal.Properties;
 using S1API.Items;
@@ -74,6 +75,13 @@ namespace S1API.Products
         /// The immutable logical product kind. Its compatibility drug type is required by native
         /// save and product-item data but does not enable mixing.
         /// </param>
+        /// <remarks>
+        /// Keep this durable ID namespaced for saves and multiplayer. If you do
+        /// not want to type the namespace when testing through the console,
+        /// register the short name with
+        /// <see cref="ConsoleItemAliases"/> after building the
+        /// definition so <c>give &lt;alias&gt;</c> resolves it locally.
+        /// </remarks>
         public CustomProductDefinitionBuilder(string id, ProductKind productKind)
         {
             _id = CustomProductDefinitionBuilderContract.NormalizeId(id);

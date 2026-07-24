@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using S1API.Console;
+using S1API.Internal.Console;
+using S1API.Items;
 using S1API.Internal.Utils;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -26,7 +28,34 @@ namespace S1API.Internal.Patches
     internal static class ConsolePatches
     {
         private static readonly Logging.Log Logger = new Logging.Log("Console");
-        
+
+        /// <summary>
+        /// Resolves a short item alias before the native give command performs
+        /// its ordinary registry lookup.
+        /// </summary>
+#if MONOMELON
+        [HarmonyPatch(
+            typeof(S1Console.AddItemToInventoryCommand),
+            nameof(S1Console.AddItemToInventoryCommand.Execute))]
+        [HarmonyPrefix]
+        private static void ResolveGiveItemAlias(
+            System.Collections.Generic.List<string> args)
+#elif IL2CPPMELON
+        [HarmonyPatch(
+            typeof(S1Console.AddItemToInventoryCommand),
+            nameof(S1Console.AddItemToInventoryCommand.Execute))]
+        [HarmonyPrefix]
+        private static void ResolveGiveItemAlias(
+            Il2CppSystem.Collections.Generic.List<string> args)
+#endif
+        {
+            if (args == null || args.Count == 0 || args[0] == null)
+                return;
+
+            args[0] = ConsoleItemAliasRegistry.ResolveItemCodeForGive(
+                args[0],
+                ItemManager.IsItemRegistered);
+        }
 
         /// <summary>
         /// Discover and register custom console commands derived from BaseConsoleCommand.
