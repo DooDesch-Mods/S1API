@@ -414,29 +414,36 @@ namespace S1API.Rendering
             var states = new System.Collections.Generic.List<SkinnedMeshRendererState>();
             var skinnedRenderers = gameObject.GetComponentsInChildren<SkinnedMeshRenderer>();
 
-            foreach (var smr in skinnedRenderers)
+            try
             {
-                var state = new SkinnedMeshRendererState(smr);
+                foreach (var smr in skinnedRenderers)
+                {
+                    var state = new SkinnedMeshRendererState(smr);
+                    states.Add(state);
 
-                // Create baked mesh
-                state.BakedMesh = new Mesh();
-                smr.BakeMesh(state.BakedMesh);
+                    // Create baked mesh
+                    state.BakedMesh = new Mesh();
+                    smr.BakeMesh(state.BakedMesh);
 
-                // Add static mesh components
-                state.MeshFilter = smr.gameObject.AddComponent<MeshFilter>();
-                state.MeshRenderer = smr.gameObject.AddComponent<MeshRenderer>();
+                    // Add static mesh components
+                    state.MeshFilter = smr.gameObject.AddComponent<MeshFilter>();
+                    state.MeshRenderer = smr.gameObject.AddComponent<MeshRenderer>();
 
-                // Apply the baked mesh
-                state.MeshFilter.sharedMesh = state.BakedMesh;
-                state.MeshRenderer.sharedMaterials = smr.sharedMaterials;
+                    // Apply the baked mesh
+                    state.MeshFilter.sharedMesh = state.BakedMesh;
+                    state.MeshRenderer.sharedMaterials = smr.sharedMaterials;
 
-                // Disable the SkinnedMeshRenderer so only the static mesh is rendered
-                smr.enabled = false;
+                    // Disable the SkinnedMeshRenderer so only the static mesh is rendered
+                    smr.enabled = false;
+                }
 
-                states.Add(state);
+                return states;
             }
-
-            return states;
+            catch
+            {
+                RestoreSkinnedMeshRenderers(states);
+                throw;
+            }
         }
 
         /// <summary>

@@ -30,24 +30,26 @@ namespace S1API.Internal.Patches
     internal static class LoadingScreenPatches
     {
         private static readonly Log Logger = new Log("LoadingScreenPatches");
-        private static bool _isWaitingForMugshots = false;
+        private static bool _isWaitingForRenderedIcons;
+        private static bool _waitForMugshots;
         private static bool _hasCustomNpcTypes = false;
         private static bool _allowGameClose;
 
         /// <summary>
-        /// Patch GetLoadStatusText to return our custom text when waiting for mugshots
+        /// Patch GetLoadStatusText to describe the rendered-icon work still pending.
         /// </summary>
         [HarmonyPatch(typeof(S1Persistence.LoadManager), "GetLoadStatusText")]
         [HarmonyPostfix]
         private static void GetLoadStatusText_Postfix(ref string __result)
         {
-            if (_isWaitingForMugshots)
-            {
-                __result =
-                    CustomProductPresentationRuntime.GeneratedIconWorkComplete
-                        ? "Generating NPC Mugshots..."
-                        : "Generating Product Icons...";
-            }
+            if (!_isWaitingForRenderedIcons)
+                return;
+
+            if (!CustomProductPresentationRuntime.GeneratedIconWorkComplete)
+                __result = "Generating Product Icons...";
+            else if (_waitForMugshots &&
+                     !NPCAppearance.MugshotsProcessingComplete)
+                __result = "Generating NPC Mugshots...";
         }
 
         /// <summary>
@@ -71,10 +73,11 @@ namespace S1API.Internal.Patches
             if (!waitForMugshots && !waitForProductIcons)
                 return true;
 
-            if (_isWaitingForMugshots)
+            if (_isWaitingForRenderedIcons)
                 return false;
 
-            _isWaitingForMugshots = true;
+            _isWaitingForRenderedIcons = true;
+            _waitForMugshots = waitForMugshots;
             MelonCoroutines.Start(
                 WaitForRenderedIconsThenClose(
                     __instance,
@@ -162,7 +165,7 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Coroutine that waits for mugshot generation to complete, then closes the loading screen
+        /// Waits for product-icon and optional mugshot work before closing the loading screen.
         /// </summary>
         private static IEnumerator WaitForRenderedIconsThenClose(
             S1UI.LoadingScreen loadingScreen,
@@ -185,7 +188,10 @@ namespace S1API.Internal.Patches
             if (waitForMugshots &&
                 !HasOutstandingMugshotWork() &&
                 !NPCAppearance.MugshotsProcessingComplete)
+            {
                 waitForMugshots = false;
+                _waitForMugshots = false;
+            }
 
             while ((!CustomProductPresentationRuntime.GeneratedIconWorkComplete ||
                     (waitForMugshots &&
@@ -196,7 +202,8 @@ namespace S1API.Internal.Patches
                 timer += 0.1f;
             }
             
-            _isWaitingForMugshots = false;
+            _isWaitingForRenderedIcons = false;
+            _waitForMugshots = false;
             
             if (timer >= TIMEOUT)
             {
@@ -258,7 +265,8 @@ namespace S1API.Internal.Patches
         /// </summary>
         internal static void ResetState()
         {
-            _isWaitingForMugshots = false;
+            _isWaitingForRenderedIcons = false;
+            _waitForMugshots = false;
             _allowGameClose = false;
             _hasCustomNpcTypes = ReflectionUtils.GetDerivedClasses<NPC>()
                 .Any(t => t != null && !t.IsAbstract && t.Assembly != typeof(NPC).Assembly);

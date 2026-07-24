@@ -117,6 +117,7 @@ namespace S1API.Internal.Products
             var functional = state.BaselineFunctionalProduct;
             var icon = state.BaselineIcon;
             var consumption = state.BaselineConsumeAnimation;
+            GameObject? registeredAvatarPrefab = null;
             bool generatedIconPending = false;
 
             try
@@ -127,12 +128,6 @@ namespace S1API.Internal.Products
                     sources,
                     created,
                     state.BaselineStoredItem);
-                held = BuildHeld(
-                    product,
-                    profile,
-                    sources,
-                    created,
-                    state.BaselineEquippable);
                 station = BuildStation(
                     product,
                     profile,
@@ -159,6 +154,13 @@ namespace S1API.Internal.Products
                         profile,
                         created,
                         state.BaselineConsumeAnimation);
+                held = BuildHeld(
+                    product,
+                    profile,
+                    sources,
+                    created,
+                    state.BaselineEquippable,
+                    out registeredAvatarPrefab);
             }
             catch
             {
@@ -175,7 +177,9 @@ namespace S1API.Internal.Products
             definition.ConsumeAnimation = consumption;
 
             List<Object> previous = state.GeneratedObjects;
+            UnregisterHeldAvatar(product, state);
             state.GeneratedObjects = created;
+            state.RegisteredAvatarPrefab = registeredAvatarPrefab;
             state.AppliedRegistration = registration;
             state.IsGeneratedIconPending = generatedIconPending;
             DestroyAll(previous);
@@ -231,8 +235,10 @@ namespace S1API.Internal.Products
             ProductPresentationProfile profile,
             Dictionary<Func<GameObject?>, GameObject?> sources,
             List<Object> created,
-            S1Equipping.Equippable? fallback)
+            S1Equipping.Equippable? fallback,
+            out GameObject? registeredAvatarPrefab)
         {
+            registeredAvatarPrefab = null;
             GameObject? source =
                 GetVisualSource(
                     product,
@@ -275,6 +281,7 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     created);
+            registeredAvatarPrefab = held.AvatarEquippable.gameObject;
             return clone;
         }
 
@@ -1006,10 +1013,26 @@ namespace S1API.Internal.Products
             definition.StationItem = state.BaselineStationItem;
             definition.FunctionalProduct = state.BaselineFunctionalProduct;
             definition.ConsumeAnimation = state.BaselineConsumeAnimation;
+            UnregisterHeldAvatar(product, state);
             DestroyAll(state.GeneratedObjects);
             state.GeneratedObjects = new List<Object>();
+            state.RegisteredAvatarPrefab = null;
             state.AppliedRegistration = null;
             state.IsGeneratedIconPending = false;
+        }
+
+        private static void UnregisterHeldAvatar(
+            CustomProductDefinitionRegistration product,
+            CustomProductPresentationState state)
+        {
+            if (state.RegisteredAvatarPrefab == null)
+                return;
+
+            string assetPath =
+                $"S1API/ProductPresentation/{product.ProductId}/Held";
+            RuntimeResourceRegistry.UnregisterAssetIfMatches(
+                assetPath,
+                state.RegisteredAvatarPrefab);
         }
 
         private static bool GeneratedObjectsAreAlive(IReadOnlyList<Object> objects)
@@ -1032,10 +1055,5 @@ namespace S1API.Internal.Products
             }
         }
 
-        private static bool AreSameUnityObject(Object? left, Object? right)
-        {
-            return ReferenceEquals(left, right) ||
-                   (left != null && right != null && left == right);
-        }
     }
 }

@@ -53,6 +53,8 @@ namespace S1API.Internal.Products
 
         internal bool IsGeneratedIconQueued { get; set; }
 
+        internal GameObject? RegisteredAvatarPrefab { get; set; }
+
         internal List<Object> GeneratedObjects { get; set; } = new List<Object>();
     }
 }
