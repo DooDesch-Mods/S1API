@@ -31,14 +31,14 @@ GameLifecycle.OnPreLoad += () =>
         return;
 
     var representationTemplate =
-        ItemManager.GetDefinition("weed") as ProductDefinition;
+        ItemManager.GetDefinition("ogkush") as ProductDefinition;
     var baggie = ProductPopulator.GetPackaging("baggie");
 
     if (representationTemplate == null)
     {
         throw new InvalidOperationException(
             "Cannot register example.mod:products/focus-tablet: " +
-            "the representation template 'weed' is unavailable during OnPreLoad.");
+            "the representation template 'ogkush' is unavailable during OnPreLoad.");
     }
 
     if (baggie == null)
@@ -408,6 +408,48 @@ also skipped with an actionable warning; loading continues and S1API never attem
 an arbitrary ID migration. Reinstall the content mod/provider with the original
 stable ID to restore the product. These warnings intentionally contain IDs only,
 never local paths or personal data.
+
+## Multiplayer compatibility manifest
+
+When a host starts a multiplayer load, S1API establishes a manifest session,
+then finalizes its snapshot immediately after the versioned save descriptors are
+restored and before base product/inventory loaders run. It sends each joining
+S1API client that host-authoritative manifest before the native player-data
+request is allowed to deserialize inventory product instances. The client
+responds only after comparing its locally registered definitions with the host
+manifest. This also covers clients already joined before load, late joins, and
+reconnects: registrations remain process-lifetime and the handshake is repeated
+per connection without adding duplicate definitions, providers, presentation
+profiles, or Product Manager entries.
+
+The manifest is deterministic and bounded (at most 256 entries and 64 KiB). It
+contains stable product/owner/kind IDs, the native compatibility drug type,
+descriptor and provider versions, local provider availability,
+representation-template and packaging IDs,
+the resolved presentation-profile registration identity, and a compatibility
+hash. The hash additionally covers the local descriptor's display/scalar fields
+and provider-data digest, but raw provider data is never transmitted. It never
+contains or downloads Unity objects, assets, bundles, sprites, meshes, prefabs,
+delegates, arbitrary types, local paths, or save files.
+
+The missing or incompatible-content policy is **reject**. S1API disconnects a
+joining client whose local manifest is missing, malformed, too new, duplicated,
+timed out, replayed with conflicting content, or incompatible with the host.
+It does not create a placeholder or silently deserialize product data against a
+different definition. The host also holds target player data until it receives
+the matching acknowledgement, so an unmodded or incompatible peer cannot obtain
+custom inventory state before validation.
+
+When the host has no descriptor-backed custom products, no manifest packet or
+player-data gate is added. Vanilla/no-custom-product sessions retain the native
+network path. A client with local custom products still waits for a compatible
+custom-product host manifest and fails closed rather than sending its custom
+inventory request into an unvalidated session.
+
+`CustomProductMultiplayer.MissingContentPolicy` exposes this fixed policy and
+`CustomProductMultiplayer.GetCompatibilityManifestHash()` provides a safe local
+diagnostic value. Neither exposes asset references, provider payloads, paths, or
+personal information.
 
 ## Supported and unsupported behavior
 
