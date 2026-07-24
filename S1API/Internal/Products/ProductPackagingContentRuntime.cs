@@ -236,7 +236,10 @@ namespace S1API.Internal.Products
             }
 
             QueueGeneratedIcon(registration);
-            return TryGetLooseProductIcon(productId, out icon);
+            return TryGetLooseProductIcon(
+                registration,
+                productId,
+                out icon);
         }
 
         internal static void QueueRegisteredIconsForLoading()
@@ -583,6 +586,7 @@ namespace S1API.Internal.Products
         }
 
         private static bool TryGetLooseProductIcon(
+            ProductPackagingContentProfileRegistration registration,
             string productId,
             out Sprite? icon)
         {
@@ -594,8 +598,12 @@ namespace S1API.Internal.Products
                         ?.Icon;
                 return icon != null;
             }
-            catch
+            catch (Exception exception)
             {
+                LogFailureOnce(
+                    registration,
+                    "loose-icon lookup",
+                    exception.Message);
                 return false;
             }
         }
