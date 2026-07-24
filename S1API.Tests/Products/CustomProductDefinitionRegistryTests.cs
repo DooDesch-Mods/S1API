@@ -1,11 +1,15 @@
 #if IL2CPPMELON
+using NativePackagingDefinition = Il2CppScheduleOne.Product.Packaging.PackagingDefinition;
 using NativeProductDefinition = Il2CppScheduleOne.Product.ProductDefinition;
 #elif MONOMELON
+using NativePackagingDefinition = ScheduleOne.Product.Packaging.PackagingDefinition;
 using NativeProductDefinition = ScheduleOne.Product.ProductDefinition;
 #endif
 
 using System.Runtime.CompilerServices;
 using S1API.Internal.Products;
+using S1API.Items;
+using S1API.Products;
 
 namespace S1API.Tests.Products;
 
@@ -110,6 +114,76 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     }
 
     [Fact]
+    public void FailedInitialApplyDestroysTheRejectedCreatedDefinition()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition rejectedDefinition = CreateDefinition();
+        CustomProductDefinitionMetadata metadata = CreateMetadata(productId);
+        NativeProductDefinition? destroyedDefinition = null;
+        _runtimeAdapter.NextApplyException =
+            new InvalidOperationException("Native registration failed.");
+
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(
+                () => CustomProductDefinitionBuilder.RegisterCreatedDefinition(
+                    "examplemod",
+                    productId,
+                    "Rejected Product",
+                    50f,
+                    rejectedDefinition,
+                    metadata,
+                    definition => destroyedDefinition = definition));
+
+        Assert.Equal("Native registration failed.", exception.Message);
+        Assert.Same(rejectedDefinition, destroyedDefinition);
+        Assert.False(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                productId,
+                rejectedDefinition,
+                out _));
+    }
+
+    [Fact]
+    public void SameOwnerCollisionDestroysOnlyTheUnregisteredCandidate()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition retainedDefinition = CreateDefinition();
+        NativeProductDefinition rejectedDefinition = CreateDefinition();
+        CustomProductDefinitionMetadata metadata = CreateMetadata(productId);
+        NativeProductDefinition? destroyedDefinition = null;
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Retained Product",
+            50f,
+            retainedDefinition,
+            metadata);
+
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(
+                () => CustomProductDefinitionBuilder.RegisterCreatedDefinition(
+                    "examplemod",
+                    productId.ToUpperInvariant(),
+                    "Rejected Product",
+                    75f,
+                    rejectedDefinition,
+                    metadata,
+                    definition => destroyedDefinition = definition));
+
+        Assert.Contains("already registered by this owner", exception.Message);
+        Assert.Same(rejectedDefinition, destroyedDefinition);
+        Assert.Same(
+            retainedDefinition,
+            _runtimeAdapter.RegisteredDefinitions[productId]);
+        Assert.True(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                productId,
+                retainedDefinition,
+                out CustomProductDefinitionMetadata? retained));
+        Assert.Same(metadata, retained);
+    }
+
+    [Fact]
     public void PreLoadRestoresDefinitionsBeforeLoadAndLoadCompletePreservesSavedPrice()
     {
         string productId = CreateProductId();
@@ -197,6 +271,146 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         Assert.Same(reference.Target, _runtimeAdapter.RegisteredDefinitions[productId]);
     }
 
+    [Fact]
+    public void GenericMetadataSurvivesLifecycleRegistrationAndSelectsCustomWrapper()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition definition = CreateDefinition(productId);
+        var productKind =
+            new ProductKindBuilder($"{productId}/kind")
+                .WithCompatibilityDrugType(DrugType.MDMA)
+                .Build();
+        var metadata =
+            new CustomProductDefinitionMetadata(
+                productKind,
+                Quality.Premium);
+
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Metadata Product",
+            20f,
+            definition,
+            metadata);
+
+        Assert.True(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                productId,
+                definition,
+                out CustomProductDefinitionMetadata? retained));
+        Assert.Same(metadata, retained);
+
+#if MONOMELON
+        CustomProductDefinition wrapped =
+            Assert.IsType<CustomProductDefinition>(
+                ProductDefinitionWrapper.Wrap(definition));
+        var buildResult =
+            new CustomProductDefinition(definition, metadata);
+        Assert.NotSame(buildResult, wrapped);
+        Assert.True((ItemDefinition)buildResult == wrapped);
+        Assert.Same(productKind, wrapped.ProductKind);
+        Assert.Equal(Quality.Premium, wrapped.DefaultQuality);
+#endif
+    }
+
+    [Fact]
+    public void MetadataLookupUsesStableIdAndVerifiesTheNativeDefinition()
+    {
+        string firstProductId = CreateProductId();
+        string secondProductId = CreateProductId();
+        NativeProductDefinition firstDefinition = CreateDefinition();
+        NativeProductDefinition secondDefinition = CreateDefinition();
+        CustomProductDefinitionMetadata firstMetadata =
+            CreateMetadata(firstProductId);
+        CustomProductDefinitionMetadata secondMetadata =
+            CreateMetadata(secondProductId);
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            firstProductId,
+            "First Product",
+            10f,
+            firstDefinition,
+            firstMetadata);
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            secondProductId,
+            "Second Product",
+            20f,
+            secondDefinition,
+            secondMetadata);
+
+        Assert.False(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                CreateProductId(),
+                secondDefinition,
+                out _));
+#if MONOMELON
+        Assert.False(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                firstProductId,
+                secondDefinition,
+                out _));
+#endif
+        Assert.True(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                secondProductId,
+                secondDefinition,
+                out CustomProductDefinitionMetadata? retained));
+        Assert.Same(secondMetadata, retained);
+    }
+
+    [Fact]
+    public void ValidPackagingReturnsOneImmutableMetadataSnapshot()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition definition = CreateDefinition();
+        var nativePackaging =
+            (NativePackagingDefinition)RuntimeHelpers.GetUninitializedObject(
+                typeof(NativePackagingDefinition));
+        GC.SuppressFinalize(nativePackaging);
+        var packaging = new PackagingDefinition(nativePackaging);
+        CustomProductDefinitionMetadata metadata =
+            CreateMetadata(productId, new[] { packaging });
+        var firstWrapper =
+            new CustomProductDefinition(definition, metadata);
+        var secondWrapper =
+            new CustomProductDefinition(definition, metadata);
+
+        IReadOnlyList<PackagingDefinition> first = firstWrapper.ValidPackaging;
+        IReadOnlyList<PackagingDefinition> repeated =
+            firstWrapper.ValidPackaging;
+
+        Assert.Same(first, repeated);
+        Assert.Same(packaging, Assert.Single(first));
+        Assert.Same(first, secondWrapper.ValidPackaging);
+        Assert.Throws<NotSupportedException>(
+            () => ((IList<PackagingDefinition>)first).Add(packaging));
+    }
+
+    [Fact]
+    public void LegacyLifecycleRegistrationRetainsGenericWrapperFallback()
+    {
+        string productId = CreateProductId();
+        NativeProductDefinition definition = CreateDefinition();
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Legacy Lifecycle Product",
+            20f,
+            definition);
+
+        Assert.False(
+            CustomProductDefinitionRegistry.TryGetMetadata(
+                productId,
+                definition,
+                out CustomProductDefinitionMetadata? metadata));
+        Assert.Null(metadata);
+#if MONOMELON
+        Assert.IsType<ProductDefinition>(
+            ProductDefinitionWrapper.Wrap(definition));
+#endif
+    }
+
     [Theory]
     [InlineData("S1API.Internal.Products.CustomProductDefinitionRegistry")]
     [InlineData("S1API.Internal.Products.CustomProductDefinitionRuntimeAdapter")]
@@ -221,11 +435,34 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         return new WeakReference(definition);
     }
 
-    private static NativeProductDefinition CreateDefinition()
+    private static CustomProductDefinitionMetadata CreateMetadata(
+        string productId,
+        IReadOnlyList<PackagingDefinition>? validPackaging = null)
+    {
+        ProductKind productKind =
+            new ProductKindBuilder($"{productId}/kind")
+                .WithCompatibilityDrugType(DrugType.MDMA)
+                .Build();
+        return validPackaging == null
+            ? new CustomProductDefinitionMetadata(
+                productKind,
+                Quality.Standard)
+            : new CustomProductDefinitionMetadata(
+                productKind,
+                Quality.Standard,
+                validPackaging);
+    }
+
+    private static NativeProductDefinition CreateDefinition(
+        string? productId = null)
     {
         var definition = (NativeProductDefinition)RuntimeHelpers.GetUninitializedObject(
             typeof(NativeProductDefinition));
         GC.SuppressFinalize(definition);
+#if MONOMELON
+        if (productId != null)
+            definition.ID = productId;
+#endif
         return definition;
     }
 

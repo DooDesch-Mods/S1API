@@ -38,6 +38,26 @@ namespace S1API.Internal.Products
             float initialPrice,
             S1Product.ProductDefinition definition)
         {
+            return Register(
+                ownerId,
+                productId,
+                productName,
+                initialPrice,
+                definition,
+                null);
+        }
+
+        /// <summary>
+        /// Records ownership and S1API wrapper metadata for a generic custom product.
+        /// </summary>
+        internal static S1Product.ProductDefinition Register(
+            string ownerId,
+            string productId,
+            string productName,
+            float initialPrice,
+            S1Product.ProductDefinition definition,
+            CustomProductDefinitionMetadata? metadata)
+        {
             string normalizedOwnerId = NormalizeRequired(ownerId, nameof(ownerId));
             string normalizedProductId = NormalizeRequired(productId, nameof(productId));
             string normalizedProductName = NormalizeRequired(productName, nameof(productName));
@@ -84,7 +104,8 @@ namespace S1API.Internal.Products
                             normalizedProductId,
                             normalizedProductName,
                             initialPrice,
-                            definition);
+                            definition,
+                            metadata);
                         Registrations.Add(normalizedProductId, registration);
                         added = true;
                     }
@@ -116,6 +137,55 @@ namespace S1API.Internal.Products
                 }
 
                 return registration.Definition;
+            }
+        }
+
+        internal static bool TryGetMetadata(
+            S1Product.ProductDefinition definition,
+            out CustomProductDefinitionMetadata? metadata)
+        {
+            metadata = null;
+            if (ReferenceEquals(definition, null))
+                return false;
+
+            string productId;
+            try
+            {
+                productId = definition.ID;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+
+            return TryGetMetadata(productId, definition, out metadata);
+        }
+
+        internal static bool TryGetMetadata(
+            string productId,
+            S1Product.ProductDefinition definition,
+            out CustomProductDefinitionMetadata? metadata)
+        {
+            metadata = null;
+            if (string.IsNullOrEmpty(productId) ||
+                ReferenceEquals(definition, null))
+            {
+                return false;
+            }
+
+            lock (Gate)
+            {
+                if (!Registrations.TryGetValue(
+                        productId,
+                        out CustomProductDefinitionRegistration? registration) ||
+                    registration.Metadata == null ||
+                    !AreSameDefinition(registration.Definition, definition))
+                {
+                    return false;
+                }
+
+                metadata = registration.Metadata;
+                return true;
             }
         }
 
@@ -223,6 +293,16 @@ namespace S1API.Internal.Products
         internal static void InvokeLoadCompleteForTesting()
         {
             OnLoadComplete();
+        }
+
+        private static bool AreSameDefinition(
+            S1Product.ProductDefinition left,
+            S1Product.ProductDefinition right)
+        {
+            return ReferenceEquals(left, right) ||
+                   (left is UnityEngine.Object leftObject &&
+                    right is UnityEngine.Object rightObject &&
+                    leftObject == rightObject);
         }
     }
 }

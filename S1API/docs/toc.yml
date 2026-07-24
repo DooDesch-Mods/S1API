@@ -66,6 +66,8 @@
           href: weed-variants.md
         - name: Logical Product Kinds
           href: product-kinds.md
+        - name: Generic Custom Products
+          href: generic-custom-products.md
         - name: ProductPopulator
           href: products-populator.md
         - name: Runtime Additives
