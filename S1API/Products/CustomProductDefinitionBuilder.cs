@@ -449,6 +449,8 @@ namespace S1API.Products
                 RepresentationTemplateId = _representationTemplate.ID,
                 PlayerEffectDurationSeconds = _playerEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.PlayerEffectDuration,
                 NpcEffectDurationSeconds = _npcEffectDurationSeconds ?? _representationTemplate.S1ProductDefinition.NPCEffectDuration,
+                PropertyIds = resolvedProperties.ConvertAll(property => property.ID).ToArray(),
+                PackagingIds = _validPackaging.ConvertAll(packaging => packaging.ID).ToArray(),
                 ProviderId = _saveProviderId,
                 ProviderVersion = _saveProviderVersion,
                 ProviderData = _saveProviderData

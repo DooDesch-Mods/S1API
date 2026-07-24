@@ -17,6 +17,7 @@ using System.Collections.Generic;
 using System.IO;
 using Newtonsoft.Json;
 using S1API.Products;
+using S1API.Internal.Properties;
 
 namespace S1API.Internal.Products
 {
@@ -180,13 +181,25 @@ namespace S1API.Internal.Products
                 if (template == null)
                     throw new InvalidOperationException("the saved vanilla representation template is unavailable");
                 ProductKind kind = ProductKindRegistry.Register(new ProductKind(data.ProductKindId, (DrugType)data.CompatibilityDrugType));
+                List<NativeEffect> properties = PropertyResolver.ResolveToGamePropertiesById(data.PropertyIds ?? Array.Empty<string>());
+                var packaging = new List<NativePackagingDefinition>();
+                foreach (string packagingId in data.PackagingIds ?? Array.Empty<string>())
+                {
+                    NativePackagingDefinition? item = S1Registry.GetItem(packagingId) as NativePackagingDefinition;
+                    if (item == null)
+                        throw new InvalidOperationException("saved packaging '" + packagingId + "' is unavailable");
+                    packaging.Add(item);
+                }
                 var native = CustomProductDefinitionFactory.Create(
                     data.ProductId, data.ProductName, data.Description, data.InitialPrice,
                     (global::S1API.Items.LegalStatus)data.LegalStatus, data.BaseAddictiveness,
                     data.PlayerEffectDurationSeconds, data.NpcEffectDurationSeconds,
-                    (DrugType)data.CompatibilityDrugType, new List<NativeEffect>(),
-                    new List<NativePackagingDefinition>(), template);
-                var metadata = new CustomProductDefinitionMetadata(kind, (Quality)data.DefaultQuality);
+                    (DrugType)data.CompatibilityDrugType, properties,
+                    packaging, template);
+                var packagingMetadata = new List<PackagingDefinition>();
+                foreach (NativePackagingDefinition item in packaging)
+                    packagingMetadata.Add(new PackagingDefinition(item));
+                var metadata = new CustomProductDefinitionMetadata(kind, (Quality)data.DefaultQuality, packagingMetadata, template);
                 try
                 {
                     CustomProductDefinitionRegistry.Register(data.OwnerId, data.ProductId, data.ProductName, data.InitialPrice, native, metadata, data);
@@ -218,7 +231,8 @@ namespace S1API.Internal.Products
                 if (!IsBounded(data.ProductName) || !IsBounded(data.Description) || !IsBounded(data.ProductKindId) || !IsBounded(data.RepresentationTemplateId) ||
                     !float.IsFinite(data.InitialPrice) || !float.IsFinite(data.BaseAddictiveness) || data.InitialPrice < 1 ||
                     data.BaseAddictiveness < 0 || data.BaseAddictiveness > 1 || data.PlayerEffectDurationSeconds < 0 || data.NpcEffectDurationSeconds < 0 ||
-                    !Enum.IsDefined(typeof(global::S1API.Items.LegalStatus), data.LegalStatus) || !Enum.IsDefined(typeof(Quality), data.DefaultQuality) || !Enum.IsDefined(typeof(DrugType), data.CompatibilityDrugType)) return false;
+                    !Enum.IsDefined(typeof(global::S1API.Items.LegalStatus), data.LegalStatus) || !Enum.IsDefined(typeof(Quality), data.DefaultQuality) || !Enum.IsDefined(typeof(DrugType), data.CompatibilityDrugType) ||
+                    !IsBoundedCollection(data.PropertyIds) || !IsBoundedCollection(data.PackagingIds)) return false;
                 string kindId = ProductKindId.Normalize(data.ProductKindId, nameof(data.ProductKindId));
                 ProductKindId.Normalize(data.RepresentationTemplateId, nameof(data.RepresentationTemplateId));
                 descriptor = new CustomProductSaveDescriptor(data.FormatVersion, productId, ownerId, data.ProductName, data.Description, data.InitialPrice, kindId, providerId, data.ProviderVersion, data.ProviderData) { Data = data };
@@ -227,6 +241,17 @@ namespace S1API.Internal.Products
             catch { return false; }
         }
         private static bool IsBounded(string? value) => value != null && value.Length <= MaximumStringLength;
+        private static bool IsBoundedCollection(string[]? values)
+        {
+            if (values == null || values.Length > 32)
+                return false;
+            foreach (string value in values)
+            {
+                if (!IsBounded(value))
+                    return false;
+            }
+            return true;
+        }
         private static void Warn(string message) { try { MelonLoader.MelonLogger.Warning("[CustomProductSave] " + message); } catch { } }
     }
 }
