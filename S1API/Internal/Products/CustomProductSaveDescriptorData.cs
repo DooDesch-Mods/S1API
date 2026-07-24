@@ -19,9 +19,12 @@ namespace S1API.Internal.Products
         public string RepresentationTemplateId = string.Empty;
         public int PlayerEffectDurationSeconds;
         public int NpcEffectDurationSeconds;
+        public string[] PropertyIds = Array.Empty<string>();
+        public string[] PackagingIds = Array.Empty<string>();
         public string? ProviderId;
         public int ProviderVersion;
         public string ProviderData = string.Empty;
+        public bool IsGeneratedMix;
     }
 
     [Serializable]

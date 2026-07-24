@@ -138,6 +138,9 @@ namespace S1API.Internal.Products
 
                     _runtimeAdapter.Apply(registration);
 
+                    if (added)
+                        CustomProductManifestRuntime.RefreshHostManifestIfReady();
+
                     if (profile == null)
                         _presentationRuntime.Apply(registration, null);
                 }
@@ -219,6 +222,28 @@ namespace S1API.Internal.Products
                         out CustomProductDefinitionRegistration? registration) ||
                     registration.Metadata == null ||
                     !AreSameDefinition(registration.Definition, definition))
+                {
+                    return false;
+                }
+
+                metadata = registration.Metadata;
+                return true;
+            }
+        }
+
+        internal static bool TryGetMetadata(
+            string productId,
+            out CustomProductDefinitionMetadata? metadata)
+        {
+            metadata = null;
+            if (string.IsNullOrWhiteSpace(productId))
+                return false;
+
+            lock (Gate)
+            {
+                if (!Registrations.TryGetValue(productId,
+                        out CustomProductDefinitionRegistration? registration) ||
+                    registration.Metadata == null)
                 {
                     return false;
                 }

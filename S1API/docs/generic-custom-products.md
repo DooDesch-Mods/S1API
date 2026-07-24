@@ -68,10 +68,10 @@ GameLifecycle.OnPreLoad += () =>
 };
 ```
 
-The compatibility drug type is required because the native generic
-`ProductDefinition` save representation expects one. It does not turn the
-logical kind into a native enum member, native family definition, or mixable
-product.
+The compatibility drug type remains optional metadata. A generic product needs
+a native execution representation: use compatibility metadata when it is
+appropriate, or explicitly select `WithNativeMixerMap(...)` for a logical kind
+that has no base-game enum. Neither option changes the logical kind's identity.
 
 To give the logical kind a Product Manager section, separately register
 [`ProductKindMetadata`](product-kinds.md#register-presentation-and-product-manager-metadata).
@@ -474,9 +474,8 @@ Not supported:
 - automatic arbitrary renamed-ID migration or recovery of content assets from a
   removed mod.
 
-Do not place a generic custom product in native mixing flows. The compatibility
-drug type only satisfies native product-item and save assumptions; S1API does
-not register mix recipes or generated outputs for this definition.
+Generic products remain non-mixable until they explicitly register a
+`ProductMixingProfile`. See the mixing guide for the supported opt-in boundary.
 
 ## Compatibility
 
