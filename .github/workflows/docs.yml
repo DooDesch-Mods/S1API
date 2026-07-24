@@ -2,9 +2,15 @@ name: Build and Deploy Documentation
 
 on:
   push:
-    branches: [ master, main, stable, beta, npc-prefabs ]
+    branches-ignore:
+      - 'agent/**'
+      - 'automation/**'
+      - 'dependabot/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'release/**'
   pull_request:
-    branches: [ master, main, stable, beta, npc-prefabs ]
   workflow_dispatch:
     inputs:
       assembly_branch:

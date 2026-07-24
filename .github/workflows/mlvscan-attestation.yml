@@ -368,10 +368,14 @@ jobs:
       - name: Commit README badge update
         shell: bash
         run: |
-          if [[ "${{ steps.ref.outputs.target_ref }}" == "beta" ]]; then
-            echo "::notice::Skipping README badge push to protected beta branch"
-            exit 0
-          fi
+          case "${{ steps.ref.outputs.target_ref }}" in
+            agent/*|automation/*|dependabot/*|feat/*|fix/*|hotfix/*|release/*)
+              ;;
+            *)
+              echo "::notice::Skipping README badge push because the target branch requires the documentation check"
+              exit 0
+              ;;
+          esac
 
           if git diff --quiet README.md; then
             echo "README badge already up to date"
