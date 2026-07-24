@@ -373,6 +373,11 @@ namespace S1API.Internal.Products
             }
         }
 
+        internal static CustomProductManifestData CreateManifest()
+        {
+            return CustomProductManifestData.Create(Snapshot());
+        }
+
         private static bool AreSameDefinition(
             S1Product.ProductDefinition left,
             S1Product.ProductDefinition right)

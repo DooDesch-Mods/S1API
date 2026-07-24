@@ -102,6 +102,80 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     }
 
     [Fact]
+    public void ManifestSnapshotUsesCommittedDescriptorsWithoutReapplyingDefinitions()
+    {
+        string productId = CreateProductId();
+        CustomProductDefinitionMetadata metadata = CreateMetadata(productId);
+        CustomProductDefinitionRegistry.Register(
+            "examplemod",
+            productId,
+            "Manifest Product",
+            80f,
+            CreateDefinition(),
+            metadata,
+            new CustomProductSaveDescriptorData
+            {
+                ProductId = productId,
+                OwnerId = "examplemod",
+                ProductName = "Manifest Product",
+                Description = "scalar metadata",
+                InitialPrice = 80f,
+                ProductKindId = metadata.ProductKind.Id,
+                CompatibilityDrugType = (int)DrugType.MDMA,
+                RepresentationTemplateId = "weed",
+                ProviderId = "examplemod:provider",
+                ProviderVersion = 2,
+                ProviderData = "local-only-provider-data"
+            });
+        int applyCount = _runtimeAdapter.ApplyCount;
+
+        CustomProductManifestData first =
+            CustomProductDefinitionRegistry.CreateManifest();
+        CustomProductManifestData second =
+            CustomProductDefinitionRegistry.CreateManifest();
+
+        CustomProductManifestEntryData entry = Assert.Single(first.Entries);
+        Assert.Equal(productId, entry.ProductId);
+        Assert.Equal("examplemod:provider", entry.ProviderId);
+        Assert.Equal(2, entry.ProviderVersion);
+        Assert.Equal(first.CompatibilityHash, second.CompatibilityHash);
+        Assert.Equal(applyCount, _runtimeAdapter.ApplyCount);
+        Assert.DoesNotContain(
+            entry.GetType().GetFields(),
+            field => field.Name == "ProviderData");
+    }
+
+    [Fact]
+    public void FailedRegistrationDoesNotContaminateManifestSnapshot()
+    {
+        string productId = CreateProductId();
+        CustomProductDefinitionMetadata metadata = CreateMetadata(productId);
+        _runtimeAdapter.NextApplyException =
+            new InvalidOperationException("Native registration failed.");
+
+        Assert.Throws<InvalidOperationException>(
+            () => CustomProductDefinitionRegistry.Register(
+                "examplemod",
+                productId,
+                "Rejected Manifest Product",
+                50f,
+                CreateDefinition(),
+                metadata,
+                new CustomProductSaveDescriptorData
+                {
+                    ProductId = productId,
+                    OwnerId = "examplemod",
+                    ProductName = "Rejected Manifest Product",
+                    ProductKindId = metadata.ProductKind.Id,
+                    CompatibilityDrugType = (int)DrugType.MDMA,
+                    RepresentationTemplateId = "weed"
+                }));
+
+        Assert.Empty(CustomProductDefinitionRegistry.CreateManifest().Entries);
+        Assert.False(CustomProductDefinitionRegistry.IsRegistered(productId));
+    }
+
+    [Fact]
     public void ConflictingOwnerFailsWithActionableIdentity()
     {
         string productId = CreateProductId();

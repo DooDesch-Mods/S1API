@@ -23,4 +23,14 @@ internal static class CustomProductSaveApiCompileFixture
     {
         _ = CustomProductSaveProviderRegistry.Register(new Provider());
     }
+
+    internal static void CompileMultiplayerDiagnosticsCaller()
+    {
+        CustomProductMultiplayerPolicy policy =
+            CustomProductMultiplayer.MissingContentPolicy;
+        string compatibilityHash =
+            CustomProductMultiplayer.GetCompatibilityManifestHash();
+        _ = policy == CustomProductMultiplayerPolicy.Reject &&
+            compatibilityHash.Length == 64;
+    }
 }

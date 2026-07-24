@@ -184,6 +184,29 @@ namespace S1API.Products
             }
         }
 
+        internal static bool TryGetManifestIdentity(
+            string productId,
+            string productKindId,
+            out string identity)
+        {
+            if (TryResolve(productId, productKindId, out ProductPresentationProfileRegistration? registration) &&
+                registration != null)
+            {
+                string readableIdentity =
+                    registration.OwnerId.Length + ":" + registration.OwnerId +
+                    registration.Key.Length + ":" + registration.Key;
+                identity = readableIdentity.Length <=
+                           CustomProductManifestData.MaximumIdentifierLength
+                    ? readableIdentity
+                    : "sha256:" + CustomProductManifestData.ComputeHash(
+                        readableIdentity.ToLowerInvariant());
+                return true;
+            }
+
+            identity = string.Empty;
+            return false;
+        }
+
         internal static void ResetForTesting()
         {
             lock (Gate)

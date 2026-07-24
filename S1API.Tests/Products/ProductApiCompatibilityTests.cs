@@ -160,6 +160,23 @@ public sealed class ProductApiCompatibilityTests
     }
 
     [Fact]
+    public void CustomProductMultiplayerApiIsAdditiveAndFailClosed()
+    {
+        Assert.True(typeof(CustomProductMultiplayer).IsAbstract);
+        Assert.True(typeof(CustomProductMultiplayer).IsSealed);
+        Assert.Equal(
+            CustomProductMultiplayerPolicy.Reject,
+            CustomProductMultiplayer.MissingContentPolicy);
+        Assert.NotNull(typeof(CustomProductMultiplayer).GetMethod(
+            nameof(CustomProductMultiplayer.GetCompatibilityManifestHash),
+            Type.EmptyTypes));
+        Assert.Equal(
+            new[] { 0 },
+            Enum.GetValues<CustomProductMultiplayerPolicy>()
+                .Select(value => (int)value));
+    }
+
+    [Fact]
     public void ProductPresentationProfileApiIsAdditiveAndRuntimeAgnostic()
     {
         Assert.True(typeof(ProductPresentationProfile).IsSealed);

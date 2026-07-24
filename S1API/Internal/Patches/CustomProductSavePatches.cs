@@ -27,6 +27,7 @@ namespace S1API.Internal.Patches
         private static void RestorePrefix()
         {
             CustomProductSavePersistence.RestoreBeforeBaseLoaders(S1Persistence.LoadManager.Instance);
+            CustomProductManifestRuntime.FinalizeHostManifestAfterDescriptorRestore();
         }
     }
 }
