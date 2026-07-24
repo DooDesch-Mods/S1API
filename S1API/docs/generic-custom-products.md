@@ -365,6 +365,50 @@ Pass `listForSale: true` to `Discover` only when discovery should also list the
 product. Shop inventory remains separate; call the existing
 `S1API.Shops.ShopManager` APIs explicitly after registration.
 
+## Save descriptors and missing-mod recovery
+
+Generic products are persisted separately at `Modded/CustomProducts.json`. The
+file is versioned and records only stable IDs and bounded scalar provider data;
+it never serializes Unity objects, prefab/asset references, textures, meshes,
+delegates, or paths. S1API reads it before the vanilla Product Manager loader,
+so the normal vanilla `ProductManager.json` restoration of discovery, listing,
+favourites, prices, and inventory product IDs can resolve the definition first.
+The provider recreates its logical kind, presentation/profile associations, and
+packaging-content provider associations from local mod resources. Generic products
+are never inserted into vanilla's four-family `createdProducts` arrays.
+
+For fresh-process recovery, register a provider during your mod's normal early
+initialization and associate it with each definition:
+
+```csharp
+sealed class FocusTabletProvider : ICustomProductSaveProvider
+{
+    public string ProviderId => "example:focus-tablet";
+    public int MaximumDescriptorVersion => 1;
+
+    public CustomProductDefinitionBuilder? Restore(CustomProductSaveDescriptor descriptor)
+    {
+        // Recreate the same builder, presentation profile, packaging-content profile,
+        // and ProductKind metadata from descriptor.ProviderData and local mod resources.
+        return CreateFocusTabletBuilder(descriptor.ProviderData);
+    }
+}
+
+CustomProductSaveProviderRegistry.Register(new FocusTabletProvider());
+
+// When initially creating the product:
+builder.WithSaveProvider("example:focus-tablet", providerVersion: 1, providerData: "v1");
+```
+
+Provider IDs are case-insensitive and must remain stable. S1API deterministically
+keeps the first descriptor for a case-insensitive product ID. A malformed,
+oversized, duplicate, or unknown-format descriptor is skipped. A missing provider,
+provider version that is too new, failed reconstruction, or returned renamed ID is
+also skipped with an actionable warning; loading continues and S1API never attempts
+an arbitrary ID migration. Reinstall the content mod/provider with the original
+stable ID to restore the product. These warnings intentionally contain IDs only,
+never local paths or personal data.
+
 ## Supported and unsupported behavior
 
 Supported in this milestone:
@@ -385,8 +429,8 @@ Not supported:
 - custom packaging definitions, packaging asset networking, additional
   packaging-content save data;
 - definition transfer to a peer without the defining mod; or
-- recovery of a saved custom item after its mod or stable definition ID is
-  removed.
+- automatic arbitrary renamed-ID migration or recovery of content assets from a
+  removed mod.
 
 Do not place a generic custom product in native mixing flows. The compatibility
 drug type only satisfies native product-item and save assumptions; S1API does

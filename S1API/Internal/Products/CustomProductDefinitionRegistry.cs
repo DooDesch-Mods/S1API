@@ -61,6 +61,18 @@ namespace S1API.Internal.Products
             S1Product.ProductDefinition definition,
             CustomProductDefinitionMetadata? metadata)
         {
+            return Register(ownerId, productId, productName, initialPrice, definition, metadata, null);
+        }
+
+        internal static S1Product.ProductDefinition Register(
+            string ownerId,
+            string productId,
+            string productName,
+            float initialPrice,
+            S1Product.ProductDefinition definition,
+            CustomProductDefinitionMetadata? metadata,
+            CustomProductSaveDescriptorData? saveDescriptor)
+        {
             string normalizedOwnerId = NormalizeRequired(ownerId, nameof(ownerId));
             string normalizedProductId = NormalizeRequired(productId, nameof(productId));
             string normalizedProductName = NormalizeRequired(productName, nameof(productName));
@@ -108,7 +120,8 @@ namespace S1API.Internal.Products
                             normalizedProductName,
                             initialPrice,
                             definition,
-                            metadata);
+                            metadata,
+                            saveDescriptor);
                         Registrations.Add(normalizedProductId, registration);
                         added = true;
                     }
@@ -336,6 +349,28 @@ namespace S1API.Internal.Products
         internal static void InvokeLoadCompleteForTesting()
         {
             OnLoadComplete();
+        }
+
+        internal static bool IsRegistered(string productId)
+        {
+            lock (Gate)
+                return Registrations.ContainsKey(productId);
+        }
+
+        internal static CustomProductSaveDescriptorData[] GetSaveDescriptors()
+        {
+            lock (Gate)
+            {
+                var descriptors = new List<CustomProductSaveDescriptorData>();
+                foreach (CustomProductDefinitionRegistration registration in Registrations.Values)
+                {
+                    if (registration.SaveDescriptor == null)
+                        continue;
+                    descriptors.Add(registration.SaveDescriptor);
+                }
+                descriptors.Sort((left, right) => StringComparer.OrdinalIgnoreCase.Compare(left.ProductId, right.ProductId));
+                return descriptors.ToArray();
+            }
         }
 
         private static bool AreSameDefinition(
