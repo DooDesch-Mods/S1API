@@ -199,11 +199,15 @@ The loading screen stays open until queued product icons complete or reach the
 bounded retry timeout. `MugshotGenerator` remains reserved for avatar/accessory
 previews. The generated icon is the loose inventory icon only. Filled packaging
 uses the separate packaging-content API below.
-Before creating the sprite, S1API copies the native preview capture into an
-RGBA32, non-mipmapped texture with bilinear filtering and clamp wrapping. This
+Before creating the sprite, S1API round-trips the native preview capture
+through PNG into a non-mipmapped 32-bit alpha texture with bilinear filtering
+and clamp wrapping. On the target Unity 2022.3 runtime, PNG decoding produces
+an ARGB32 texture and uploads it without an additional `Apply()` call. This
 normalization is required for reliable `UnityEngine.UI.Image` rendering; using
 the native preview texture directly can appear as a solid gray rectangle even
-when exporting that texture produces a valid transparent PNG.
+when exporting that texture produces a valid transparent PNG. An empty native
+capture is retried, while a deterministic PNG normalization failure stops and
+preserves the template icon fallback.
 Product Manager entries cache their sprite when initialized; S1API refreshes
 S1API-managed product and favourite entries after generated-icon completion.
 Mods should still register the presentation profile before building the

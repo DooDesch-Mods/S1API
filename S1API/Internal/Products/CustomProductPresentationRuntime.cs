@@ -58,7 +58,7 @@ namespace S1API.Internal.Products
             internal CustomProductPresentationState State { get; }
         }
 
-        private enum GeneratedIconAttemptResult
+        internal enum GeneratedIconAttemptResult
         {
             Success,
             Retry,
@@ -613,21 +613,26 @@ namespace S1API.Internal.Products
                         bakeSkinnedMeshes: true,
                         fitToCamera: profile.FitGeneratedIconToCamera,
                         cameraFill: profile.GeneratedIconCameraFill);
-                if (renderedTexture != null)
-                    texture =
-                        CreateUiTexture(
-                            renderedTexture,
-                            request.Product.ProductId);
+                if (renderedTexture == null)
+                {
+                    error = "the native renderer returned no visible pixels";
+                    return GetGeneratedTextureFailureResult(
+                        rendererProducedTexture: false);
+                }
+
+                if (!TryCreateUiTexture(
+                        renderedTexture,
+                        request.Product.ProductId,
+                        out texture,
+                        out error))
+                {
+                    return GetGeneratedTextureFailureResult(
+                        rendererProducedTexture: true);
+                }
             }
             finally
             {
                 Object.Destroy(model);
-            }
-
-            if (texture == null)
-            {
-                error = "the native renderer returned no visible pixels";
-                return GeneratedIconAttemptResult.Retry;
             }
 
             icon = global::S1API.Utils.ImageUtils.TextureToSprite(texture);
@@ -643,14 +648,30 @@ namespace S1API.Internal.Products
             return GeneratedIconAttemptResult.Failure;
         }
 
-        private static Texture2D? CreateUiTexture(
-            Texture2D renderedTexture,
-            string productId)
+        internal static GeneratedIconAttemptResult
+            GetGeneratedTextureFailureResult(bool rendererProducedTexture)
         {
-            Texture2D? uiTexture = null;
+            return rendererProducedTexture
+                ? GeneratedIconAttemptResult.Failure
+                : GeneratedIconAttemptResult.Retry;
+        }
+
+        private static bool TryCreateUiTexture(
+            Texture2D renderedTexture,
+            string productId,
+            out Texture2D? uiTexture,
+            out string error)
+        {
+            uiTexture = null;
             try
             {
-                byte[] encoded = renderedTexture.EncodeToPNG();
+                byte[]? encoded = renderedTexture.EncodeToPNG();
+                if (encoded == null || encoded.Length == 0)
+                {
+                    error = "the generated texture could not be encoded as PNG";
+                    return false;
+                }
+
                 uiTexture =
                     new Texture2D(
                         2,
@@ -665,22 +686,24 @@ namespace S1API.Internal.Products
                 if (!uiTexture.LoadImage(encoded, markNonReadable: false))
                 {
                     Object.Destroy(uiTexture);
-                    return null;
+                    uiTexture = null;
+                    error =
+                        "the generated PNG could not be decoded into a UI texture";
+                    return false;
                 }
 
-                uiTexture.Apply(
-                    updateMipmaps: false,
-                    makeNoLongerReadable: false);
-                return uiTexture;
+                error = string.Empty;
+                return true;
             }
             catch (Exception exception)
             {
                 if (uiTexture != null)
                     Object.Destroy(uiTexture);
-                MelonLogger.Warning(
-                    $"[ProductPresentationProfile] Could not normalize generated icon "
-                    + $"texture for '{productId}': {exception.Message}");
-                return null;
+                uiTexture = null;
+                error =
+                    $"generated icon texture normalization failed: "
+                    + exception.Message;
+                return false;
             }
             finally
             {

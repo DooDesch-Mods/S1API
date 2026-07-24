@@ -15,6 +15,7 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.CustomProductItemCreator`: creates generic non-mixable product builders
 - `S1API.Products.CustomProductDefinitionBuilder`: validates and lifecycle-registers a fixed generic product
 - `S1API.Products.CustomProductDefinition`: typed wrapper for a registered generic custom product
+- `S1API.Products.ProductKindMetadata`: immutable logical-kind display, search, and Product Manager metadata
 - `S1API.Products.ProductKindMetadataBuilder`: configures logical-kind display, search, and Product Manager behavior
 - `S1API.Products.ProductKindMetadataRegistry`: looks up immutable logical-kind metadata
 - `S1API.Products.ProductPresentationProfileBuilder`: configures mod-owned loose presentation contexts

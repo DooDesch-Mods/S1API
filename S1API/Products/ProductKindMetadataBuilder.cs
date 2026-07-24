@@ -82,7 +82,10 @@ namespace S1API.Products
         /// </exception>
         public ProductKindMetadataBuilder WithIcon(Sprite icon)
         {
-            _icon = icon ?? throw new ArgumentNullException(nameof(icon));
+            if (ProductKindIconLifetime.IsNullOrDestroyed(icon))
+                throw new ArgumentNullException(nameof(icon));
+
+            _icon = icon;
             return this;
         }
 
@@ -108,6 +111,11 @@ namespace S1API.Products
         /// <exception cref="ArgumentException">
         /// Thrown when an alias is empty or whitespace.
         /// </exception>
+        /// <remarks>
+        /// Input order is preserved after case-insensitive deduplication. Because
+        /// aliases are exposed as an ordered immutable snapshot, changing their
+        /// order is a conflicting registration rather than an idempotent repeat.
+        /// </remarks>
         public ProductKindMetadataBuilder WithSearchAliases(params string[] searchAliases)
         {
             if (searchAliases == null)
@@ -167,7 +175,7 @@ namespace S1API.Products
                         "A visible Product Manager section requires a compatibility drug type.");
                 }
 
-                if (ReferenceEquals(_icon, null))
+                if (ProductKindIconLifetime.IsNullOrDestroyed(_icon))
                 {
                     throw new InvalidOperationException(
                         "A visible Product Manager section requires an icon.");

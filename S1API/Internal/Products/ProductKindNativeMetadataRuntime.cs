@@ -26,8 +26,16 @@ namespace S1API.Internal.Products
                 if (!item.ProductKind.CompatibilityDrugType.HasValue)
                     continue;
 
+                DrugType compatibilityType =
+                    item.ProductKind.CompatibilityDrugType.Value;
+                if (!ProductKindNativeMetadataTypes.RequiresFallback(
+                        compatibilityType))
+                {
+                    continue;
+                }
+
                 S1Product.EDrugType nativeType =
-                    item.ProductKind.CompatibilityDrugType.Value.ToInternal();
+                    compatibilityType.ToInternal();
                 if (Contains(utility, nativeType))
                     continue;
 

@@ -20,8 +20,7 @@ namespace S1API.Internal.Products
         {
             get
             {
-                var snapshot = Snapshot();
-                Array.Sort(snapshot, Compare);
+                ProductKindMetadata[] snapshot = OrderedSnapshot();
                 return Array.AsReadOnly(snapshot);
             }
         }
@@ -69,7 +68,7 @@ namespace S1API.Internal.Products
             {
                 try
                 {
-                    _runtimeAdapter.Apply(Snapshot());
+                    _runtimeAdapter.Apply(OrderedSnapshot());
                 }
                 catch (Exception exception)
                 {
@@ -134,6 +133,13 @@ namespace S1API.Internal.Products
             }
         }
 
+        private static ProductKindMetadata[] OrderedSnapshot()
+        {
+            ProductKindMetadata[] snapshot = Snapshot();
+            Array.Sort(snapshot, Compare);
+            return snapshot;
+        }
+
         private static void EnsureHooked()
         {
             if (_hooked)
@@ -169,8 +175,12 @@ namespace S1API.Internal.Products
         private static void ValidateNativeMetadataCollision(ProductKindMetadata candidate)
         {
             DrugType? candidateType = candidate.ProductKind.CompatibilityDrugType;
-            if (candidateType != DrugType.MDMA && candidateType != DrugType.Heroin)
+            if (!candidateType.HasValue
+                || !ProductKindNativeMetadataTypes.RequiresFallback(
+                    candidateType.Value))
+            {
                 return;
+            }
 
             foreach (ProductKindMetadata existing in Metadata.Values)
             {

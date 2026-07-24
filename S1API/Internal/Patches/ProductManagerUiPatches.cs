@@ -91,7 +91,7 @@ namespace S1API.Internal.Patches
         {
             try
             {
-                return ProductManagerUiRuntime.AllowFavouriteEntry(definition);
+                return ProductManagerUiRuntime.AllowFavouriteRemoval();
             }
             catch (Exception exception)
             {

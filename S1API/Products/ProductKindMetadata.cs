@@ -41,8 +41,13 @@ namespace S1API.Products
         public int SortOrder { get; }
 
         /// <summary>
-        /// Gets the additional case-insensitive terms that identify this product kind.
+        /// Gets the additional case-insensitive terms that identify this product kind,
+        /// in registration order.
         /// </summary>
+        /// <remarks>
+        /// Alias order is preserved as part of the immutable metadata snapshot and
+        /// therefore participates in duplicate-registration equivalence.
+        /// </remarks>
         public IReadOnlyList<string> SearchAliases => _searchAliases;
 
         /// <summary>

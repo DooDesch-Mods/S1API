@@ -69,6 +69,12 @@ ordered by `SortOrder`, display name, then stable kind ID. Equivalent repeated
 registrations return the first immutable metadata instance; conflicting
 registrations fail without replacing it.
 
+Search aliases are case-insensitive for matching and deduplication, but their
+input order is preserved in `SearchAliases`. Because that ordered list is part
+of the immutable registration snapshot, repeating a kind with the same aliases
+in a different order is a conflicting registration. Keep registration calls
+deterministic across lifecycle paths and peers.
+
 When reusing a generated product icon for the section, register the product's
 `ProductPresentationProfile` before building its definition. Icon capture runs
 during loading and replaces the representation-template fallback on the native
@@ -82,6 +88,8 @@ property after capture completes. If metadata setup runs earlier, retain the
 template icon reference and defer metadata registration until `Icon` is
 non-null and no longer that reference. Do not copy or reload the generated PNG:
 pass the generated `Sprite` instance directly to `WithIcon`.
+The sprite must still be a live Unity object when metadata is built; destroyed
+sprites are rejected as missing icons.
 
 When the compatibility type has no serialized native metadata row, S1API adds
 the missing name and color without changing existing native rows. MDMA and

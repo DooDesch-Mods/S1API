@@ -27,6 +27,19 @@ namespace S1API.Internal.Products
 {
     internal static class ProductManagerUiRuntime
     {
+        internal readonly struct SectionIconState
+        {
+            internal SectionIconState(Sprite? sprite, Color tint)
+            {
+                Sprite = sprite;
+                Tint = tint;
+            }
+
+            internal Sprite? Sprite { get; }
+
+            internal Color Tint { get; }
+        }
+
         private const string ManagedNamePrefix = "S1API_ProductKind_";
         private static readonly Log Logger = new Log("ProductManagerUiRuntime");
 
@@ -57,10 +70,19 @@ namespace S1API.Internal.Products
             if (!TryResolveMetadata(definition, out ProductKindMetadata metadata))
                 return true;
 
-            Apply(app, SnapshotMetadata());
             if (!metadata.IsVisibleInProductManager)
                 return false;
 
+            bool hasContainer =
+                FindManagedContainer(app, metadata.ProductKind.Id) != null;
+            if (!RequiresContainerReconciliation(
+                    metadata.IsVisibleInProductManager,
+                    hasContainer))
+            {
+                return true;
+            }
+
+            EnsureContainers(app, SnapshotMetadata());
             if (FindManagedContainer(app, metadata.ProductKind.Id) != null)
                 return true;
 
@@ -86,6 +108,39 @@ namespace S1API.Internal.Products
         {
             return !TryResolveMetadata(definition, out ProductKindMetadata metadata)
                    || metadata.IsVisibleInProductManager;
+        }
+
+        internal static bool AllowFavouriteRemoval()
+        {
+            return true;
+        }
+
+        internal static bool RequiresContainerReconciliation(
+            bool isVisible,
+            bool hasContainer)
+        {
+            return isVisible && !hasContainer;
+        }
+
+        internal static bool ShouldPurgeFavouriteEntry(
+            bool hasEntry,
+            bool hasDefinition)
+        {
+            return !hasEntry || !hasDefinition;
+        }
+
+        internal static SectionIconState CreateSectionIconState(Sprite? sprite)
+        {
+            Sprite? liveSprite =
+                ProductKindIconLifetime.IsNullOrDestroyed(sprite)
+                    ? null
+                    : sprite;
+            Color neutralTint = default;
+            neutralTint.r = 1f;
+            neutralTint.g = 1f;
+            neutralTint.b = 1f;
+            neutralTint.a = 1f;
+            return new SectionIconState(liveSprite, neutralTint);
         }
 
         private static IReadOnlyList<ProductKindMetadata> SnapshotMetadata()
@@ -254,10 +309,12 @@ namespace S1API.Internal.Products
                 arrow.color = metadata.Color;
 
             Image? icon = FindImage(container, "Image");
-            if (icon != null && metadata.Icon != null)
+            if (icon != null)
             {
-                icon.sprite = metadata.Icon;
-                icon.color = Color.white;
+                SectionIconState iconState =
+                    CreateSectionIconState(metadata.Icon);
+                icon.sprite = iconState.Sprite;
+                icon.color = iconState.Tint;
             }
         }
 
@@ -302,10 +359,21 @@ namespace S1API.Internal.Products
             for (int i = favourites.Count - 1; i >= 0; i--)
             {
                 S1Product.ProductEntry entry = favourites[i];
-                if (entry == null
-                    || entry.Definition == null
-                    || !TryResolveMetadata(
-                        entry.Definition,
+                bool hasEntry = entry != null;
+                bool hasDefinition =
+                    hasEntry && entry!.Definition != null;
+                if (ShouldPurgeFavouriteEntry(hasEntry, hasDefinition))
+                {
+                    favourites.RemoveAt(i);
+                    if (hasEntry)
+                        entry!.Destroy();
+                    continue;
+                }
+
+                S1Product.ProductDefinition definition =
+                    entry!.Definition!;
+                if (!TryResolveMetadata(
+                        definition,
                         out ProductKindMetadata metadata))
                 {
                     continue;

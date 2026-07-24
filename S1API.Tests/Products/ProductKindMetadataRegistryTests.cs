@@ -13,10 +13,16 @@ public sealed class ProductKindMetadataRegistryTests : IDisposable
     public ProductKindMetadataRegistryTests()
     {
         ProductKindMetadataRegistrationRegistry.ResetForTesting(_runtimeAdapter);
+#if IL2CPPMELON
+        ProductKindIconLifetime.SetUnityNullEvaluatorForTesting(_ => false);
+#endif
     }
 
     public void Dispose()
     {
+#if IL2CPPMELON
+        ProductKindIconLifetime.SetUnityNullEvaluatorForTesting(null);
+#endif
         ProductKindMetadataRegistrationRegistry.RestoreRuntimeAdapterForTesting();
     }
 
@@ -227,6 +233,78 @@ public sealed class ProductKindMetadataRegistryTests : IDisposable
     }
 
     [Fact]
+    public void AliasOrderIsPartOfRegistrationEquivalence()
+    {
+        ProductKind kind = CreateKind();
+        ProductKindMetadata first = new ProductKindMetadataBuilder(kind)
+            .WithDisplayName("Ecstasy")
+            .WithColor(CreateColor(0.8f, 0.2f, 0.7f))
+            .WithSearchAliases("ecstasy", "molly")
+            .Build();
+
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(
+                () => new ProductKindMetadataBuilder(kind)
+                    .WithDisplayName("Ecstasy")
+                    .WithColor(CreateColor(0.8f, 0.2f, 0.7f))
+                    .WithSearchAliases("molly", "ecstasy")
+                    .Build());
+
+        Assert.Contains(kind.Id, exception.Message);
+        Assert.Equal(
+            new[] { "ecstasy", "molly" },
+            first.SearchAliases);
+        Assert.Same(first, ProductKindMetadataRegistry.Get(kind));
+    }
+
+    [Fact]
+    public void NativeMetadataFallbackSetMatchesVerifiedDormantTypes()
+    {
+        DrugType[] fallbackTypes = Enum.GetValues<DrugType>()
+            .Where(ProductKindNativeMetadataTypes.RequiresFallback)
+            .ToArray();
+
+        Assert.Equal(
+            new[] { DrugType.MDMA, DrugType.Heroin },
+            fallbackTypes);
+        Assert.False(
+            ProductKindNativeMetadataTypes.RequiresFallback(
+                DrugType.Marijuana));
+    }
+
+    [Fact]
+    public void IconValidationUsesUnityLifetimeSemantics()
+    {
+        ProductKind kind = CreateKind();
+        Sprite liveIcon = CreateSprite();
+
+        Assert.False(ProductKindIconLifetime.IsNullOrDestroyed(liveIcon));
+        Assert.True(ProductKindIconLifetime.IsNullOrDestroyed(null));
+
+#if MONOMELON
+        Sprite destroyedIcon =
+            (Sprite)RuntimeHelpers.GetUninitializedObject(typeof(Sprite));
+        Assert.True(ProductKindIconLifetime.IsNullOrDestroyed(destroyedIcon));
+        Assert.Throws<ArgumentNullException>(
+            () => new ProductKindMetadataBuilder(kind)
+                .WithIcon(destroyedIcon));
+
+        var builder = new ProductKindMetadataBuilder(kind)
+            .WithDisplayName("MDMA")
+            .WithColor(CreateColor(0.8f, 0.2f, 0.7f))
+            .WithIcon(liveIcon)
+            .WithProductManagerVisibility();
+        SetCachedPointer(liveIcon, IntPtr.Zero);
+
+        Assert.Throws<InvalidOperationException>(() => builder.Build());
+#else
+        ProductKindIconLifetime.SetUnityNullEvaluatorForTesting(_ => true);
+        Assert.True(ProductKindIconLifetime.IsNullOrDestroyed(liveIcon));
+        ProductKindIconLifetime.SetUnityNullEvaluatorForTesting(_ => false);
+#endif
+    }
+
+    [Fact]
     public void RegistrySnapshotsAreOrderedAndIsolated()
     {
         ProductKindMetadata later = new ProductKindMetadataBuilder(CreateKind())
@@ -259,12 +337,14 @@ public sealed class ProductKindMetadataRegistryTests : IDisposable
     public void LifecycleReappliesOneDeduplicatedSnapshot()
     {
         ProductKindMetadata first = new ProductKindMetadataBuilder(CreateKind())
-            .WithDisplayName("First")
+            .WithDisplayName("Zulu")
             .WithColor(CreateColor(1f, 0f, 0f))
+            .WithSortOrder(20)
             .Build();
         ProductKindMetadata second = new ProductKindMetadataBuilder(CreateKind())
-            .WithDisplayName("Second")
+            .WithDisplayName("Alpha")
             .WithColor(CreateColor(0f, 0f, 1f))
+            .WithSortOrder(-10)
             .Build();
 
         ProductKindMetadataRegistrationRegistry.InvokePreLoadForTesting();
@@ -272,19 +352,18 @@ public sealed class ProductKindMetadataRegistryTests : IDisposable
 
         Assert.Equal(4, _runtimeAdapter.Applications.Count);
         Assert.Equal(new[] { first }, _runtimeAdapter.Applications[0]);
-        Assert.Equal(2, _runtimeAdapter.Applications[1].Count);
-        Assert.Equal(2, _runtimeAdapter.Applications[2].Count);
-        Assert.Equal(2, _runtimeAdapter.Applications[3].Count);
         Assert.All(
             _runtimeAdapter.Applications.Skip(1),
             application => Assert.Equal(
-                2,
+                new[] { second, first },
+                application));
+        Assert.All(
+            _runtimeAdapter.Applications.Skip(1),
+            application => Assert.Equal(
+                application.Count,
                 application.Select(item => item.ProductKind.Id)
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .Count()));
-        Assert.Contains(
-            _runtimeAdapter.Applications[3],
-            metadata => metadata == second);
     }
 
     [Fact]
@@ -326,8 +405,25 @@ public sealed class ProductKindMetadataRegistryTests : IDisposable
 
     private static Sprite CreateSprite()
     {
-        return (Sprite)RuntimeHelpers.GetUninitializedObject(typeof(Sprite));
+        var sprite =
+            (Sprite)RuntimeHelpers.GetUninitializedObject(typeof(Sprite));
+#if MONOMELON
+        SetCachedPointer(sprite, new IntPtr(1));
+#endif
+        return sprite;
     }
+
+#if MONOMELON
+    private static void SetCachedPointer(Sprite sprite, IntPtr pointer)
+    {
+        typeof(UnityEngine.Object)
+            .GetField(
+                "m_CachedPtr",
+                System.Reflection.BindingFlags.Instance
+                | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(sprite, pointer);
+    }
+#endif
 
     private static Color CreateColor(float red, float green, float blue)
     {
