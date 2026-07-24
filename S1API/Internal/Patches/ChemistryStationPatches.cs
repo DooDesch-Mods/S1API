@@ -41,6 +41,7 @@ namespace S1API.Internal.Patches
 
         private static bool _loggedRecipeEntriesMissing;
         private static bool _loggedChemistryStationUiMissing;
+        private static bool _loggedSetSelectedRecipeMissing;
 
         private sealed class CanvasInjectionState
         {
@@ -228,9 +229,6 @@ namespace S1API.Internal.Patches
             }
 
             var registered = ChemistryStationRecipes.GetAllNative();
-            if (registered.Count == 0)
-                return;
-
             var state = GetCanvasState(canvas);
             for (int i = 0; i < registered.Count; i++)
             {
@@ -287,7 +285,16 @@ namespace S1API.Internal.Patches
             CanvasInjectionState state)
         {
             if (SetSelectedRecipeMethod == null)
+            {
+                if (!_loggedSetSelectedRecipeMissing)
+                {
+                    _loggedSetSelectedRecipeMissing = true;
+                    Logger.Warning(
+                        "[S1API] Chemistry station selection method could not be resolved. Recipe click binding will be skipped.");
+                }
+
                 return;
+            }
 
             for (int i = 0; i < entries.Count; i++)
             {
