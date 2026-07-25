@@ -26,6 +26,7 @@ namespace S1API.Products
             bool fitGeneratedIconToCamera,
             float generatedIconCameraFill,
             ProductPresentationTransform? generatedIconTransform,
+            bool useFunctionalProductConvexMeshColliders,
             IReadOnlyCollection<ProductPresentationContext> requiredContexts)
         {
             VisualProviders = visualProviders;
@@ -37,6 +38,8 @@ namespace S1API.Products
             FitGeneratedIconToCamera = fitGeneratedIconToCamera;
             GeneratedIconCameraFill = generatedIconCameraFill;
             GeneratedIconTransform = generatedIconTransform;
+            UseFunctionalProductConvexMeshColliders =
+                useFunctionalProductConvexMeshColliders;
             RequiredContexts = requiredContexts;
         }
 
@@ -60,6 +63,8 @@ namespace S1API.Products
         internal float GeneratedIconCameraFill { get; }
 
         internal ProductPresentationTransform? GeneratedIconTransform { get; }
+
+        internal bool UseFunctionalProductConvexMeshColliders { get; }
 
         internal IReadOnlyCollection<ProductPresentationContext> RequiredContexts { get; }
 

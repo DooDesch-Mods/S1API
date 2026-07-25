@@ -169,6 +169,21 @@ public sealed class ProductPresentationProfileBuilderTests
         Assert.Equal(1.25f, profile.GeneratedIconCameraFill);
     }
 
+    [Fact]
+    public void FunctionalProductConvexMeshCollidersAreOptInAndSnapshotted()
+    {
+        var builder = new ProductPresentationProfileBuilder();
+        ProductPresentationProfile legacy = builder.Build();
+
+        ProductPresentationProfile optedIn =
+            builder
+                .WithFunctionalProductConvexMeshColliders()
+                .Build();
+
+        Assert.False(legacy.UseFunctionalProductConvexMeshColliders);
+        Assert.True(optedIn.UseFunctionalProductConvexMeshColliders);
+    }
+
 #if MONOMELON
     [Fact]
     public void GeneratedIconTransformIsSnapshottedSeparatelyFromLoosePresentation()

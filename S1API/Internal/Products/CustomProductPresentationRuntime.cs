@@ -376,7 +376,16 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     ProductPresentationContext.FunctionalProduct);
-            EnsureCollider(functional.Visuals.VisualsContainer.gameObject);
+            if (profile.UseFunctionalProductConvexMeshColliders)
+            {
+                ReplaceWithConvexMeshColliders(
+                    functional.gameObject,
+                    functional.Visuals.VisualsContainer.gameObject);
+            }
+            else
+            {
+                EnsureCollider(functional.Visuals.VisualsContainer.gameObject);
+            }
             return clone;
         }
 
@@ -994,6 +1003,35 @@ namespace S1API.Internal.Products
             BoxCollider collider = visual.AddComponent<BoxCollider>();
             collider.center = bounds.center;
             collider.size = bounds.size;
+        }
+
+        private static void ReplaceWithConvexMeshColliders(
+            GameObject scaffold,
+            GameObject visual)
+        {
+            Collider[] inheritedColliders =
+                scaffold.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < inheritedColliders.Length; i++)
+                inheritedColliders[i].enabled = false;
+
+            MeshFilter[] filters =
+                visual.GetComponentsInChildren<MeshFilter>(true);
+            int added = 0;
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter filter = filters[i];
+                if (filter.sharedMesh == null)
+                    continue;
+
+                MeshCollider collider =
+                    filter.gameObject.AddComponent<MeshCollider>();
+                collider.sharedMesh = filter.sharedMesh;
+                collider.convex = true;
+                added++;
+            }
+
+            if (added == 0)
+                EnsureCollider(visual);
         }
 
         private static T MissingScaffold<T>(
