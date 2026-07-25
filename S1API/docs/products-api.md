@@ -21,6 +21,8 @@ If you want customer preference configuration, see `S1API/docs/products-system.m
 - `S1API.Products.ProductPresentationProfileBuilder`: configures mod-owned loose presentation contexts
 - `S1API.Products.ProductPresentationTransform`: overrides a cloned context visual's local transform
 - `S1API.Products.ProductPresentationProfileRegistry`: registers profiles by stable product ID or logical product kind
+- `S1API.Products.ProductConsumptionProfileBuilder`: configures intrinsic custom-product consumption callbacks
+- `S1API.Products.ProductConsumptionProfileRegistry`: registers consumption profiles by stable product ID or logical product kind
 - `S1API.Products.PackagingDefinition`: packaging definition wrapper
 - `S1API.Products.Quality`: API-safe quality enum
 
@@ -212,6 +214,41 @@ ProductManager.SetNpcEffectClearCallback(Property.Sneaky, npc =>
 
 Use `ProductManager.RemoveNpcEffectClearCallback(...)` or `ProductManager.ResetNpcEffectClearCallbacks()` to remove
 registered NPC clear callbacks.
+
+## Intrinsic custom-product consumption profiles
+
+Use a consumption profile for behavior that belongs to a registered custom product or logical
+`ProductKind`, rather than to a visible product property. Profiles run after ordinary property effects
+at the native apply/clear lifecycle points. A product-ID registration overrides a product-kind
+registration; kind registrations also cover generated mixed products that retain that kind.
+
+```csharp
+using S1API.Products;
+
+var profile = new ProductConsumptionProfileBuilder()
+    .WithProviderCompatibility("examplemod:mdma-consumption", 1)
+    .OnPlayerApply(context =>
+    {
+        // Player callbacks are local-only, so camera and audio state stays local.
+    })
+    .OnPlayerClear(context =>
+    {
+        // Cleanup must be safe when the game clears a product repeatedly.
+    })
+    .OnNpcApply(context =>
+    {
+        // NPC wrappers can be unavailable for game-owned NPCs; TargetId remains available.
+    })
+    .OnNpcClear(context => { })
+    .Build();
+
+ProductConsumptionProfileRegistry.RegisterForProductKind(customKind, profile);
+```
+
+The provider ID and version are scalar multiplayer compatibility data. Register the same profile
+provider on every peer before custom-product manifest validation; S1API never serializes callbacks,
+Unity objects, assets, or transient camera/audio state. Active profile state is not restored across
+save/load, reconnect, or late join.
 
 ## Creating product instances
 
