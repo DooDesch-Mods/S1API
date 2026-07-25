@@ -169,6 +169,37 @@ public sealed class ProductPresentationProfileBuilderTests
         Assert.Equal(1.25f, profile.GeneratedIconCameraFill);
     }
 
+#if MONOMELON
+    [Fact]
+    public void GeneratedIconTransformIsSnapshottedSeparatelyFromLoosePresentation()
+    {
+        var looseTransform =
+            new ProductPresentationTransform(
+                Vector3.zero,
+                Vector3.zero,
+                Vector3.one);
+        var iconTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, 0.1f, 0f),
+                new Vector3(45f, 0f, 0f),
+                Vector3.one * 0.8f);
+
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(() => null, looseTransform)
+                .WithGeneratedIconTransform(iconTransform)
+                .WithGeneratedIconFromLooseVisual()
+                .Build();
+
+        Assert.Same(iconTransform, profile.GeneratedIconTransform);
+        Assert.True(
+            profile.TryGetVisualTransform(
+                ProductPresentationContext.Loose,
+                out ProductPresentationTransform? resolvedLooseTransform));
+        Assert.Same(looseTransform, resolvedLooseTransform);
+    }
+#endif
+
     [Fact]
     public void BuildSnapshotsProvidersAndRequiredContexts()
     {

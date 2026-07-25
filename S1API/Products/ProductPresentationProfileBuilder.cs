@@ -27,6 +27,7 @@ namespace S1API.Products
         private int _generatedIconSize = 512;
         private bool _fitGeneratedIconToCamera = true;
         private float _generatedIconCameraFill = 0.72f;
+        private ProductPresentationTransform? _generatedIconTransform;
 
         /// <summary>
         /// Sets the shared loose visual provider. Stored, held, station, and functional-product
@@ -231,6 +232,31 @@ namespace S1API.Products
         }
 
         /// <summary>
+        /// Sets an icon-only transform for generated loose-visual icons.
+        /// </summary>
+        /// <param name="presentationTransform">
+        /// The cloned visual root transform used only during icon capture.
+        /// </param>
+        /// <returns>This builder.</returns>
+        /// <remarks>
+        /// This replaces the loose presentation transform during icon capture without changing
+        /// stored, held, station, or world presentation. It may be configured before or after
+        /// <see cref="WithGeneratedIconFromLooseVisual(int)"/>. It is not used when an explicit
+        /// icon provider is selected with <see cref="WithIcon(Func{Sprite?})"/>.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="presentationTransform"/> is <see langword="null"/>.
+        /// </exception>
+        public ProductPresentationProfileBuilder WithGeneratedIconTransform(
+            ProductPresentationTransform presentationTransform)
+        {
+            _generatedIconTransform =
+                presentationTransform ??
+                throw new ArgumentNullException(nameof(presentationTransform));
+            return this;
+        }
+
+        /// <summary>
         /// Sets the consumption prefab provider.
         /// </summary>
         /// <param name="provider">
@@ -307,6 +333,7 @@ namespace S1API.Products
                 _generatedIconSize,
                 _fitGeneratedIconToCamera,
                 _generatedIconCameraFill,
+                _generatedIconTransform,
                 new List<ProductPresentationContext>(_requiredContexts).AsReadOnly());
         }
 

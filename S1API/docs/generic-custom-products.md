@@ -236,8 +236,20 @@ Adjust the framing or preserve the authored scale with the additive overload:
 ```
 
 Set `fitToCamera: false` when the provider's scale is already authored for the
-base-game thumbnail rig. The loose presentation transform controls icon
-rotation; `cameraFill` controls only automatic scale fitting. Direct
+base-game thumbnail rig. By default, the loose presentation transform controls
+icon rotation. Use an icon-only transform when the inventory view needs a
+different angle without changing the world model:
+
+```csharp
+.WithGeneratedIconTransform(
+    new ProductPresentationTransform(
+        Vector3.zero,
+        new Vector3(45f, 0f, 0f),
+        Vector3.one))
+```
+
+The icon-only transform replaces the loose transform during capture;
+`cameraFill` controls only automatic scale fitting. Direct
 `IconFactory.GenerateIcon` and `GenerateIconSprite` overloads expose the same
 framing controls.
 

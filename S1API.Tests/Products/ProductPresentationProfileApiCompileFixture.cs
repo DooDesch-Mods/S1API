@@ -58,6 +58,11 @@ internal static class ProductPresentationProfileApiCompileFixture
                 512,
                 fitToCamera: true,
                 cameraFill: 0.8f)
+            .WithGeneratedIconTransform(
+                new ProductPresentationTransform(
+                    Vector3.zero,
+                    new Vector3(45f, 0f, 0f),
+                    Vector3.one))
             .Build();
     }
 }

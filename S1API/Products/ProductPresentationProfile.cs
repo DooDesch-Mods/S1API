@@ -25,6 +25,7 @@ namespace S1API.Products
             int generatedIconSize,
             bool fitGeneratedIconToCamera,
             float generatedIconCameraFill,
+            ProductPresentationTransform? generatedIconTransform,
             IReadOnlyCollection<ProductPresentationContext> requiredContexts)
         {
             VisualProviders = visualProviders;
@@ -35,6 +36,7 @@ namespace S1API.Products
             GeneratedIconSize = generatedIconSize;
             FitGeneratedIconToCamera = fitGeneratedIconToCamera;
             GeneratedIconCameraFill = generatedIconCameraFill;
+            GeneratedIconTransform = generatedIconTransform;
             RequiredContexts = requiredContexts;
         }
 
@@ -56,6 +58,8 @@ namespace S1API.Products
         internal bool FitGeneratedIconToCamera { get; }
 
         internal float GeneratedIconCameraFill { get; }
+
+        internal ProductPresentationTransform? GeneratedIconTransform { get; }
 
         internal IReadOnlyCollection<ProductPresentationContext> RequiredContexts { get; }
 

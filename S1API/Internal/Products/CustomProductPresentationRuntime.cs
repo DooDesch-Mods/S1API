@@ -602,10 +602,17 @@ namespace S1API.Internal.Products
             GameObject model = Object.Instantiate(source);
             try
             {
-                ApplyVisualTransform(
-                    model.transform,
-                    profile,
-                    ProductPresentationContext.Loose);
+                if (profile.GeneratedIconTransform != null)
+                {
+                    profile.GeneratedIconTransform.ApplyTo(model.transform);
+                }
+                else
+                {
+                    ApplyVisualTransform(
+                        model.transform,
+                        profile,
+                        ProductPresentationContext.Loose);
+                }
                 Texture2D? renderedTexture =
                     IconFactory.GenerateIcon(
                         model.transform,
