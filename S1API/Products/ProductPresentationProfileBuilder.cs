@@ -178,6 +178,8 @@ namespace S1API.Products
         /// packaging-station physics. The default remains the native scaffold collider
         /// plus S1API's legacy box-collider fallback so existing mods retain their
         /// current collision behavior.
+        /// A functional-product visual or loose-visual fallback must be configured
+        /// before <see cref="Build"/>.
         /// </remarks>
         public ProductPresentationProfileBuilder
             WithFunctionalProductConvexMeshColliders()
@@ -411,6 +413,17 @@ namespace S1API.Products
 
         private void ValidateRequiredProviders()
         {
+            if (_useFunctionalProductConvexMeshColliders &&
+                !_visualProviders.ContainsKey(
+                    ProductPresentationContext.FunctionalProduct) &&
+                !_visualProviders.ContainsKey(
+                    ProductPresentationContext.Loose))
+            {
+                throw new InvalidOperationException(
+                    "Functional-product convex mesh colliders require a " +
+                    "functional-product visual or loose-visual fallback before Build().");
+            }
+
             foreach (ProductPresentationContext context in _requiredContexts)
             {
                 bool configured;

@@ -970,6 +970,11 @@ namespace S1API.Internal.Products
             if (visual.GetComponentInChildren<Collider>(true) != null)
                 return;
 
+            AddBoxCollider(visual);
+        }
+
+        private static void AddBoxCollider(GameObject visual)
+        {
             Renderer[] renderers =
                 visual.GetComponentsInChildren<Renderer>(true);
             if (renderers.Length == 0)
@@ -1020,18 +1025,48 @@ namespace S1API.Internal.Products
             for (int i = 0; i < filters.Length; i++)
             {
                 MeshFilter filter = filters[i];
-                if (filter.sharedMesh == null)
-                    continue;
-
-                MeshCollider collider =
-                    filter.gameObject.AddComponent<MeshCollider>();
-                collider.sharedMesh = filter.sharedMesh;
-                collider.convex = true;
-                added++;
+                if (TryAddConvexMeshCollider(filter))
+                    added++;
             }
 
             if (added == 0)
-                EnsureCollider(visual);
+                AddBoxCollider(visual);
+        }
+
+        private static bool TryAddConvexMeshCollider(MeshFilter filter)
+        {
+            Mesh? mesh = filter.sharedMesh;
+            if (mesh == null ||
+                mesh.bounds.size.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return false;
+            }
+
+            MeshCollider collider =
+                filter.gameObject.AddComponent<MeshCollider>();
+            try
+            {
+                collider.convex = true;
+                collider.sharedMesh = mesh;
+                if (collider.enabled &&
+                    collider.convex &&
+                    collider.sharedMesh != null &&
+                    (!collider.gameObject.activeInHierarchy ||
+                     collider.bounds.size.sqrMagnitude > Mathf.Epsilon))
+                {
+                    return true;
+                }
+            }
+            catch (Exception exception)
+            {
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Could not create a convex " +
+                    $"mesh collider from '{mesh.name}': {exception.Message}");
+            }
+
+            collider.enabled = false;
+            Object.Destroy(collider);
+            return false;
         }
 
         private static T MissingScaffold<T>(
