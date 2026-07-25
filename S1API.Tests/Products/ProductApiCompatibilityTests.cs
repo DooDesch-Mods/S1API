@@ -264,6 +264,11 @@ public sealed class ProductApiCompatibilityTests
                     typeof(bool),
                     typeof(float)
                 }));
+        AssertBuilderMethod(
+            nameof(
+                ProductPresentationProfileBuilder
+                    .WithGeneratedIconTransform),
+            typeof(ProductPresentationTransform));
 
         Assert.NotNull(
             typeof(IconFactory).GetMethod(
