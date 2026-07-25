@@ -216,6 +216,10 @@ public sealed class ProductApiCompatibilityTests
                     .WithFunctionalProductVisual),
             typeof(Func<UnityEngine.GameObject>));
         AssertBuilderMethod(
+            nameof(
+                ProductPresentationProfileBuilder
+                    .WithFunctionalProductConvexMeshColliders));
+        AssertBuilderMethod(
             nameof(ProductPresentationProfileBuilder.WithIcon),
             typeof(Func<UnityEngine.Sprite>));
         AssertBuilderMethod(

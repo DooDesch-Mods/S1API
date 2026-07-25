@@ -376,7 +376,16 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     ProductPresentationContext.FunctionalProduct);
-            EnsureCollider(functional.Visuals.VisualsContainer.gameObject);
+            if (profile.UseFunctionalProductConvexMeshColliders)
+            {
+                ReplaceWithConvexMeshColliders(
+                    functional.gameObject,
+                    functional.Visuals.VisualsContainer.gameObject);
+            }
+            else
+            {
+                EnsureCollider(functional.Visuals.VisualsContainer.gameObject);
+            }
             return clone;
         }
 
@@ -961,6 +970,11 @@ namespace S1API.Internal.Products
             if (visual.GetComponentInChildren<Collider>(true) != null)
                 return;
 
+            AddBoxCollider(visual);
+        }
+
+        private static void AddBoxCollider(GameObject visual)
+        {
             Renderer[] renderers =
                 visual.GetComponentsInChildren<Renderer>(true);
             if (renderers.Length == 0)
@@ -994,6 +1008,65 @@ namespace S1API.Internal.Products
             BoxCollider collider = visual.AddComponent<BoxCollider>();
             collider.center = bounds.center;
             collider.size = bounds.size;
+        }
+
+        private static void ReplaceWithConvexMeshColliders(
+            GameObject scaffold,
+            GameObject visual)
+        {
+            Collider[] inheritedColliders =
+                scaffold.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < inheritedColliders.Length; i++)
+                inheritedColliders[i].enabled = false;
+
+            MeshFilter[] filters =
+                visual.GetComponentsInChildren<MeshFilter>(true);
+            int added = 0;
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter filter = filters[i];
+                if (TryAddConvexMeshCollider(filter))
+                    added++;
+            }
+
+            if (added == 0)
+                AddBoxCollider(visual);
+        }
+
+        private static bool TryAddConvexMeshCollider(MeshFilter filter)
+        {
+            Mesh? mesh = filter.sharedMesh;
+            if (mesh == null ||
+                mesh.bounds.size.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return false;
+            }
+
+            MeshCollider collider =
+                filter.gameObject.AddComponent<MeshCollider>();
+            try
+            {
+                collider.convex = true;
+                collider.sharedMesh = mesh;
+                if (collider.enabled &&
+                    collider.convex &&
+                    collider.sharedMesh != null &&
+                    (!collider.gameObject.activeInHierarchy ||
+                     collider.bounds.size.sqrMagnitude > Mathf.Epsilon))
+                {
+                    return true;
+                }
+            }
+            catch (Exception exception)
+            {
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Could not create a convex " +
+                    $"mesh collider from '{mesh.name}': {exception.Message}");
+            }
+
+            collider.enabled = false;
+            Object.Destroy(collider);
+            return false;
         }
 
         private static T MissingScaffold<T>(
