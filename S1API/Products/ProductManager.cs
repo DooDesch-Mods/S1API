@@ -42,8 +42,36 @@ namespace S1API.Products
             internal bool AllowDefaultEffect { get; }
         }
 
+        private sealed class EffectClearCallbackRegistration
+        {
+            internal EffectClearCallbackRegistration(Action<Player> callback, bool allowDefaultEffect)
+            {
+                Callback = callback;
+                AllowDefaultEffect = allowDefaultEffect;
+            }
+
+            internal Action<Player> Callback { get; }
+
+            internal bool AllowDefaultEffect { get; }
+        }
+
+        private sealed class NpcEffectClearCallbackRegistration
+        {
+            internal NpcEffectClearCallbackRegistration(Action<NPC> callback, bool allowDefaultEffect)
+            {
+                Callback = callback;
+                AllowDefaultEffect = allowDefaultEffect;
+            }
+
+            internal Action<NPC> Callback { get; }
+
+            internal bool AllowDefaultEffect { get; }
+        }
+
         private static readonly Dictionary<string, EffectCallbackRegistration> EffectCallbacks = new Dictionary<string, EffectCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<string, NpcEffectCallbackRegistration> NpcEffectCallbacks = new Dictionary<string, NpcEffectCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, EffectClearCallbackRegistration> EffectClearCallbacks = new Dictionary<string, EffectClearCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, NpcEffectClearCallbackRegistration> NpcEffectClearCallbacks = new Dictionary<string, NpcEffectClearCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Minimum price for any product (1).
@@ -255,6 +283,148 @@ namespace S1API.Products
             NpcEffectCallbacks.Clear();
 
         /// <summary>
+        /// Registers or replaces a callback for when a product effect is cleared from the local player.
+        /// The callback can optionally allow the base game clear behavior to run as well.
+        /// </summary>
+        /// <param name="property">The product effect/property to override.</param>
+        /// <param name="callback">The callback to invoke with the local player when the effect clears.</param>
+        /// <param name="allowDefaultEffect">
+        /// If <c>true</c>, the base game effect is also cleared.
+        /// If <c>false</c>, only the callback runs for this effect.
+        /// </param>
+        public static void SetEffectClearCallback(PropertyBase property, Action<Player> callback, bool allowDefaultEffect = false)
+        {
+            if (property == null)
+                throw new ArgumentNullException(nameof(property));
+
+            SetEffectClearCallback(property.ID, callback, allowDefaultEffect);
+        }
+
+        /// <summary>
+        /// Registers or replaces a callback for when a product effect ID is cleared from the local player.
+        /// The callback can optionally allow the base game clear behavior to run as well.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <param name="callback">The callback to invoke with the local player when the effect clears.</param>
+        /// <param name="allowDefaultEffect">
+        /// If <c>true</c>, the base game effect is also cleared.
+        /// If <c>false</c>, only the callback runs for this effect.
+        /// </param>
+        public static void SetEffectClearCallback(string effectId, Action<Player> callback, bool allowDefaultEffect = false)
+        {
+            if (string.IsNullOrWhiteSpace(effectId))
+                throw new ArgumentException("Effect ID cannot be null or whitespace.", nameof(effectId));
+
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            EffectClearCallbacks[effectId] = new EffectClearCallbackRegistration(callback, allowDefaultEffect);
+        }
+
+        /// <summary>
+        /// Removes a player effect clear callback by property.
+        /// </summary>
+        /// <param name="property">The product effect/property to remove.</param>
+        /// <returns><c>true</c> if a callback was removed; otherwise <c>false</c>.</returns>
+        public static bool RemoveEffectClearCallback(PropertyBase property)
+        {
+            if (property == null)
+                throw new ArgumentNullException(nameof(property));
+
+            return RemoveEffectClearCallback(property.ID);
+        }
+
+        /// <summary>
+        /// Removes a player effect clear callback by effect ID.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <returns><c>true</c> if a callback was removed; otherwise <c>false</c>.</returns>
+        public static bool RemoveEffectClearCallback(string effectId)
+        {
+            if (string.IsNullOrWhiteSpace(effectId))
+                return false;
+
+            return EffectClearCallbacks.Remove(effectId);
+        }
+
+        /// <summary>
+        /// Removes all registered player product effect clear callbacks.
+        /// </summary>
+        public static void ClearEffectClearCallbacks() =>
+            EffectClearCallbacks.Clear();
+
+        /// <summary>
+        /// Registers or replaces a callback for when a product effect is cleared from an NPC.
+        /// The callback can optionally allow the base game clear behavior to run as well.
+        /// </summary>
+        /// <param name="property">The product effect/property to override.</param>
+        /// <param name="callback">The callback to invoke with the target NPC when the effect clears.</param>
+        /// <param name="allowDefaultEffect">
+        /// If <c>true</c>, the base game effect is also cleared.
+        /// If <c>false</c>, only the callback runs for this effect.
+        /// </param>
+        public static void SetNpcEffectClearCallback(PropertyBase property, Action<NPC> callback, bool allowDefaultEffect = false)
+        {
+            if (property == null)
+                throw new ArgumentNullException(nameof(property));
+
+            SetNpcEffectClearCallback(property.ID, callback, allowDefaultEffect);
+        }
+
+        /// <summary>
+        /// Registers or replaces a callback for when a product effect ID is cleared from an NPC.
+        /// The callback can optionally allow the base game clear behavior to run as well.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <param name="callback">The callback to invoke with the target NPC when the effect clears.</param>
+        /// <param name="allowDefaultEffect">
+        /// If <c>true</c>, the base game effect is also cleared.
+        /// If <c>false</c>, only the callback runs for this effect.
+        /// </param>
+        public static void SetNpcEffectClearCallback(string effectId, Action<NPC> callback, bool allowDefaultEffect = false)
+        {
+            if (string.IsNullOrWhiteSpace(effectId))
+                throw new ArgumentException("Effect ID cannot be null or whitespace.", nameof(effectId));
+
+            if (callback == null)
+                throw new ArgumentNullException(nameof(callback));
+
+            NpcEffectClearCallbacks[effectId] = new NpcEffectClearCallbackRegistration(callback, allowDefaultEffect);
+        }
+
+        /// <summary>
+        /// Removes an NPC effect clear callback by property.
+        /// </summary>
+        /// <param name="property">The product effect/property to remove.</param>
+        /// <returns><c>true</c> if a callback was removed; otherwise <c>false</c>.</returns>
+        public static bool RemoveNpcEffectClearCallback(PropertyBase property)
+        {
+            if (property == null)
+                throw new ArgumentNullException(nameof(property));
+
+            return RemoveNpcEffectClearCallback(property.ID);
+        }
+
+        /// <summary>
+        /// Removes an NPC effect clear callback by effect ID.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <returns><c>true</c> if a callback was removed; otherwise <c>false</c>.</returns>
+        public static bool RemoveNpcEffectClearCallback(string effectId)
+        {
+            if (string.IsNullOrWhiteSpace(effectId))
+                return false;
+
+            return NpcEffectClearCallbacks.Remove(effectId);
+        }
+
+        /// <summary>
+        /// Removes all registered NPC product effect clear callbacks.
+        /// </summary>
+        public static void ClearNpcEffectClearCallbacks() =>
+            NpcEffectClearCallbacks.Clear();
+
+        /// <summary>
         /// INTERNAL: Tries to invoke a registered product effect callback.
         /// </summary>
         /// <param name="effectId">The product effect ID.</param>
@@ -291,6 +461,50 @@ namespace S1API.Products
                 return false;
 
             if (!NpcEffectCallbacks.TryGetValue(effectId, out var registration) || registration?.Callback == null)
+                return false;
+
+            allowDefaultEffect = registration.AllowDefaultEffect;
+            registration.Callback(npc);
+            return true;
+        }
+
+        /// <summary>
+        /// INTERNAL: Tries to invoke a registered player product effect clear callback.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <param name="player">The local player wrapper to pass into the callback.</param>
+        /// <param name="allowDefaultEffect">Outputs whether the base game effect should also be cleared.</param>
+        /// <returns><c>true</c> if a callback was found and invoked; otherwise <c>false</c>.</returns>
+        internal static bool TryInvokeEffectClearCallback(string effectId, Player player, out bool allowDefaultEffect)
+        {
+            allowDefaultEffect = false;
+
+            if (string.IsNullOrWhiteSpace(effectId) || player == null)
+                return false;
+
+            if (!EffectClearCallbacks.TryGetValue(effectId, out var registration) || registration?.Callback == null)
+                return false;
+
+            allowDefaultEffect = registration.AllowDefaultEffect;
+            registration.Callback(player);
+            return true;
+        }
+
+        /// <summary>
+        /// INTERNAL: Tries to invoke a registered NPC product effect clear callback.
+        /// </summary>
+        /// <param name="effectId">The product effect ID.</param>
+        /// <param name="npc">The NPC wrapper to pass into the callback.</param>
+        /// <param name="allowDefaultEffect">Outputs whether the base game effect should also be cleared.</param>
+        /// <returns><c>true</c> if a callback was found and invoked; otherwise <c>false</c>.</returns>
+        internal static bool TryInvokeNpcEffectClearCallback(string effectId, NPC npc, out bool allowDefaultEffect)
+        {
+            allowDefaultEffect = false;
+
+            if (string.IsNullOrWhiteSpace(effectId) || npc == null)
+                return false;
+
+            if (!NpcEffectClearCallbacks.TryGetValue(effectId, out var registration) || registration?.Callback == null)
                 return false;
 
             allowDefaultEffect = registration.AllowDefaultEffect;

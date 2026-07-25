@@ -7,7 +7,10 @@ using NativeDrugTypeContainer = ScheduleOne.Product.DrugTypeContainer;
 #endif
 
 using S1API.Items;
+using S1API.Entities;
 using S1API.Products;
+using S1API.Properties;
+using S1API.Properties.Interfaces;
 using S1API.Rendering;
 
 namespace S1API.Tests.Products;
@@ -96,6 +99,48 @@ public sealed class ProductApiCompatibilityTests
         Assert.Equal(typeof(DrugType), primaryDrugType.PropertyType);
         Assert.NotNull(drugTypeValues);
         Assert.Equal(typeof(IReadOnlyList<DrugType>), drugTypeValues.PropertyType);
+    }
+
+    [Fact]
+    public void ProductEffectClearCallbackApiIsAdditiveAndApplyOnlySignaturesAreUnchanged()
+    {
+        AssertCallbackRegistration(nameof(ProductManager.SetEffectCallback), typeof(Player));
+        AssertCallbackRegistration(nameof(ProductManager.SetNpcEffectCallback), typeof(NPC));
+        AssertCallbackRemoval(nameof(ProductManager.RemoveEffectCallback));
+        AssertCallbackRemoval(nameof(ProductManager.RemoveNpcEffectCallback));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearEffectCallbacks), Type.EmptyTypes));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearNpcEffectCallbacks), Type.EmptyTypes));
+
+        AssertCallbackRegistration(nameof(ProductManager.SetEffectClearCallback), typeof(Player));
+        AssertCallbackRegistration(nameof(ProductManager.SetNpcEffectClearCallback), typeof(NPC));
+        AssertCallbackRemoval(nameof(ProductManager.RemoveEffectClearCallback));
+        AssertCallbackRemoval(nameof(ProductManager.RemoveNpcEffectClearCallback));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearEffectClearCallbacks), Type.EmptyTypes));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearNpcEffectClearCallbacks), Type.EmptyTypes));
+
+        Assert.Equal(
+            typeof(CustomEffectBuilder),
+            typeof(CustomEffectBuilder).GetMethod(
+                nameof(CustomEffectBuilder.WithBehavior),
+                new[] { typeof(Action<Player>) })!.ReturnType);
+        Assert.Equal(
+            typeof(CustomEffectBuilder),
+            typeof(CustomEffectBuilder).GetMethod(
+                nameof(CustomEffectBuilder.WithNpcBehavior),
+                new[] { typeof(Action<NPC>) })!.ReturnType);
+        Assert.Null(typeof(CustomEffectBuilder).GetMethod(
+            nameof(CustomEffectBuilder.WithBehavior),
+            new[] { typeof(Action<Player>), typeof(Action<Player>) }));
+        Assert.Equal(
+            typeof(CustomEffectBuilder),
+            typeof(CustomEffectBuilder).GetMethod(
+                nameof(CustomEffectBuilder.WithClearBehavior),
+                new[] { typeof(Action<Player>) })!.ReturnType);
+        Assert.Equal(
+            typeof(CustomEffectBuilder),
+            typeof(CustomEffectBuilder).GetMethod(
+                nameof(CustomEffectBuilder.WithNpcClearBehavior),
+                new[] { typeof(Action<NPC>) })!.ReturnType);
     }
 
     [Fact]
@@ -433,5 +478,34 @@ public sealed class ProductApiCompatibilityTests
                 parameterTypes);
         Assert.NotNull(method);
         Assert.Equal(typeof(ProductPresentationProfileBuilder), method.ReturnType);
+    }
+
+    private static void AssertCallbackRegistration(string methodName, Type targetType)
+    {
+        var callbackType = typeof(Action<>).MakeGenericType(targetType);
+
+        foreach (var identifierType in new[] { typeof(string), typeof(PropertyBase) })
+        {
+            var method = typeof(ProductManager).GetMethod(
+                methodName,
+                new[] { identifierType, callbackType, typeof(bool) });
+
+            Assert.NotNull(method);
+            Assert.Equal(typeof(void), method.ReturnType);
+            Assert.Equal("allowDefaultEffect", method.GetParameters()[2].Name);
+            Assert.True(method.GetParameters()[2].IsOptional);
+            Assert.Equal(false, method.GetParameters()[2].DefaultValue);
+        }
+    }
+
+    private static void AssertCallbackRemoval(string methodName)
+    {
+        foreach (var identifierType in new[] { typeof(string), typeof(PropertyBase) })
+        {
+            var method = typeof(ProductManager).GetMethod(methodName, new[] { identifierType });
+
+            Assert.NotNull(method);
+            Assert.Equal(typeof(bool), method.ReturnType);
+        }
     }
 }

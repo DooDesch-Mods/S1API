@@ -146,6 +146,27 @@ ProductManager.RemoveEffectCallback(Property.Euphoric);
 
 Use `ProductManager.ClearEffectCallbacks()` to remove all registered overrides.
 
+### Player clear callbacks
+
+Register a separate callback to unwind state when the native product lifecycle clears an effect. Clear callbacks
+replace the base clear behavior by default, and should be safe if the game clears the same effect more than once.
+
+```csharp
+ProductManager.SetEffectClearCallback(Property.Euphoric, player =>
+{
+    // Remove only state this effect owns.
+});
+
+// Optional: run the callback AND keep default clear behavior.
+ProductManager.SetEffectClearCallback(Property.Euphoric, player =>
+{
+    // Custom cleanup.
+}, allowDefaultEffect: true);
+```
+
+Use `ProductManager.RemoveEffectClearCallback(...)` or `ProductManager.ClearEffectClearCallbacks()` to remove
+registered player clear callbacks.
+
 ### NPC callbacks
 
 You can also intercept effects applied through `ApplyEffectsToNPC`:
@@ -171,6 +192,20 @@ ProductManager.RemoveNpcEffectCallback(Property.Sneaky);
 ```
 
 Use `ProductManager.ClearNpcEffectCallbacks()` to remove all registered NPC overrides.
+
+### NPC clear callbacks
+
+NPC clear callbacks follow the same lifecycle and default behavior:
+
+```csharp
+ProductManager.SetNpcEffectClearCallback(Property.Sneaky, npc =>
+{
+    // Remove only state this effect owns.
+});
+```
+
+Use `ProductManager.RemoveNpcEffectClearCallback(...)` or `ProductManager.ClearNpcEffectClearCallbacks()` to remove
+registered NPC clear callbacks.
 
 ## Creating product instances
 
