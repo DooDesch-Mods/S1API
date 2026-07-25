@@ -8,11 +8,16 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 #if IL2CPPMELON
+using Il2CppInterop.Runtime;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
+using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Product = Il2CppScheduleOne.Product;
+using S1UI = Il2CppScheduleOne.UI;
 #elif MONOMELON
 using S1DevUtilities = ScheduleOne.DevUtilities;
+using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Product = ScheduleOne.Product;
+using S1UI = ScheduleOne.UI;
 #endif
 
 namespace S1API.Internal.Products
@@ -302,6 +307,20 @@ namespace S1API.Internal.Products
                 new ProductPackagingContentKey(productId, packagingId));
         }
 
+        internal static bool MatchesRegistrationForTesting(
+            string? productId,
+            string? packagingId,
+            string registeredProductId,
+            string registeredPackagingId)
+        {
+            return MatchesRegistration(
+                productId,
+                packagingId,
+                new ProductPackagingContentKey(
+                    registeredProductId,
+                    registeredPackagingId));
+        }
+
         private static bool TryGeneratePackagingIconCore(
             S1DevUtilities.IconGenerator generator,
             ProductPackagingContentProfileRegistration registration,
@@ -553,6 +572,7 @@ namespace S1API.Internal.Products
                 {
                     S1DevUtilities.IconGenerator generator =
                         IconFactory.S1IconGenerator;
+                    bool iconCached = false;
                     lock (IconGate)
                     {
                         EnsureIconCacheMatches(generator);
@@ -563,9 +583,13 @@ namespace S1API.Internal.Products
                                 out Texture2D? texture) &&
                             texture != null)
                         {
-                            TryCacheGeneratedIcon(registration, texture);
+                            iconCached =
+                                TryCacheGeneratedIcon(registration, texture);
                         }
                     }
+
+                    if (iconCached)
+                        RefreshMatchingItemUis(registration);
                 }
                 catch (Exception exception)
                 {
@@ -606,6 +630,85 @@ namespace S1API.Internal.Products
                     exception.Message);
                 return false;
             }
+        }
+
+        private static void RefreshMatchingItemUis(
+            ProductPackagingContentProfileRegistration registration)
+        {
+            try
+            {
+                S1UI.ItemSlotUI[] slotUis =
+                    Object.FindObjectsOfType<S1UI.ItemSlotUI>(
+                        includeInactive: true);
+                for (int i = 0; i < slotUis.Length; i++)
+                {
+                    S1UI.ItemSlotUI slotUi = slotUis[i];
+                    if (slotUi == null)
+                        continue;
+
+                    S1ItemFramework.ItemInstance? item =
+                        slotUi.assignedSlot?.ItemInstance;
+                    if (!TryGetProductPackaging(
+                            item,
+                            out string? productId,
+                            out string? packagingId) ||
+                        !MatchesRegistration(
+                            productId,
+                            packagingId,
+                            registration.Key))
+                    {
+                        continue;
+                    }
+
+                    slotUi.UpdateUI();
+                }
+            }
+            catch (Exception exception)
+            {
+                LogFailureOnce(
+                    registration,
+                    "bound item UI refresh",
+                    exception.Message);
+            }
+        }
+
+        private static bool TryGetProductPackaging(
+            S1ItemFramework.ItemInstance? item,
+            out string? productId,
+            out string? packagingId)
+        {
+            productId = null;
+            packagingId = null;
+            if (item == null)
+                return false;
+
+            S1Product.ProductItemInstance? product;
+#if IL2CPPMELON
+            product = item.TryCast<S1Product.ProductItemInstance>();
+#else
+            product = item as S1Product.ProductItemInstance;
+#endif
+            if (product == null)
+                return false;
+
+            productId = product.ID;
+            packagingId = product.PackagingID;
+            return true;
+        }
+
+        private static bool MatchesRegistration(
+            string? productId,
+            string? packagingId,
+            ProductPackagingContentKey key)
+        {
+            return string.Equals(
+                       productId,
+                       key.ProductId,
+                       StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(
+                       packagingId,
+                       key.PackagingId,
+                       StringComparison.OrdinalIgnoreCase);
         }
 
         private static void CompleteQueuedIcon(
