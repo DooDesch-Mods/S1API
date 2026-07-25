@@ -126,6 +126,11 @@ public sealed class CustomProductManifestDataTests
             .Select(index => "package:" + index)
             .ToArray();
         Assert.False(excessivePackaging.IsValid());
+
+        CustomProductManifestEntryData zeroConsumptionProviderVersion =
+            CreateEntry("example:zero-consumption-provider-version");
+        zeroConsumptionProviderVersion.ConsumptionProfileProviderVersion = 0;
+        Assert.False(zeroConsumptionProviderVersion.IsValid());
     }
 
     [Fact]
@@ -136,6 +141,8 @@ public sealed class CustomProductManifestDataTests
         upper.OwnerId = lower.OwnerId.ToUpperInvariant();
         upper.ProductKindId = lower.ProductKindId.ToUpperInvariant();
         upper.ProviderId = lower.ProviderId!.ToUpperInvariant();
+        upper.ConsumptionProfileProviderId =
+            lower.ConsumptionProfileProviderId.ToUpperInvariant();
         upper.RepresentationTemplateId =
             lower.RepresentationTemplateId.ToUpperInvariant();
         upper.PresentationProfileId =
@@ -172,7 +179,9 @@ public sealed class CustomProductManifestDataTests
             .ToArray();
 
         Assert.DoesNotContain("ProviderData", names);
+        Assert.DoesNotContain("ConsumptionProfileProviderData", names);
         Assert.Contains("ProviderId", names);
+        Assert.Contains("ConsumptionProfileProviderId", names);
         Assert.Contains("CompatibilityHash", names);
     }
 
@@ -216,6 +225,8 @@ public sealed class CustomProductManifestDataTests
     [InlineData("DescriptorFormatVersion")]
     [InlineData("PresentationProfileId")]
     [InlineData("PackagingIds")]
+    [InlineData("ConsumptionProfileProviderId")]
+    [InlineData("ConsumptionProfileProviderVersion")]
     public void CompatibilityHashChangesForCompatibilityRelevantMetadata(string field)
     {
         CustomProductManifestEntryData baseline = CreateEntry("example:alpha");
@@ -239,6 +250,12 @@ public sealed class CustomProductManifestDataTests
                 break;
             case "PackagingIds":
                 changed.PackagingIds = new[] { "bag" };
+                break;
+            case "ConsumptionProfileProviderId":
+                changed.ConsumptionProfileProviderId = "example:other-consumption-provider";
+                break;
+            case "ConsumptionProfileProviderVersion":
+                changed.ConsumptionProfileProviderVersion++;
                 break;
         }
 
@@ -277,6 +294,8 @@ public sealed class CustomProductManifestDataTests
             ProviderAvailable = true,
             RepresentationTemplateId = "ogkush",
             PresentationProfileId = "example:" + productId,
+            ConsumptionProfileProviderId = "example:consumption-provider",
+            ConsumptionProfileProviderVersion = 1,
             PackagingIds = new[] { "bag", "jar" },
             CompatibilityHash = new string('a', 64)
         };

@@ -15,7 +15,7 @@ namespace S1API.Internal.Products
     /// </summary>
     internal sealed class CustomProductManifestData
     {
-        internal const int CurrentProtocolVersion = 2;
+        internal const int CurrentProtocolVersion = 3;
         internal const int MaximumEntryCount = 256;
         internal const int MaximumPayloadLength = 65536;
         internal const int MaximumIdentifierLength = 256;
@@ -370,6 +370,8 @@ namespace S1API.Internal.Products
         public bool ProviderAvailable;
         public string RepresentationTemplateId = string.Empty;
         public string PresentationProfileId = string.Empty;
+        public string ConsumptionProfileProviderId = string.Empty;
+        public int ConsumptionProfileProviderVersion;
         public string[] PackagingIds = Array.Empty<string>();
         public string CompatibilityHash = string.Empty;
 
@@ -390,6 +392,11 @@ namespace S1API.Internal.Products
                 registration.ProductId,
                 metadata.ProductKind.Id,
                 out string presentationProfileId);
+            ProductConsumptionProfileRegistrationRegistry.TryGetManifestIdentity(
+                registration.ProductId,
+                metadata.ProductKind.Id,
+                out string consumptionProfileProviderId,
+                out int consumptionProfileProviderVersion);
 
             var entry = new CustomProductManifestEntryData
             {
@@ -405,6 +412,8 @@ namespace S1API.Internal.Products
                     descriptor.ProviderVersion),
                 RepresentationTemplateId = descriptor.RepresentationTemplateId,
                 PresentationProfileId = presentationProfileId,
+                ConsumptionProfileProviderId = consumptionProfileProviderId,
+                ConsumptionProfileProviderVersion = consumptionProfileProviderVersion,
                 PackagingIds = packagingIds.ToArray()
             };
             entry.CompatibilityHash = ComputeCompatibilityHash(entry, descriptor);
@@ -419,6 +428,13 @@ namespace S1API.Internal.Products
                  !CustomProductManifestData.IsBoundedIdentifier(RepresentationTemplateId) ||
                  PresentationProfileId == null ||
                  PresentationProfileId.Length > CustomProductManifestData.MaximumIdentifierLength ||
+                 ConsumptionProfileProviderId == null ||
+                 (ConsumptionProfileProviderId.Length != 0 &&
+                  !CustomProductManifestData.IsBoundedIdentifier(ConsumptionProfileProviderId)) ||
+                 (ConsumptionProfileProviderId.Length == 0 &&
+                  ConsumptionProfileProviderVersion != 0) ||
+                 (ConsumptionProfileProviderId.Length != 0 &&
+                  ConsumptionProfileProviderVersion <= 0) ||
                  (ProviderId != null && !CustomProductManifestData.IsBoundedIdentifier(ProviderId)) ||
                  !Enum.IsDefined(typeof(DrugType), CompatibilityDrugType) ||
                  (ProviderId == null && ProviderVersion != 0) ||
@@ -463,6 +479,8 @@ namespace S1API.Internal.Products
             Append(builder, ProviderAvailable ? "1" : "0");
             AppendIdentifier(builder, RepresentationTemplateId);
             AppendIdentifier(builder, PresentationProfileId);
+            AppendIdentifier(builder, ConsumptionProfileProviderId);
+            Append(builder, ConsumptionProfileProviderVersion.ToString(CultureInfo.InvariantCulture));
             for (int i = 0; i < PackagingIds.Length; i++)
                 AppendIdentifier(builder, PackagingIds[i]);
             if (includeHash)
@@ -517,6 +535,14 @@ namespace S1API.Internal.Products
                     StringComparison.OrdinalIgnoreCase))
             {
                 return "presentation profile registration differs";
+            }
+            if (!string.Equals(
+                    ConsumptionProfileProviderId,
+                    local.ConsumptionProfileProviderId,
+                    StringComparison.OrdinalIgnoreCase) ||
+                ConsumptionProfileProviderVersion != local.ConsumptionProfileProviderVersion)
+            {
+                return "consumption profile provider compatibility differs";
             }
             if (PackagingIds.Length != local.PackagingIds.Length)
                 return "packaging registration set differs";

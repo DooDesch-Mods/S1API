@@ -386,6 +386,63 @@ public sealed class ProductApiCompatibilityTests
     }
 
     [Fact]
+    public void ProductConsumptionProfileApiIsAdditiveAndRuntimeAgnostic()
+    {
+        Assert.True(typeof(ProductConsumptionProfile).IsSealed);
+        Assert.True(typeof(ProductConsumptionProfileBuilder).IsSealed);
+        Assert.True(typeof(ProductConsumptionContext).IsSealed);
+        Assert.True(typeof(ProductConsumptionProfileRegistry).IsAbstract);
+        Assert.True(typeof(ProductConsumptionProfileRegistry).IsSealed);
+
+        Assert.Equal(typeof(string), typeof(ProductConsumptionProfile)
+            .GetProperty(nameof(ProductConsumptionProfile.ProviderId))!.PropertyType);
+        Assert.Equal(typeof(int), typeof(ProductConsumptionProfile)
+            .GetProperty(nameof(ProductConsumptionProfile.ProviderVersion))!.PropertyType);
+        Assert.Equal(typeof(string), typeof(ProductConsumptionContext)
+            .GetProperty(nameof(ProductConsumptionContext.ProductId))!.PropertyType);
+        Assert.Equal(typeof(ProductKind), typeof(ProductConsumptionContext)
+            .GetProperty(nameof(ProductConsumptionContext.ProductKind))!.PropertyType);
+
+        Assert.Equal(
+            typeof(ProductConsumptionProfileBuilder),
+            typeof(ProductConsumptionProfileBuilder).GetMethod(
+                nameof(ProductConsumptionProfileBuilder.WithProviderCompatibility),
+                new[] { typeof(string), typeof(int) })!.ReturnType);
+        Assert.Equal(
+            typeof(ProductConsumptionProfileBuilder),
+            typeof(ProductConsumptionProfileBuilder).GetMethod(
+                nameof(ProductConsumptionProfileBuilder.OnPlayerApply),
+                new[] { typeof(Action<ProductConsumptionContext>) })!.ReturnType);
+        foreach (var callbackName in new[]
+                 {
+                     nameof(ProductConsumptionProfileBuilder.OnPlayerClear),
+                     nameof(ProductConsumptionProfileBuilder.OnNpcApply),
+                     nameof(ProductConsumptionProfileBuilder.OnNpcClear)
+                 })
+        {
+            Assert.Equal(
+                typeof(ProductConsumptionProfileBuilder),
+                typeof(ProductConsumptionProfileBuilder).GetMethod(
+                    callbackName,
+                    new[] { typeof(Action<ProductConsumptionContext>) })!.ReturnType);
+        }
+        Assert.Equal(
+            typeof(ProductConsumptionProfile),
+            typeof(ProductConsumptionProfileBuilder).GetMethod(
+                nameof(ProductConsumptionProfileBuilder.Build), Type.EmptyTypes)!.ReturnType);
+        Assert.Equal(
+            typeof(ProductConsumptionProfile),
+            typeof(ProductConsumptionProfileRegistry).GetMethod(
+                nameof(ProductConsumptionProfileRegistry.RegisterForProduct),
+                new[] { typeof(string), typeof(ProductConsumptionProfile) })!.ReturnType);
+        Assert.Equal(
+            typeof(ProductConsumptionProfile),
+            typeof(ProductConsumptionProfileRegistry).GetMethod(
+                nameof(ProductConsumptionProfileRegistry.RegisterForProductKind),
+                new[] { typeof(ProductKind), typeof(ProductConsumptionProfile) })!.ReturnType);
+    }
+
+    [Fact]
     public void ProductKindMetadataApiIsAdditiveAndKeepsOptInDefaults()
     {
         Assert.True(typeof(ProductKindMetadata).IsSealed);

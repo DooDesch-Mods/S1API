@@ -16,6 +16,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using S1API.Entities;
+using S1API.Internal.Products;
 using S1API.Logging;
 using S1API.Properties;
 using S1API.Products;
@@ -95,9 +96,6 @@ namespace S1API.Internal.Patches
                 return true;
 
             var effects = ResolveEffects(__instance);
-            if (effects == null)
-                return true;
-
             var localPlayer = Player.All.FirstOrDefault(p => p.IsLocal);
             var targetPlayer = target as S1PlayerScripts.Player;
             var targetNpc = target as S1NPCs.NPC;
@@ -108,9 +106,25 @@ namespace S1API.Internal.Patches
             if (targetPlayer != null && (localPlayer == null || targetPlayer != localPlayer.S1Player))
                 return true;
 
+            NPC? apiNpc = targetNpc != null
+                ? ResolveApiNpc(targetNpc)
+                : null;
+            ProductConsumptionContext? consumptionContext = null;
+            ProductConsumptionProfileRegistration? consumptionRegistration = null;
+            if (effects == null && !ProductConsumptionProfileDispatcher.TryResolveRegisteredContext(
+                    __instance,
+                    targetPlayer != null ? localPlayer : null,
+                    apiNpc,
+                    targetNpc?.ID ?? string.Empty,
+                    out consumptionContext,
+                    out consumptionRegistration))
+            {
+                return true;
+            }
+
             var invokedEffectIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            for (var i = 0; i < effects.Count; i++)
+            for (var i = 0; effects != null && i < effects.Count; i++)
             {
                 var effect = effects[i];
                 if (effect == null)
@@ -137,8 +151,6 @@ namespace S1API.Internal.Patches
                     }
                     else
                     {
-                        var apiNpc = ResolveApiNpc(targetNpc);
-
                         var allowDefaultEffect = false;
                         var handled = apiNpc != null &&
                                       (isClear
@@ -159,6 +171,28 @@ namespace S1API.Internal.Patches
                     Logger.Error($"Exception while invoking effect {lifecycle} callback for '{effectId}': {ex.Message}");
                     Logger.Error(ex.StackTrace ?? string.Empty);
                 }
+            }
+
+            if (targetPlayer != null)
+            {
+                ProductConsumptionProfileDispatcher.DispatchPlayer(
+                    __instance,
+                    targetPlayer,
+                    localPlayer!,
+                    isClear,
+                    consumptionContext,
+                    consumptionRegistration);
+            }
+            else if (targetNpc != null)
+            {
+                ProductConsumptionProfileDispatcher.DispatchNpc(
+                    __instance,
+                    targetNpc,
+                    apiNpc,
+                    targetNpc.ID ?? string.Empty,
+                    isClear,
+                    consumptionContext,
+                    consumptionRegistration);
             }
 
             return false;
