@@ -272,8 +272,13 @@ namespace S1API.Rendering
         /// <param name="size">The size of the square icon (default 512).</param>
         /// <param name="bakeSkinnedMeshes">If true, bakes SkinnedMeshRenderers to static MeshRenderers to ensure correct bounds (default true).</param>
         /// <returns>A Sprite containing the icon, or null if generation failed.</returns>
-        public static Sprite? GenerateIconSprite(Transform model, int size = 512, bool bakeSkinnedMeshes = true) =>
-            ImageUtils.TextureToSprite(GenerateIcon(model, size, bakeSkinnedMeshes));
+        public static Sprite? GenerateIconSprite(
+            Transform model,
+            int size = 512,
+            bool bakeSkinnedMeshes = true) =>
+            CreateDurableIconSprite(
+                GenerateIcon(model, size, bakeSkinnedMeshes),
+                model != null ? model.name : "Item");
 
         /// <summary>
         /// Generates a preview sprite with explicit native-camera framing controls.
@@ -299,13 +304,14 @@ namespace S1API.Rendering
             bool bakeSkinnedMeshes,
             bool fitToCamera,
             float cameraFill = 0.72f) =>
-            ImageUtils.TextureToSprite(
+            CreateDurableIconSprite(
                 GenerateIcon(
                     model,
                     size,
                     bakeSkinnedMeshes,
                     fitToCamera,
-                    cameraFill));
+                    cameraFill),
+                model != null ? model.name : "Item");
 
         /// <summary>
         /// Generates an icon as a Sprite for a packaging ID and product ID.
@@ -313,8 +319,12 @@ namespace S1API.Rendering
         /// <param name="packagingID">The ID of the packaging visuals to use.</param>
         /// <param name="productID">The ID of the product to display in the packaging.</param>
         /// <returns>A Sprite containing the packaging icon, or null if generation failed.</returns>
-        public static Sprite? GeneratePackagingIconSprite(string packagingID, string productID) =>
-            ImageUtils.TextureToSprite(GeneratePackagingIcon(packagingID, productID));
+        public static Sprite? GeneratePackagingIconSprite(
+            string packagingID,
+            string productID) =>
+            CreateDurableIconSprite(
+                GeneratePackagingIcon(packagingID, productID),
+                $"{packagingID}_{productID}");
 
         #region Accessory Icon Generation
 
@@ -379,13 +389,64 @@ namespace S1API.Rendering
         {
             GenerateAccessoryIcon(accessoryPath, texture =>
             {
-                callback?.Invoke(ImageUtils.TextureToSprite(texture));
+                callback?.Invoke(
+                    CreateDurableIconSprite(
+                        texture,
+                        string.IsNullOrWhiteSpace(accessoryPath)
+                            ? "Accessory"
+                            : accessoryPath));
             }, accessoryColor, size);
         }
 
         #endregion
 
         #region Private Helper Methods
+
+        private static Sprite? CreateDurableIconSprite(
+            Texture2D? renderedTexture,
+            string name)
+        {
+            if (renderedTexture == null)
+                return null;
+
+            try
+            {
+                byte[]? encoded = renderedTexture.EncodeToPNG();
+                if (encoded == null || encoded.Length == 0)
+                {
+                    Logger.Error(
+                        $"Generated icon texture for '{name}' could not be " +
+                        "encoded into a durable UI texture.");
+                    return null;
+                }
+
+                Sprite? icon = ImageUtils.LoadImageRaw(encoded);
+                if (icon == null)
+                {
+                    Logger.Error(
+                        $"Generated icon texture for '{name}' could not be " +
+                        "decoded into a durable UI sprite.");
+                    return null;
+                }
+
+                icon.name = $"{name}_Icon";
+                icon.texture.name = $"{name}_IconTexture";
+                icon.texture.filterMode = FilterMode.Bilinear;
+                icon.texture.wrapMode = TextureWrapMode.Clamp;
+                return icon;
+            }
+            catch (Exception exception)
+            {
+                Logger.Error(
+                    $"Generated icon texture for '{name}' could not be " +
+                    $"normalized: {exception.Message}");
+                return null;
+            }
+            finally
+            {
+                UnityEngine.Object.Destroy(renderedTexture);
+            }
+        }
 
         /// <summary>
         /// Internal state tracking for SkinnedMeshRenderer baking.

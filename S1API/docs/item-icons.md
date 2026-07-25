@@ -1,13 +1,14 @@
 # Item Icons
 
-S1API supports loading item icons from embedded resources or AssetBundles.
+S1API supports loading item icons from embedded resources or AssetBundles and
+capturing icons from runtime models.
 
 ## From Embedded Resources
 
 Load sprites from embedded resources in your mod assembly with `ImageUtils`:
 
 ```csharp
-using S1API.Internal.Utils;
+using S1API.Utils;
 using System.Reflection;
 using UnityEngine;
 
@@ -44,10 +45,38 @@ var item = ItemCreator.CreateBuilder()
     .Build();
 ```
 
+## From a Runtime Model
+
+Use `IconFactory.GenerateIconSprite` when your item model is already loaded:
+
+```csharp
+using S1API.Rendering;
+
+var icon = IconFactory.GenerateIconSprite(itemModel.transform);
+if (icon != null)
+{
+    itemDefinition.Icon = icon;
+}
+```
+
+The sprite overloads return a durable UI sprite. S1API normalizes the native
+capture before returning it, so mod code does not need to encode and reload the
+captured texture.
+
+Assigning `ItemDefinition.Icon` also refreshes inventory slots and shop listings
+that are already displaying that item. This covers icons generated after a save
+has restored existing stacks. Mod code does not need to force an inventory move
+or manually refresh those UIs.
+
+The lower-level `IconFactory.GenerateIcon` texture overloads remain available
+when direct texture ownership is required. Callers own textures returned by
+those overloads.
+
 ## Tips
 
 - Prefer square icons at 128x128 or larger
 - Load and validate sprites before building the item definition
+- Prefer `GenerateIconSprite` over manually converting a generated texture
 - Use embedded resources for small self-contained mods
 - Use AssetBundles when the icon ships alongside other art assets
 

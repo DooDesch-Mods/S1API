@@ -8,6 +8,7 @@ using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 
 using UnityEngine;
 using S1API.Internal.Abstraction;
+using S1API.Internal.Items;
 
 namespace S1API.Items
 {
@@ -80,12 +81,13 @@ namespace S1API.Items
         }
 
         /// <summary>
-        /// The icon for this item.
+        /// The icon for this item. Assigning a new icon also refreshes
+        /// already-bound inventory and shop UI for this item.
         /// </summary>
         public Sprite Icon
         {
             get => S1ItemDefinition.Icon;
-            set => S1ItemDefinition.Icon = value;
+            set => ItemIconRuntime.SetIcon(S1ItemDefinition, value);
         }
 
         /// <summary>
