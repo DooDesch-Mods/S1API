@@ -59,6 +59,53 @@ public sealed class ProductPackagingContentRuntimeContractTests
         Assert.NotEqual(baggie, otherProduct);
     }
 
+    [Theory]
+    [InlineData(
+        "example.mod:heart-pill",
+        "baggie",
+        "EXAMPLE.MOD:HEART-PILL",
+        "BAGGIE",
+        true)]
+    [InlineData(
+        "example.mod:other-pill",
+        "baggie",
+        "example.mod:heart-pill",
+        "baggie",
+        false)]
+    [InlineData(
+        "example.mod:heart-pill",
+        "jar",
+        "example.mod:heart-pill",
+        "baggie",
+        false)]
+    [InlineData(
+        null,
+        "baggie",
+        "example.mod:heart-pill",
+        "baggie",
+        false)]
+    [InlineData(
+        "example.mod:heart-pill",
+        null,
+        "example.mod:heart-pill",
+        "baggie",
+        false)]
+    public void DeferredIconRefreshMatchesOnlyItsRegisteredPair(
+        string? productId,
+        string? packagingId,
+        string registeredProductId,
+        string registeredPackagingId,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            ProductPackagingContentRuntime.MatchesRegistrationForTesting(
+                productId,
+                packagingId,
+                registeredProductId,
+                registeredPackagingId));
+    }
+
     [Fact]
     public void SceneResetLeavesNoGeneratedIconEntries()
     {
