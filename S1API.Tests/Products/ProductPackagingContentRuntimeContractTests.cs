@@ -84,6 +84,12 @@ public sealed class ProductPackagingContentRuntimeContractTests
         "example.mod:heart-pill",
         "baggie",
         false)]
+    [InlineData(
+        "example.mod:heart-pill",
+        null,
+        "example.mod:heart-pill",
+        "baggie",
+        false)]
     public void DeferredIconRefreshMatchesOnlyItsRegisteredPair(
         string? productId,
         string? packagingId,
