@@ -32,7 +32,7 @@ namespace S1API.Internal.Patches
         private static Dictionary<string, Type>? _npcWrapperTypeById;
 
         /// <summary>
-        /// Targets only the base ProductItemInstance ApplyEffectsToPlayer and ApplyEffectsToNPC implementations.
+        /// Targets only the base ProductItemInstance apply and clear implementations.
         /// Subclass overrides (e.g., WeedInstance) will run their custom logic and then call base,
         /// which is intercepted here to route through callbacks.
         /// </summary>
@@ -55,6 +55,18 @@ namespace S1API.Internal.Patches
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null,
                     new[] { npcType },
+                    null),
+                baseType.GetMethod(
+                    "ClearEffectsFromPlayer",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { playerType },
+                    null),
+                baseType.GetMethod(
+                    "ClearEffectsFromNPC",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { npcType },
                     null)
             }
             .Where(method => method != null)
@@ -62,16 +74,22 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Intercepts product effect application for players and NPCs and executes callbacks per effect ID.
-        /// Unhandled effects fall back to base game behavior (effect.ApplyToPlayer).
+        /// Intercepts product effect application and clearing for players and NPCs and executes callbacks per effect ID.
+        /// Unhandled effects fall back to their native apply or clear behavior.
         /// </summary>
         /// <param name="__instance">The product instance applying effects.</param>
         /// <param name="__0">The first argument (player or NPC receiving effects).</param>
+        /// <param name="__originalMethod">The native product lifecycle method being intercepted.</param>
         /// <returns><c>false</c> when handled here; <c>true</c> to run original method.</returns>
         [HarmonyPrefix]
-        private static bool ApplyEffects_Prefix(S1Product.ProductItemInstance __instance, object __0)
+        private static bool ProductEffects_Prefix(
+            S1Product.ProductItemInstance __instance,
+            object __0,
+            MethodBase __originalMethod)
         {
             var target = __0;
+            var isClear = __originalMethod?.Name == "ClearEffectsFromPlayer" ||
+                          __originalMethod?.Name == "ClearEffectsFromNPC";
 
             if (__instance == null || target == null)
                 return true;
@@ -106,23 +124,39 @@ namespace S1API.Internal.Patches
                 {
                     if (targetPlayer != null)
                     {
-                        var handled = ProductManager.TryInvokeEffectCallback(effectId, localPlayer!, out var allowDefaultEffect);
+                        var handled = isClear
+                            ? ProductManager.TryInvokeEffectClearCallback(effectId, localPlayer!, out var allowDefaultEffect)
+                            : ProductManager.TryInvokeEffectCallback(effectId, localPlayer!, out allowDefaultEffect);
                         if (!handled || allowDefaultEffect)
-                            effect.ApplyToPlayer(targetPlayer);
+                        {
+                            if (isClear)
+                                effect.ClearFromPlayer(targetPlayer);
+                            else
+                                effect.ApplyToPlayer(targetPlayer);
+                        }
                     }
                     else
                     {
                         var apiNpc = ResolveApiNpc(targetNpc);
 
                         var allowDefaultEffect = false;
-                        var handled = apiNpc != null && ProductManager.TryInvokeNpcEffectCallback(effectId, apiNpc, out allowDefaultEffect);
+                        var handled = apiNpc != null &&
+                                      (isClear
+                                          ? ProductManager.TryInvokeNpcEffectClearCallback(effectId, apiNpc, out allowDefaultEffect)
+                                          : ProductManager.TryInvokeNpcEffectCallback(effectId, apiNpc, out allowDefaultEffect));
                         if (!handled || allowDefaultEffect)
-                            effect.ApplyToNPC(targetNpc);
+                        {
+                            if (isClear)
+                                effect.ClearFromNPC(targetNpc);
+                            else
+                                effect.ApplyToNPC(targetNpc);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error($"Exception while invoking effect callback for '{effectId}': {ex.Message}");
+                    var lifecycle = isClear ? "clear" : "apply";
+                    Logger.Error($"Exception while invoking effect {lifecycle} callback for '{effectId}': {ex.Message}");
                     Logger.Error(ex.StackTrace ?? string.Empty);
                 }
             }

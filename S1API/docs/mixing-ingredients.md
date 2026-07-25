@@ -126,6 +126,11 @@ var glow = EffectCreator.CreateBuilder()
     {
         // Runs when this effect triggers on the local player.
     })
+    .WithClearBehavior(player =>
+    {
+        // Runs when the native product lifecycle clears this effect from the local player.
+        // Keep this cleanup safe if it is called more than once.
+    })
     .Build();
 
 // Use the custom effect on an ingredient just like a vanilla one:
