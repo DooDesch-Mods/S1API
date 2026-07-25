@@ -241,7 +241,8 @@ namespace S1API.Products
         /// <remarks>
         /// This replaces the loose presentation transform during icon capture without changing
         /// stored, held, station, or world presentation. It may be configured before or after
-        /// <see cref="WithGeneratedIconFromLooseVisual(int)"/>.
+        /// <see cref="WithGeneratedIconFromLooseVisual(int)"/>. It is not used when an explicit
+        /// icon provider is selected with <see cref="WithIcon(Func{Sprite?})"/>.
         /// </remarks>
         /// <exception cref="ArgumentNullException">
         /// Thrown when <paramref name="presentationTransform"/> is <see langword="null"/>.

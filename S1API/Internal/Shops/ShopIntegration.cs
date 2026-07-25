@@ -26,6 +26,21 @@ namespace S1API.Internal.Shops
     {
         private static readonly Log Logger = new Log("ShopIntegration");
 
+#if MONOMELON
+        private const BindingFlags InstanceMemberFlags =
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+
+        private static readonly FieldInfo? ListingUIField =
+            typeof(S1UIShop.ShopInterface).GetField(
+                "listingUI",
+                InstanceMemberFlags);
+
+        private static readonly FieldInfo? ListingPanelField =
+            typeof(S1UIShop.ShopInterface).GetField(
+                "listingPanel",
+                InstanceMemberFlags);
+#endif
+
         /// <summary>
         /// Adds an item to a shop with full UI creation and event binding.
         /// </summary>
@@ -159,22 +174,38 @@ namespace S1API.Internal.Shops
         private static void BindListingUIEvents(S1UIShop.ShopInterface shop, S1UIShop.ListingUI listingUI)
         {
 #if IL2CPPMELON
-            listingUI.onAddItem =
+            listingUI.onAddItem = Il2CppSystem.Delegate.Combine(
+                listingUI.onAddItem,
                 DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
-                    new System.Action(() => shop.AddItem(listingUI)));
-            listingUI.onRemoveItem =
+                    new System.Action(() => shop.AddItem(listingUI))))
+                .Cast<Il2CppSystem.Action>();
+            listingUI.onRemoveItem = Il2CppSystem.Delegate.Combine(
+                listingUI.onRemoveItem,
                 DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
-                    new System.Action(() => shop.RemoveItem(listingUI)));
-            listingUI.onSetAmount =
+                    new System.Action(() => shop.RemoveItem(listingUI))))
+                .Cast<Il2CppSystem.Action>();
+            listingUI.onSetAmount = Il2CppSystem.Delegate.Combine(
+                listingUI.onSetAmount,
                 DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(
                     new System.Action<int>(
-                        amount => shop.SetAmount(listingUI, amount)));
-            listingUI.onAdjustAmount =
+                        amount => shop.SetAmount(listingUI, amount))))
+                .Cast<Il2CppSystem.Action<int>>();
+            listingUI.onAdjustAmount = Il2CppSystem.Delegate.Combine(
+                listingUI.onAdjustAmount,
                 DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(
                     new System.Action<int>(
-                        amount => shop.AdjustAmount(listingUI, amount)));
-            listingUI.hoverStart = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.EntryHovered(listingUI)));
-            listingUI.hoverEnd = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.EntryUnhovered()));
+                        amount => shop.AdjustAmount(listingUI, amount))))
+                .Cast<Il2CppSystem.Action<int>>();
+            listingUI.hoverStart = Il2CppSystem.Delegate.Combine(
+                listingUI.hoverStart,
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
+                    new System.Action(() => shop.EntryHovered(listingUI))))
+                .Cast<Il2CppSystem.Action>();
+            listingUI.hoverEnd = Il2CppSystem.Delegate.Combine(
+                listingUI.hoverEnd,
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
+                    new System.Action(() => shop.EntryUnhovered())))
+                .Cast<Il2CppSystem.Action>();
 #else
             listingUI.onAddItem = (Action)System.Delegate.Combine(
                 listingUI.onAddItem,
@@ -222,17 +253,7 @@ namespace S1API.Internal.Shops
 #if IL2CPPMELON
                 shop.listingUI.Add(listingUI);
 #else
-                // Access the private listingUI field via reflection
-                var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
-                    "listingUI",
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                );
-
-                if (listingUIField != null)
-                {
-                    var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
-                    listingUIList?.Add(listingUI);
-                }
+                GetListingUIList(shop)?.Add(listingUI);
 #endif
             }
             catch (System.Exception ex)
@@ -309,13 +330,7 @@ namespace S1API.Internal.Shops
 #if IL2CPPMELON
                 var listingUIList = shop.listingUI;
 #else
-                var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
-                    "listingUI",
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                );
-                var listingUIList =
-                    listingUIField?.GetValue(shop) as
-                        System.Collections.Generic.List<S1UIShop.ListingUI>;
+                var listingUIList = GetListingUIList(shop);
 #endif
 
                 if (listingUIList != null)
@@ -346,13 +361,7 @@ namespace S1API.Internal.Shops
 #if IL2CPPMELON
                 var listingUIList = shop.listingUI;
 #else
-                var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
-                    "listingUI",
-                    BindingFlags.NonPublic | BindingFlags.Instance
-                );
-                var listingUIList =
-                    listingUIField?.GetValue(shop) as
-                        System.Collections.Generic.List<S1UIShop.ListingUI>;
+                var listingUIList = GetListingUIList(shop);
 #endif
 
                 if (listingUIList != null)
@@ -363,9 +372,9 @@ namespace S1API.Internal.Shops
                         if (ui?.Listing == listing)
                         {
 #if IL2CPPMELON
-                                shop.listingPanel?.RemoveSelectable(ui.Selectable);
+                            shop.listingPanel?.RemoveSelectable(ui.Selectable);
 #else
-                                GetListingPanel(shop)?.RemoveSelectable(ui.Selectable);
+                            GetListingPanel(shop)?.RemoveSelectable(ui.Selectable);
 #endif
                             if (ui.gameObject != null)
                                 UnityEngine.Object.Destroy(ui.gameObject);
@@ -387,20 +396,24 @@ namespace S1API.Internal.Shops
         {
             return typeof(S1UIShop.ShopInterface).GetMethod(
                 methodName,
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance,
+                InstanceMemberFlags,
                 binder: null,
                 types: parameterTypes,
                 modifiers: null
             );
         }
 
+        private static System.Collections.Generic.List<S1UIShop.ListingUI>?
+            GetListingUIList(S1UIShop.ShopInterface shop)
+        {
+            return ListingUIField?.GetValue(shop) as
+                System.Collections.Generic.List<S1UIShop.ListingUI>;
+        }
+
         private static S1Root.UIPanel? GetListingPanel(
             S1UIShop.ShopInterface shop)
         {
-            FieldInfo? field = typeof(S1UIShop.ShopInterface).GetField(
-                "listingPanel",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            return field?.GetValue(shop) as S1Root.UIPanel;
+            return ListingPanelField?.GetValue(shop) as S1Root.UIPanel;
         }
 #endif
     }
