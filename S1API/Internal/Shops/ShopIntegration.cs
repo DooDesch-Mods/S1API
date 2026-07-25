@@ -1,8 +1,10 @@
 #if (IL2CPPMELON)
+using S1Root = Il2CppScheduleOne;
 using S1UIShop = Il2CppScheduleOne.UI.Shop;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using Il2CppInterop.Runtime;
 #elif MONOMELON
+using S1Root = ScheduleOne;
 using S1UIShop = ScheduleOne.UI.Shop;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using System;
@@ -151,39 +153,55 @@ namespace S1API.Internal.Shops
 
             // Add to shop's internal UI list
             AddToListingUICollection(shop, listingUI);
+            AddToListingPanel(shop, listingUI);
         }
 
         private static void BindListingUIEvents(S1UIShop.ShopInterface shop, S1UIShop.ListingUI listingUI)
         {
 #if IL2CPPMELON
-            // Il2Cpp: Direct Action assignment
-            listingUI.onClicked = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.OpenAmountSelector(listingUI)));
-            listingUI.onDropdownClicked = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.DropdownClicked(listingUI)));
+            listingUI.onAddItem =
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
+                    new System.Action(() => shop.AddItem(listingUI)));
+            listingUI.onRemoveItem =
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(
+                    new System.Action(() => shop.RemoveItem(listingUI)));
+            listingUI.onSetAmount =
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(
+                    new System.Action<int>(
+                        amount => shop.SetAmount(listingUI, amount)));
+            listingUI.onAdjustAmount =
+                DelegateSupport.ConvertDelegate<Il2CppSystem.Action<int>>(
+                    new System.Action<int>(
+                        amount => shop.AdjustAmount(listingUI, amount)));
             listingUI.hoverStart = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.EntryHovered(listingUI)));
             listingUI.hoverEnd = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(new System.Action(() => shop.EntryUnhovered()));
 #else
-            // Mono: Reflection-based method invocation
-            var listingClickedMethod = GetShopMethod(shop, "ListingClicked");
-            var dropdownClickedMethod = GetShopMethod(shop, "DropdownClicked");
-            var entryHoveredMethod = GetShopMethod(shop, "EntryHovered");
-            var entryUnhoveredMethod = GetShopMethod(shop, "EntryUnhovered");
+            listingUI.onAddItem = (Action)System.Delegate.Combine(
+                listingUI.onAddItem,
+                (Action)(() => shop.AddItem(listingUI)));
+            listingUI.onRemoveItem = (Action)System.Delegate.Combine(
+                listingUI.onRemoveItem,
+                (Action)(() => shop.RemoveItem(listingUI)));
+            listingUI.onSetAmount = (Action<int>)System.Delegate.Combine(
+                listingUI.onSetAmount,
+                (Action<int>)(amount => shop.SetAmount(listingUI, amount)));
+            listingUI.onAdjustAmount = (Action<int>)System.Delegate.Combine(
+                listingUI.onAdjustAmount,
+                (Action<int>)(amount => shop.AdjustAmount(listingUI, amount)));
 
-            if (listingClickedMethod == null || dropdownClickedMethod == null ||
-                entryHoveredMethod == null || entryUnhoveredMethod == null)
+            MethodInfo? entryHoveredMethod =
+                GetShopMethod(
+                    "EntryHovered",
+                    new[] { typeof(S1UIShop.ListingUI) });
+            MethodInfo? entryUnhoveredMethod =
+                GetShopMethod("EntryUnhovered", Type.EmptyTypes);
+
+            if (entryHoveredMethod == null || entryUnhoveredMethod == null)
             {
-                Logger.Warning($"Shop '{shop.ShopName}' is missing one or more listing event methods.");
+                Logger.Warning(
+                    $"Shop '{shop.ShopName}' is missing one or more hover-detail methods.");
                 return;
             }
-
-            listingUI.onClicked = (Action)System.Delegate.Combine(
-                listingUI.onClicked,
-                (Action)(() => listingClickedMethod.Invoke(shop, new object[] { listingUI }))
-            );
-
-            listingUI.onDropdownClicked = (Action)System.Delegate.Combine(
-                listingUI.onDropdownClicked,
-                (Action)(() => dropdownClickedMethod.Invoke(shop, new object[] { listingUI }))
-            );
 
             listingUI.hoverStart = (Action)System.Delegate.Combine(
                 listingUI.hoverStart,
@@ -201,6 +219,9 @@ namespace S1API.Internal.Shops
         {
             try
             {
+#if IL2CPPMELON
+                shop.listingUI.Add(listingUI);
+#else
                 // Access the private listingUI field via reflection
                 var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
                     "listingUI",
@@ -209,17 +230,33 @@ namespace S1API.Internal.Shops
 
                 if (listingUIField != null)
                 {
-#if IL2CPPMELON
-                    var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
-#else
                     var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
-#endif
                     listingUIList?.Add(listingUI);
                 }
+#endif
             }
             catch (System.Exception ex)
             {
                 Logger.Warning($"Could not add ListingUI to shop's internal collection: {ex.Message}");
+            }
+        }
+
+        private static void AddToListingPanel(
+            S1UIShop.ShopInterface shop,
+            S1UIShop.ListingUI listingUI)
+        {
+            try
+            {
+#if IL2CPPMELON
+                shop.listingPanel?.AddSelectable(listingUI.Selectable);
+#else
+                GetListingPanel(shop)?.AddSelectable(listingUI.Selectable);
+#endif
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Warning(
+                    $"Could not add ListingUI to the shop navigation panel: {ex.Message}");
             }
         }
 
@@ -269,27 +306,27 @@ namespace S1API.Internal.Shops
 
             try
             {
+#if IL2CPPMELON
+                var listingUIList = shop.listingUI;
+#else
                 var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
                     "listingUI",
                     BindingFlags.NonPublic | BindingFlags.Instance
                 );
-
-                if (listingUIField != null)
-                {
-#if IL2CPPMELON
-                    var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
-#else
-                    var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
+                var listingUIList =
+                    listingUIField?.GetValue(shop) as
+                        System.Collections.Generic.List<S1UIShop.ListingUI>;
 #endif
-                    if (listingUIList != null)
+
+                if (listingUIList != null)
+                {
+                    foreach (var listingUI in listingUIList)
                     {
-                        foreach (var listingUI in listingUIList)
+                        if (listingUI?.Listing == listing &&
+                            listingUI.Icon != null)
                         {
-                            if (listingUI?.Listing == listing && listingUI.Icon != null)
-                            {
-                                listingUI.Icon.sprite = newIcon;
-                                updatedCount++;
-                            }
+                            listingUI.Icon.sprite = newIcon;
+                            updatedCount++;
                         }
                     }
                 }
@@ -306,44 +343,35 @@ namespace S1API.Internal.Shops
         {
             try
             {
+#if IL2CPPMELON
+                var listingUIList = shop.listingUI;
+#else
                 var listingUIField = typeof(S1UIShop.ShopInterface).GetField(
                     "listingUI",
                     BindingFlags.NonPublic | BindingFlags.Instance
                 );
-
-                if (listingUIField != null)
-                {
-#if IL2CPPMELON
-                    var listingUIList = listingUIField.GetValue(shop) as Il2CppSystem.Collections.Generic.List<S1UIShop.ListingUI>;
-                    if (listingUIList != null)
-                    {
-                        for (int i = listingUIList.Count - 1; i >= 0; i--)
-                        {
-                            var ui = listingUIList[i];
-                            if (ui?.Listing == listing)
-                            {
-                                if (ui.gameObject != null)
-                                    UnityEngine.Object.Destroy(ui.gameObject);
-                                listingUIList.RemoveAt(i);
-                            }
-                        }
-                    }
-#else
-                    var listingUIList = listingUIField.GetValue(shop) as System.Collections.Generic.List<S1UIShop.ListingUI>;
-                    if (listingUIList != null)
-                    {
-                        for (int i = listingUIList.Count - 1; i >= 0; i--)
-                        {
-                            var ui = listingUIList[i];
-                            if (ui?.Listing == listing)
-                            {
-                                if (ui.gameObject != null)
-                                    UnityEngine.Object.Destroy(ui.gameObject);
-                                listingUIList.RemoveAt(i);
-                            }
-                        }
-                    }
+                var listingUIList =
+                    listingUIField?.GetValue(shop) as
+                        System.Collections.Generic.List<S1UIShop.ListingUI>;
 #endif
+
+                if (listingUIList != null)
+                {
+                    for (int i = listingUIList.Count - 1; i >= 0; i--)
+                    {
+                        var ui = listingUIList[i];
+                        if (ui?.Listing == listing)
+                        {
+#if IL2CPPMELON
+                                shop.listingPanel?.RemoveSelectable(ui.Selectable);
+#else
+                                GetListingPanel(shop)?.RemoveSelectable(ui.Selectable);
+#endif
+                            if (ui.gameObject != null)
+                                UnityEngine.Object.Destroy(ui.gameObject);
+                            listingUIList.RemoveAt(i);
+                        }
+                    }
                 }
             }
             catch (System.Exception ex)
@@ -353,12 +381,26 @@ namespace S1API.Internal.Shops
         }
 
 #if MONOMELON
-        private static MethodInfo? GetShopMethod(S1UIShop.ShopInterface shop, string methodName)
+        private static MethodInfo? GetShopMethod(
+            string methodName,
+            Type[] parameterTypes)
         {
             return typeof(S1UIShop.ShopInterface).GetMethod(
                 methodName,
-                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance
+                BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance,
+                binder: null,
+                types: parameterTypes,
+                modifiers: null
             );
+        }
+
+        private static S1Root.UIPanel? GetListingPanel(
+            S1UIShop.ShopInterface shop)
+        {
+            FieldInfo? field = typeof(S1UIShop.ShopInterface).GetField(
+                "listingPanel",
+                BindingFlags.NonPublic | BindingFlags.Instance);
+            return field?.GetValue(shop) as S1Root.UIPanel;
         }
 #endif
     }
