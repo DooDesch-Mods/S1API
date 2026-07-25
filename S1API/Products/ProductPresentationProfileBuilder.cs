@@ -28,6 +28,7 @@ namespace S1API.Products
         private bool _fitGeneratedIconToCamera = true;
         private float _generatedIconCameraFill = 0.72f;
         private ProductPresentationTransform? _generatedIconTransform;
+        private bool _useFunctionalProductConvexMeshColliders;
 
         /// <summary>
         /// Sets the shared loose visual provider. Stored, held, station, and functional-product
@@ -165,6 +166,26 @@ namespace S1API.Products
                 ProductPresentationContext.FunctionalProduct,
                 provider,
                 presentationTransform);
+        }
+
+        /// <summary>
+        /// Replaces inherited functional-product colliders with convex mesh colliders
+        /// built from the configured functional visual.
+        /// </summary>
+        /// <returns>This builder.</returns>
+        /// <remarks>
+        /// Use this for compact or non-box-shaped loose products that participate in
+        /// packaging-station physics. The default remains the native scaffold collider
+        /// plus S1API's legacy box-collider fallback so existing mods retain their
+        /// current collision behavior.
+        /// A functional-product visual or loose-visual fallback must be configured
+        /// before <see cref="Build"/>.
+        /// </remarks>
+        public ProductPresentationProfileBuilder
+            WithFunctionalProductConvexMeshColliders()
+        {
+            _useFunctionalProductConvexMeshColliders = true;
+            return this;
         }
 
         /// <summary>
@@ -334,6 +355,7 @@ namespace S1API.Products
                 _fitGeneratedIconToCamera,
                 _generatedIconCameraFill,
                 _generatedIconTransform,
+                _useFunctionalProductConvexMeshColliders,
                 new List<ProductPresentationContext>(_requiredContexts).AsReadOnly());
         }
 
@@ -391,6 +413,17 @@ namespace S1API.Products
 
         private void ValidateRequiredProviders()
         {
+            if (_useFunctionalProductConvexMeshColliders &&
+                !_visualProviders.ContainsKey(
+                    ProductPresentationContext.FunctionalProduct) &&
+                !_visualProviders.ContainsKey(
+                    ProductPresentationContext.Loose))
+            {
+                throw new InvalidOperationException(
+                    "Functional-product convex mesh colliders require a " +
+                    "functional-product visual or loose-visual fallback before Build().");
+            }
+
             foreach (ProductPresentationContext context in _requiredContexts)
             {
                 bool configured;

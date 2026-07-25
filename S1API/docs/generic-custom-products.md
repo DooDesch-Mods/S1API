@@ -138,6 +138,7 @@ GameObject pillVisual = LoadPillVisual();
 ProductPresentationProfile pillProfile =
     new ProductPresentationProfileBuilder()
         .WithLooseVisual(() => pillVisual)
+        .WithFunctionalProductConvexMeshColliders()
         .WithGeneratedIconFromLooseVisual(size: 512)
         .Require(
             ProductPresentationContext.Stored,
@@ -186,6 +187,16 @@ stored-item, equippable, station-item, and functional-product scaffolds,
 replacing only their family-specific visual setter. This keeps native storage
 footprints, station modules, draggable behavior, first-person equip behavior,
 and consumption wiring intact.
+
+Compact or non-box-shaped products can opt into
+`WithFunctionalProductConvexMeshColliders()`. S1API then disables the cloned
+template's inherited colliders and builds convex colliders from the custom
+functional visual's mesh filters. This is intended for dynamic loose-product
+physics in packaging stations. Configure a functional-product visual or
+loose-visual fallback before enabling it. Meshes that Unity cannot retain as
+usable convex colliders fall back to a bounds-based box collider. The option is
+disabled by default so existing profiles retain their original scaffold and
+box-fallback collision behavior.
 
 For runtime-imported GLB sources, keep one reusable source active beneath a
 persistent root positioned outside the playable scene; providers should return

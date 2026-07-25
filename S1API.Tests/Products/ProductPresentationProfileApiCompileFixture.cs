@@ -21,6 +21,7 @@ internal static class ProductPresentationProfileApiCompileFixture
                 .WithHeldVisual(contextVisual)
                 .WithStationVisual(contextVisual)
                 .WithFunctionalProductVisual(contextVisual)
+                .WithFunctionalProductConvexMeshColliders()
                 .WithIcon(icon)
                 .WithConsumptionPrefab(consumption)
                 .Require(
