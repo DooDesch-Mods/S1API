@@ -126,6 +126,11 @@ public sealed class CustomProductManifestDataTests
             .Select(index => "package:" + index)
             .ToArray();
         Assert.False(excessivePackaging.IsValid());
+
+        CustomProductManifestEntryData zeroConsumptionProviderVersion =
+            CreateEntry("example:zero-consumption-provider-version");
+        zeroConsumptionProviderVersion.ConsumptionProfileProviderVersion = 0;
+        Assert.False(zeroConsumptionProviderVersion.IsValid());
     }
 
     [Fact]

@@ -29,6 +29,10 @@ public sealed class ProductConsumptionProfileTests : IDisposable
             () => new ProductConsumptionProfileBuilder()
                 .WithProviderCompatibility("example:provider", -1));
 
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new ProductConsumptionProfileBuilder()
+                .WithProviderCompatibility("example:provider", 0));
+
         Assert.Throws<InvalidOperationException>(
             () => new ProductConsumptionProfileBuilder()
                 .WithProviderCompatibility("example:provider", 1)
@@ -120,6 +124,15 @@ public sealed class ProductConsumptionProfileTests : IDisposable
             () => ProductConsumptionProfileRegistry.RegisterForProductKind(
                 kind,
                 CreateProfile("example:kind-provider")));
+
+        Assert.Throws<ArgumentNullException>(
+            () => ProductConsumptionProfileRegistry.RegisterForProductKind(
+                null!,
+                profile));
+        Assert.Throws<ArgumentNullException>(
+            () => ProductConsumptionProfileRegistrationRegistry.RegisterForProductKind(
+                null!,
+                profile));
     }
 
     [Fact]
@@ -161,16 +174,68 @@ public sealed class ProductConsumptionProfileTests : IDisposable
             new[] { "first-apply", "first-clear", "second-apply", "second-clear" },
             calls);
 
+        var failedApplyAttempts = 0;
         var failedClearCount = 0;
         ProductConsumptionProfile failing = new ProductConsumptionProfileBuilder()
             .WithProviderCompatibility("example:failing", 1)
-            .OnPlayerApply(_ => throw new InvalidOperationException("expected"))
+            .OnPlayerApply(_ =>
+            {
+                failedApplyAttempts++;
+                if (failedApplyAttempts == 1)
+                    throw new InvalidOperationException("expected");
+            })
             .OnPlayerClear(_ => failedClearCount++)
             .Build();
         ProductConsumptionProfileDispatcher.DispatchForTesting(target, failing, firstContext, true, false);
+        ProductConsumptionProfileDispatcher.DispatchForTesting(target, failing, firstContext, true, false);
         ProductConsumptionProfileDispatcher.DispatchForTesting(target, failing, firstContext, true, true);
 
-        Assert.Equal(1, failedClearCount);
+        Assert.Equal(2, failedApplyAttempts);
+        Assert.Equal(2, failedClearCount);
+    }
+
+    [Fact]
+    public void ReplacementClearsUsingTheOriginalTargetKind()
+    {
+        ProductKind kind = CreateKind();
+        var playerClears = 0;
+        var npcClears = 0;
+        ProductConsumptionProfile playerProfile = new ProductConsumptionProfileBuilder()
+            .WithProviderCompatibility("example:player", 1)
+            .OnPlayerApply(_ => { })
+            .OnPlayerClear(_ => playerClears++)
+            .OnNpcClear(_ => npcClears++)
+            .Build();
+        ProductConsumptionProfile npcProfile = new ProductConsumptionProfileBuilder()
+            .WithProviderCompatibility("example:npc", 1)
+            .OnNpcApply(_ => { })
+            .Build();
+        object target = new object();
+
+        ProductConsumptionProfileDispatcher.DispatchForTesting(
+            target, playerProfile, CreateContext("example:player", kind), true, false);
+        ProductConsumptionProfileDispatcher.DispatchForTesting(
+            target, npcProfile, CreateContext("example:npc", kind), false, false);
+
+        Assert.Equal(1, playerClears);
+        Assert.Equal(0, npcClears);
+    }
+
+    [Fact]
+    public void ResetCleansActiveProfilesWithoutRetainingSessionTargets()
+    {
+        var clearCalls = 0;
+        ProductConsumptionProfile profile = new ProductConsumptionProfileBuilder()
+            .WithProviderCompatibility("example:reset", 1)
+            .OnPlayerApply(_ => { })
+            .OnPlayerClear(_ => clearCalls++)
+            .Build();
+        ProductConsumptionProfileDispatcher.DispatchForTesting(
+            new object(), profile, CreateContext("example:reset", CreateKind()), true, false);
+
+        ProductConsumptionProfileDispatcher.ResetForTesting();
+
+        Assert.Equal(1, clearCalls);
     }
 
     [Fact]
@@ -222,6 +287,15 @@ public sealed class ProductConsumptionProfileTests : IDisposable
 
         Assert.Equal(1, playerCalls);
         Assert.Equal(1, npcCalls);
+    }
+
+    [Fact]
+    public void PlayerTargetIdUsesTheStableNativePlayerCode()
+    {
+        Assert.Equal(
+            "76561198000000000",
+            ProductConsumptionProfileDispatcher.GetPlayerTargetIdForTesting("76561198000000000"));
+        Assert.Equal(string.Empty, ProductConsumptionProfileDispatcher.GetPlayerTargetIdForTesting(null!));
     }
 
     [Fact]

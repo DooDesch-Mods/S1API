@@ -10,7 +10,7 @@ namespace S1API.Products
     /// <remarks>
     /// Player callbacks are invoked only for the local player. NPC callbacks can receive an
     /// unavailable <see cref="NPC"/> wrapper for game-owned NPCs; use <see cref="TargetId"/>
-    /// when behavior only needs the native target identifier.
+    /// when behavior only needs the stable native target identifier.
     /// </remarks>
     public sealed class ProductConsumptionContext
     {
@@ -101,7 +101,7 @@ namespace S1API.Products
         public NPC? NPC { get; }
 
         /// <summary>
-        /// Gets the target identifier supplied by the native consumption lifecycle.
+        /// Gets the stable native target identifier: a player code for players or the NPC ID for NPCs.
         /// </summary>
         public string TargetId { get; }
 

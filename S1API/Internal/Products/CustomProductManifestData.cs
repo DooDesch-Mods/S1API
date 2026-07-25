@@ -433,7 +433,8 @@ namespace S1API.Internal.Products
                   !CustomProductManifestData.IsBoundedIdentifier(ConsumptionProfileProviderId)) ||
                  (ConsumptionProfileProviderId.Length == 0 &&
                   ConsumptionProfileProviderVersion != 0) ||
-                 ConsumptionProfileProviderVersion < 0 ||
+                 (ConsumptionProfileProviderId.Length != 0 &&
+                  ConsumptionProfileProviderVersion <= 0) ||
                  (ProviderId != null && !CustomProductManifestData.IsBoundedIdentifier(ProviderId)) ||
                  !Enum.IsDefined(typeof(DrugType), CompatibilityDrugType) ||
                  (ProviderId == null && ProviderVersion != 0) ||

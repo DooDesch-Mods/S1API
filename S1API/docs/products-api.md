@@ -248,7 +248,9 @@ ProductConsumptionProfileRegistry.RegisterForProductKind(customKind, profile);
 The provider ID and version are scalar multiplayer compatibility data. Register the same profile
 provider on every peer before custom-product manifest validation; S1API never serializes callbacks,
 Unity objects, assets, or transient camera/audio state. Active profile state is not restored across
-save/load, reconnect, or late join.
+save/load, reconnect, or late join. If an apply callback fails, S1API immediately attempts its clear
+callback and permits the next native apply lifecycle call to retry. `TargetId` is the native stable
+player code for players and the native NPC ID for NPCs; it is not a display name.
 
 ## Creating product instances
 

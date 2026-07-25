@@ -19,13 +19,13 @@ namespace S1API.Products
         /// Sets the stable identity and compatibility version for this profile provider.
         /// </summary>
         /// <param name="providerId">A stable, namespaced provider identifier.</param>
-        /// <param name="providerVersion">A non-negative compatibility version.</param>
+        /// <param name="providerVersion">A positive compatibility version.</param>
         /// <returns>This builder for method chaining.</returns>
         public ProductConsumptionProfileBuilder WithProviderCompatibility(
             string providerId,
             int providerVersion)
         {
-            if (providerVersion < 0)
+            if (providerVersion <= 0)
                 throw new ArgumentOutOfRangeException(nameof(providerVersion));
 
             _providerId = ProductKindId.Normalize(providerId, nameof(providerId));

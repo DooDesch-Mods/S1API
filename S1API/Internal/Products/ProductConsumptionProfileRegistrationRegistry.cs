@@ -30,6 +30,9 @@ namespace S1API.Internal.Products
             ProductKind productKind,
             ProductConsumptionProfile profile)
         {
+            if (productKind == null)
+                throw new ArgumentNullException(nameof(productKind));
+
             return Register(KindProfiles, "product-kind ID", productKind.Id, profile);
         }
 

@@ -1,13 +1,16 @@
 #if (IL2CPPMELON)
 using S1Product = Il2CppScheduleOne.Product;
+using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 #elif MONOMELON
 using S1Product = ScheduleOne.Product;
+using S1PlayerScripts = ScheduleOne.PlayerScripts;
 #endif
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using S1API.Entities;
+using S1API.Lifecycle;
 using S1API.Logging;
 using S1API.Products;
 
@@ -20,44 +23,46 @@ namespace S1API.Internal.Products
         {
             internal ActiveProfile(
                 ProductConsumptionProfile profile,
-                ProductConsumptionContext context)
+                ProductConsumptionContext context,
+                bool isPlayer)
             {
                 Profile = profile;
                 Context = context;
+                IsPlayer = isPlayer;
             }
 
             internal ProductConsumptionProfile Profile { get; }
 
             internal ProductConsumptionContext Context { get; }
-        }
 
-        private sealed class ReferenceComparer : IEqualityComparer<object>
-        {
-            bool IEqualityComparer<object>.Equals(object? left, object? right) =>
-                ReferenceEquals(left, right);
+            internal bool IsPlayer { get; }
 
-            public int GetHashCode(object value) =>
-                RuntimeHelpers.GetHashCode(value);
+            internal bool IsActive { get; set; } = true;
         }
 
         private static readonly Log Logger = new Log("ProductConsumptionProfileDispatcher");
         private static readonly object Gate = new object();
-        private static readonly Dictionary<object, ActiveProfile> ActiveProfiles =
-            new Dictionary<object, ActiveProfile>(new ReferenceComparer());
+        private static ConditionalWeakTable<object, ActiveProfile> ActiveProfiles = new();
+        private static readonly List<WeakReference<ActiveProfile>> ActiveProfileReferences = new();
+        private static bool _lifecycleHooksRegistered;
 
         internal static void DispatchPlayer(
             S1Product.ProductItemInstance productInstance,
             object nativePlayer,
             Player player,
-            bool isClear)
+            bool isClear,
+            ProductConsumptionContext? resolvedContext = null,
+            ProductConsumptionProfileRegistration? resolvedRegistration = null)
         {
             Dispatch(
                 productInstance,
                 nativePlayer,
                 player,
                 null,
-                player.Name,
-                isClear);
+                GetPlayerTargetId(player.S1Player),
+                isClear,
+                resolvedContext,
+                resolvedRegistration);
         }
 
         internal static void DispatchNpc(
@@ -65,7 +70,9 @@ namespace S1API.Internal.Products
             object nativeNpc,
             NPC? npc,
             string targetId,
-            bool isClear)
+            bool isClear,
+            ProductConsumptionContext? resolvedContext = null,
+            ProductConsumptionProfileRegistration? resolvedRegistration = null)
         {
             Dispatch(
                 productInstance,
@@ -73,14 +80,18 @@ namespace S1API.Internal.Products
                 null,
                 npc,
                 targetId,
-                isClear);
+                isClear,
+                resolvedContext,
+                resolvedRegistration);
         }
 
         internal static void ResetForTesting()
         {
-            lock (Gate)
-                ActiveProfiles.Clear();
+            ResetActiveProfiles();
         }
+
+        internal static string GetPlayerTargetIdForTesting(string playerCode) =>
+            GetPlayerTargetId(playerCode);
 
         internal static void DispatchForTesting(
             object nativeTarget,
@@ -99,11 +110,16 @@ namespace S1API.Internal.Products
                 ApplyResolved(nativeTarget, profile, context, isPlayer);
         }
 
-        internal static bool HasRegisteredProfile(
-            S1Product.ProductItemInstance productInstance)
+        internal static bool TryResolveRegisteredContext(
+            S1Product.ProductItemInstance productInstance,
+            Player? player,
+            NPC? npc,
+            string targetId,
+            out ProductConsumptionContext? context,
+            out ProductConsumptionProfileRegistration? registration)
         {
-            if (!TryCreateContext(productInstance, null, null, string.Empty, out ProductConsumptionContext? context) ||
-                context == null)
+            registration = null;
+            if (!TryCreateContext(productInstance, player, npc, targetId, out context) || context == null)
             {
                 return false;
             }
@@ -111,7 +127,7 @@ namespace S1API.Internal.Products
             return ProductConsumptionProfileRegistrationRegistry.TryResolve(
                 context.ProductId,
                 context.ProductKind.Id,
-                out _);
+                out registration);
         }
 
         private static void Dispatch(
@@ -120,17 +136,20 @@ namespace S1API.Internal.Products
             Player? player,
             NPC? npc,
             string targetId,
-            bool isClear)
+            bool isClear,
+            ProductConsumptionContext? resolvedContext,
+            ProductConsumptionProfileRegistration? resolvedRegistration)
         {
             if (productInstance == null || nativeTarget == null)
                 return;
 
-            if (!TryCreateContext(
-                    productInstance,
-                    player,
-                    npc,
-                    targetId,
-                    out ProductConsumptionContext? context))
+            ProductConsumptionContext? context = resolvedContext;
+            if (context == null && !TryCreateContext(
+                productInstance,
+                player,
+                npc,
+                targetId,
+                out context))
             {
                 return;
             }
@@ -144,7 +163,7 @@ namespace S1API.Internal.Products
                 return;
             }
 
-            Apply(nativeTarget, context, player != null);
+            Apply(nativeTarget, context, player != null, resolvedRegistration);
         }
 
         private static bool TryCreateContext(
@@ -181,16 +200,21 @@ namespace S1API.Internal.Products
         private static void Apply(
             object nativeTarget,
             ProductConsumptionContext context,
-            bool isPlayer)
+            bool isPlayer,
+            ProductConsumptionProfileRegistration? resolvedRegistration)
         {
-            if (!ProductConsumptionProfileRegistrationRegistry.TryResolve(
+            ProductConsumptionProfileRegistration? registration = resolvedRegistration;
+            if (registration == null &&
+                !ProductConsumptionProfileRegistrationRegistry.TryResolve(
                     context.ProductId,
                     context.ProductKind.Id,
-                    out ProductConsumptionProfileRegistration? registration) ||
-                registration == null)
+                    out registration))
             {
                 return;
             }
+
+            if (registration == null)
+                return;
 
             ApplyResolved(nativeTarget, registration.Profile, context, isPlayer);
         }
@@ -201,7 +225,9 @@ namespace S1API.Internal.Products
             ProductConsumptionContext context,
             bool isPlayer)
         {
+            EnsureLifecycleHooks();
             ActiveProfile? previous;
+            var active = new ActiveProfile(profile, context, isPlayer);
             lock (Gate)
             {
                 if (ActiveProfiles.TryGetValue(nativeTarget, out previous) &&
@@ -214,13 +240,24 @@ namespace S1API.Internal.Products
                     return;
                 }
 
-                ActiveProfiles[nativeTarget] = new ActiveProfile(profile, context);
+                if (previous != null)
+                {
+                    previous.IsActive = false;
+                    ActiveProfiles.Remove(nativeTarget);
+                }
+
+                ActiveProfiles.Add(nativeTarget, active);
+                ActiveProfileReferences.Add(new WeakReference<ActiveProfile>(active));
             }
 
             if (previous != null)
-                InvokeClear(previous.Profile, previous.Context, isPlayer);
+                InvokeClear(previous.Profile, previous.Context, previous.IsPlayer);
 
-            InvokeApply(profile, context, isPlayer);
+            if (!InvokeApply(profile, context, isPlayer))
+            {
+                RemoveActiveProfile(nativeTarget, active);
+                InvokeClear(profile, context, isPlayer);
+            }
         }
 
         private static void Clear(
@@ -241,12 +278,13 @@ namespace S1API.Internal.Products
                 }
 
                 ActiveProfiles.Remove(nativeTarget);
+                active.IsActive = false;
             }
 
-            InvokeClear(active.Profile, active.Context, isPlayer);
+            InvokeClear(active.Profile, active.Context, active.IsPlayer);
         }
 
-        private static void InvokeApply(
+        private static bool InvokeApply(
             ProductConsumptionProfile profile,
             ProductConsumptionContext context,
             bool isPlayer)
@@ -254,10 +292,10 @@ namespace S1API.Internal.Products
             Action<ProductConsumptionContext>? callback = isPlayer
                 ? profile.OnPlayerApply
                 : profile.OnNpcApply;
-            Invoke(callback, profile, context, isPlayer ? "player apply" : "NPC apply");
+            return Invoke(callback, profile, context, isPlayer ? "player apply" : "NPC apply");
         }
 
-        private static void InvokeClear(
+        private static bool InvokeClear(
             ProductConsumptionProfile profile,
             ProductConsumptionContext context,
             bool isPlayer)
@@ -265,21 +303,22 @@ namespace S1API.Internal.Products
             Action<ProductConsumptionContext>? callback = isPlayer
                 ? profile.OnPlayerClear
                 : profile.OnNpcClear;
-            Invoke(callback, profile, context, isPlayer ? "player clear" : "NPC clear");
+            return Invoke(callback, profile, context, isPlayer ? "player clear" : "NPC clear");
         }
 
-        private static void Invoke(
+        private static bool Invoke(
             Action<ProductConsumptionContext>? callback,
             ProductConsumptionProfile profile,
             ProductConsumptionContext context,
             string lifecycle)
         {
             if (callback == null)
-                return;
+                return true;
 
             try
             {
                 callback(context);
+                return true;
             }
             catch (Exception exception)
             {
@@ -293,7 +332,93 @@ namespace S1API.Internal.Products
                 catch
                 {
                 }
+
+                return false;
             }
+        }
+
+        private static string GetPlayerTargetId(S1PlayerScripts.Player player) =>
+            GetPlayerTargetId(player?.PlayerCode);
+
+        private static string GetPlayerTargetId(string? playerCode) =>
+            playerCode ?? string.Empty;
+
+        private static void EnsureLifecycleHooks()
+        {
+            lock (Gate)
+            {
+                if (_lifecycleHooksRegistered)
+                    return;
+
+                GameLifecycle.OnPreLoad += ResetActiveProfiles;
+                GameLifecycle.OnPreSceneChange += ResetActiveProfiles;
+                Player.PlayerDespawned += OnPlayerDespawned;
+                _lifecycleHooksRegistered = true;
+            }
+        }
+
+        private static void OnPlayerDespawned(Player player)
+        {
+            if (player == null)
+                return;
+
+            RemoveActiveProfile(player.S1Player);
+        }
+
+        private static void RemoveActiveProfile(object nativeTarget, ActiveProfile expected)
+        {
+            lock (Gate)
+            {
+                if (ActiveProfiles.TryGetValue(nativeTarget, out ActiveProfile? current) &&
+                    ReferenceEquals(current, expected))
+                {
+                    current.IsActive = false;
+                    ActiveProfiles.Remove(nativeTarget);
+                }
+            }
+        }
+
+        private static void RemoveActiveProfile(object nativeTarget)
+        {
+            ActiveProfile? active;
+            lock (Gate)
+            {
+                if (!ActiveProfiles.TryGetValue(nativeTarget, out active))
+                    return;
+
+                active.IsActive = false;
+                ActiveProfiles.Remove(nativeTarget);
+            }
+
+            InvokeClear(active.Profile, active.Context, active.IsPlayer);
+        }
+
+        private static void ResetActiveProfiles()
+        {
+            var activeProfiles = new List<ActiveProfile>();
+            lock (Gate)
+            {
+                for (var index = ActiveProfileReferences.Count - 1; index >= 0; index--)
+                {
+                    if (!ActiveProfileReferences[index].TryGetTarget(out ActiveProfile? active))
+                    {
+                        ActiveProfileReferences.RemoveAt(index);
+                        continue;
+                    }
+
+                    if (active.IsActive)
+                    {
+                        active.IsActive = false;
+                        activeProfiles.Add(active);
+                    }
+                }
+
+                ActiveProfiles = new ConditionalWeakTable<object, ActiveProfile>();
+                ActiveProfileReferences.Clear();
+            }
+
+            foreach (ActiveProfile active in activeProfiles)
+                InvokeClear(active.Profile, active.Context, active.IsPlayer);
         }
     }
 }
