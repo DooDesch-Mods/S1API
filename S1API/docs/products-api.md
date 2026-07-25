@@ -164,7 +164,7 @@ ProductManager.SetEffectClearCallback(Property.Euphoric, player =>
 }, allowDefaultEffect: true);
 ```
 
-Use `ProductManager.RemoveEffectClearCallback(...)` or `ProductManager.ClearEffectClearCallbacks()` to remove
+Use `ProductManager.RemoveEffectClearCallback(...)` or `ProductManager.ResetEffectClearCallbacks()` to remove
 registered player clear callbacks.
 
 ### NPC callbacks
@@ -202,9 +202,15 @@ ProductManager.SetNpcEffectClearCallback(Property.Sneaky, npc =>
 {
     // Remove only state this effect owns.
 });
+
+// Optional: run the callback AND keep default clear behavior.
+ProductManager.SetNpcEffectClearCallback(Property.Sneaky, npc =>
+{
+    // Custom cleanup.
+}, allowDefaultEffect: true);
 ```
 
-Use `ProductManager.RemoveNpcEffectClearCallback(...)` or `ProductManager.ClearNpcEffectClearCallbacks()` to remove
+Use `ProductManager.RemoveNpcEffectClearCallback(...)` or `ProductManager.ResetNpcEffectClearCallbacks()` to remove
 registered NPC clear callbacks.
 
 ## Creating product instances

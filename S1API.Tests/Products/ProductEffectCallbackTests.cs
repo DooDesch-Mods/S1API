@@ -14,16 +14,16 @@ public sealed class ProductEffectCallbackTests : IDisposable
     {
         ProductManager.ClearEffectCallbacks();
         ProductManager.ClearNpcEffectCallbacks();
-        ProductManager.ClearEffectClearCallbacks();
-        ProductManager.ClearNpcEffectClearCallbacks();
+        ProductManager.ResetEffectClearCallbacks();
+        ProductManager.ResetNpcEffectClearCallbacks();
     }
 
     public void Dispose()
     {
         ProductManager.ClearEffectCallbacks();
         ProductManager.ClearNpcEffectCallbacks();
-        ProductManager.ClearEffectClearCallbacks();
-        ProductManager.ClearNpcEffectClearCallbacks();
+        ProductManager.ResetEffectClearCallbacks();
+        ProductManager.ResetNpcEffectClearCallbacks();
     }
 
     [Fact]
@@ -100,6 +100,22 @@ public sealed class ProductEffectCallbackTests : IDisposable
         Assert.True(ProductManager.RemoveEffectClearCallback("test_duplicate"));
         Assert.False(ProductManager.RemoveEffectClearCallback("test_duplicate"));
         Assert.False(ProductManager.TryInvokeEffectClearCallback("test_duplicate", player, out _));
+    }
+
+    [Fact]
+    public void ResetClearCallbacksRemovesPlayerAndNpcRegistrations()
+    {
+        var player = CreatePlayer();
+        var npc = (NPC)RuntimeHelpers.GetUninitializedObject(typeof(DanSamwell));
+
+        ProductManager.SetEffectClearCallback("test_reset_player", _ => { });
+        ProductManager.SetNpcEffectClearCallback("test_reset_npc", _ => { });
+
+        ProductManager.ResetEffectClearCallbacks();
+        ProductManager.ResetNpcEffectClearCallbacks();
+
+        Assert.False(ProductManager.TryInvokeEffectClearCallback("test_reset_player", player, out _));
+        Assert.False(ProductManager.TryInvokeNpcEffectClearCallback("test_reset_npc", npc, out _));
     }
 
     [Fact]

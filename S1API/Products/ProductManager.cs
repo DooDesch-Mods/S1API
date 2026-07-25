@@ -16,62 +16,23 @@ namespace S1API.Products
     /// </summary>
     public static class ProductManager
     {
-        private sealed class EffectCallbackRegistration
+        private sealed class EffectCallbackRegistration<T>
         {
-            internal EffectCallbackRegistration(Action<Player> callback, bool allowDefaultEffect)
+            internal EffectCallbackRegistration(Action<T> callback, bool allowDefaultEffect)
             {
                 Callback = callback;
                 AllowDefaultEffect = allowDefaultEffect;
             }
 
-            internal Action<Player> Callback { get; }
+            internal Action<T> Callback { get; }
 
             internal bool AllowDefaultEffect { get; }
         }
 
-        private sealed class NpcEffectCallbackRegistration
-        {
-            internal NpcEffectCallbackRegistration(Action<NPC> callback, bool allowDefaultEffect)
-            {
-                Callback = callback;
-                AllowDefaultEffect = allowDefaultEffect;
-            }
-
-            internal Action<NPC> Callback { get; }
-
-            internal bool AllowDefaultEffect { get; }
-        }
-
-        private sealed class EffectClearCallbackRegistration
-        {
-            internal EffectClearCallbackRegistration(Action<Player> callback, bool allowDefaultEffect)
-            {
-                Callback = callback;
-                AllowDefaultEffect = allowDefaultEffect;
-            }
-
-            internal Action<Player> Callback { get; }
-
-            internal bool AllowDefaultEffect { get; }
-        }
-
-        private sealed class NpcEffectClearCallbackRegistration
-        {
-            internal NpcEffectClearCallbackRegistration(Action<NPC> callback, bool allowDefaultEffect)
-            {
-                Callback = callback;
-                AllowDefaultEffect = allowDefaultEffect;
-            }
-
-            internal Action<NPC> Callback { get; }
-
-            internal bool AllowDefaultEffect { get; }
-        }
-
-        private static readonly Dictionary<string, EffectCallbackRegistration> EffectCallbacks = new Dictionary<string, EffectCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, NpcEffectCallbackRegistration> NpcEffectCallbacks = new Dictionary<string, NpcEffectCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, EffectClearCallbackRegistration> EffectClearCallbacks = new Dictionary<string, EffectClearCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
-        private static readonly Dictionary<string, NpcEffectClearCallbackRegistration> NpcEffectClearCallbacks = new Dictionary<string, NpcEffectClearCallbackRegistration>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, EffectCallbackRegistration<Player>> EffectCallbacks = new Dictionary<string, EffectCallbackRegistration<Player>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, EffectCallbackRegistration<NPC>> NpcEffectCallbacks = new Dictionary<string, EffectCallbackRegistration<NPC>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, EffectCallbackRegistration<Player>> EffectClearCallbacks = new Dictionary<string, EffectCallbackRegistration<Player>>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, EffectCallbackRegistration<NPC>> NpcEffectClearCallbacks = new Dictionary<string, EffectCallbackRegistration<NPC>>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Minimum price for any product (1).
@@ -176,7 +137,7 @@ namespace S1API.Products
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
-            EffectCallbacks[effectId] = new EffectCallbackRegistration(callback, allowDefaultEffect);
+            EffectCallbacks[effectId] = new EffectCallbackRegistration<Player>(callback, allowDefaultEffect);
         }
 
         /// <summary>
@@ -247,7 +208,7 @@ namespace S1API.Products
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
-            NpcEffectCallbacks[effectId] = new NpcEffectCallbackRegistration(callback, allowDefaultEffect);
+            NpcEffectCallbacks[effectId] = new EffectCallbackRegistration<NPC>(callback, allowDefaultEffect);
         }
 
         /// <summary>
@@ -318,7 +279,7 @@ namespace S1API.Products
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
-            EffectClearCallbacks[effectId] = new EffectClearCallbackRegistration(callback, allowDefaultEffect);
+            EffectClearCallbacks[effectId] = new EffectCallbackRegistration<Player>(callback, allowDefaultEffect);
         }
 
         /// <summary>
@@ -348,9 +309,9 @@ namespace S1API.Products
         }
 
         /// <summary>
-        /// Removes all registered player product effect clear callbacks.
+        /// Resets all registered player product effect clear callbacks.
         /// </summary>
-        public static void ClearEffectClearCallbacks() =>
+        public static void ResetEffectClearCallbacks() =>
             EffectClearCallbacks.Clear();
 
         /// <summary>
@@ -389,7 +350,7 @@ namespace S1API.Products
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
 
-            NpcEffectClearCallbacks[effectId] = new NpcEffectClearCallbackRegistration(callback, allowDefaultEffect);
+            NpcEffectClearCallbacks[effectId] = new EffectCallbackRegistration<NPC>(callback, allowDefaultEffect);
         }
 
         /// <summary>
@@ -419,9 +380,9 @@ namespace S1API.Products
         }
 
         /// <summary>
-        /// Removes all registered NPC product effect clear callbacks.
+        /// Resets all registered NPC product effect clear callbacks.
         /// </summary>
-        public static void ClearNpcEffectClearCallbacks() =>
+        public static void ResetNpcEffectClearCallbacks() =>
             NpcEffectClearCallbacks.Clear();
 
         /// <summary>

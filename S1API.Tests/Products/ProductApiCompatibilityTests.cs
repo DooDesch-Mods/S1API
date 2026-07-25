@@ -115,8 +115,8 @@ public sealed class ProductApiCompatibilityTests
         AssertCallbackRegistration(nameof(ProductManager.SetNpcEffectClearCallback), typeof(NPC));
         AssertCallbackRemoval(nameof(ProductManager.RemoveEffectClearCallback));
         AssertCallbackRemoval(nameof(ProductManager.RemoveNpcEffectClearCallback));
-        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearEffectClearCallbacks), Type.EmptyTypes));
-        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ClearNpcEffectClearCallbacks), Type.EmptyTypes));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ResetEffectClearCallbacks), Type.EmptyTypes));
+        Assert.NotNull(typeof(ProductManager).GetMethod(nameof(ProductManager.ResetNpcEffectClearCallbacks), Type.EmptyTypes));
 
         Assert.Equal(
             typeof(CustomEffectBuilder),
