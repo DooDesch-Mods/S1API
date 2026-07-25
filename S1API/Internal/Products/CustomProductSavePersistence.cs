@@ -238,7 +238,8 @@ namespace S1API.Internal.Products
                     !Enum.IsDefined(typeof(global::S1API.Items.LegalStatus), data.LegalStatus) || !Enum.IsDefined(typeof(Quality), data.DefaultQuality) || !Enum.IsDefined(typeof(DrugType), data.CompatibilityDrugType) ||
                     !IsBoundedCollection(data.PropertyIds) || !IsBoundedCollection(data.PackagingIds)) return false;
                 string kindId = ProductKindId.Normalize(data.ProductKindId, nameof(data.ProductKindId));
-                ProductKindId.Normalize(data.RepresentationTemplateId, nameof(data.RepresentationTemplateId));
+                if (string.IsNullOrWhiteSpace(data.RepresentationTemplateId))
+                    return false;
                 descriptor = new CustomProductSaveDescriptor(data.FormatVersion, productId, ownerId, data.ProductName, data.Description, data.InitialPrice, kindId, providerId, data.ProviderVersion, data.ProviderData) { Data = data };
                 return true;
             }

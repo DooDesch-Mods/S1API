@@ -12,6 +12,7 @@ using S1Clothing = ScheduleOne.Clothing;
 using S1Packaging = ScheduleOne.Product.Packaging;
 #endif
 
+using S1API.Internal.Items;
 using S1API.Internal.Utils;
 using S1API.Money;
 using S1API.Products;
@@ -216,7 +217,10 @@ namespace S1API.Items
 
             RemoveFromRuntimeCleanupQueue(definition.S1ItemDefinition, definition.ID);
             S1Registry.Instance.RemoveFromRegistry(definition.S1ItemDefinition);
-            return GetDefinition(itemID) == null;
+            bool removed = GetDefinition(itemID) == null;
+            if (removed)
+                RuntimeItemDefinitionRegistry.Forget(itemID);
+            return removed;
         }
 
         /// <summary>
