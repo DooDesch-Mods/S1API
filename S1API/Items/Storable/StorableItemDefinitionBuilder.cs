@@ -15,6 +15,7 @@ using S1Storage = ScheduleOne.Storage;
 #endif
 using System;
 using System.Collections.Generic;
+using S1API.Internal.Items;
 using S1API.Logging;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -394,6 +395,7 @@ namespace S1API.Items.Storable
 
             // Register with the game's registry
             S1Registry.Instance.AddToRegistry(Definition);
+            RuntimeItemDefinitionRegistry.Retain(Definition.ID, Definition);
 
             // Return wrapper
             return CreateWrapper(Definition);
