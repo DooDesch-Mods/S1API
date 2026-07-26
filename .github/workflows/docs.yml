@@ -323,14 +323,28 @@ jobs:
           cp \
             S1API/bin/MonoMelon/netstandard2.1/S1API.dll \
             "$RUNNER_TEMP/s1api-api-compat/baseline.dll"
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Restore ApiCompat tool cache
+        if: github.event_name == 'pull_request'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/apicompat
+          key: apicompat-${{ runner.os }}-${{ runner.arch }}-10.0.302
+
+      - name: Install ApiCompat
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ ! -x "$RUNNER_TEMP/apicompat/apicompat" ]; then
+            dotnet tool install \
+              Microsoft.DotNet.ApiCompat.Tool \
+              --tool-path "$RUNNER_TEMP/apicompat" \
+              --version 10.0.302
+          fi
 
       - name: Check public API compatibility
         if: github.event_name == 'pull_request'
         run: |
-          dotnet tool install \
-            Microsoft.DotNet.ApiCompat.Tool \
-            --tool-path "$RUNNER_TEMP/apicompat" \
-            --version 10.0.302
           "$RUNNER_TEMP/apicompat/apicompat" \
             --left "$RUNNER_TEMP/s1api-api-compat/baseline.dll" \
             --right "$RUNNER_TEMP/s1api-api-compat/current.dll" \
