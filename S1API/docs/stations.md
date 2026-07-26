@@ -12,6 +12,10 @@ Important notes:
 - If `WithRecipeId(...)` is omitted, the existing `"{qty}x{productId}"` ID is preserved exactly.
 - Recipe IDs are matched case-insensitively. If another recipe with the same ID is already registered, S1API will **warn + skip** (first registration wins).
 - Ingredient items must exist and have a valid `StationItem` (the builder throws if not).
+- Recipes are discovered and unlocked by default for compatibility. Use
+  `WithInitialAvailability(false, false)` for progression-controlled recipes,
+  then call `SetAvailability(...)` on the returned recipe after loading the
+  mod's progression state on each peer.
 - Recommended timing: register recipes during `GameLifecycle.OnPreLoad` (late registration is supported; it will appear the next time the Chemistry Station UI is opened).
 
 ### Example (recommended timing)
@@ -48,6 +52,32 @@ public class MyMod : MelonMod
     }
 }
 ```
+
+### Progression-controlled recipes
+
+Keep the returned wrapper when a recipe should appear after a rank, quest, or
+other saved milestone:
+
+```csharp
+ChemistryStationRecipe recipe =
+    ChemistryStationRecipes.CreateAndRegister(b => b
+        .WithRecipeId("my-mod:late-game-reaction")
+        .WithInitialAvailability(
+            isDiscovered: false,
+            isUnlocked: false)
+        .WithTitle("Late-game Reaction")
+        .WithProduct("mymod_output", quantity: 1)
+        .WithIngredient("mymod_precursor", quantity: 1));
+
+// Reapply this on every peer after the relevant progression state loads.
+recipe.SetAvailability(
+    isDiscovered: progression.ReactionKnown,
+    isUnlocked: progression.ReactionKnown);
+```
+
+`IsDiscovered` and `IsUnlocked` report the live local state. S1API does not
+invent persistence or networking for a mod's progression rule; the owning mod
+reapplies its saved decision on each peer.
 
 ### Alternate recipes for the same product
 
