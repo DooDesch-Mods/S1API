@@ -20,4 +20,25 @@ internal static class ChemistryStationRecipeApiCompileFixture
             .WithIngredient(ingredientId, quantity: 1)
             .Build();
     }
+
+    internal static ChemistryStationRecipe CompileProgressionControlledSyntax(
+        string productId,
+        string ingredientId)
+    {
+        ChemistryStationRecipe recipe =
+            new ChemistryStationRecipeBuilder()
+                .WithInitialAvailability(
+                    isDiscovered: false,
+                    isUnlocked: false)
+                .WithProduct(productId, quantity: 5)
+                .WithIngredient(ingredientId, quantity: 1)
+                .Build();
+
+        recipe.SetAvailability(
+            isDiscovered: true,
+            isUnlocked: true);
+        _ = recipe.IsDiscovered;
+        _ = recipe.IsUnlocked;
+        return recipe;
+    }
 }

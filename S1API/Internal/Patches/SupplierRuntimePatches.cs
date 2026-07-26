@@ -123,6 +123,28 @@ namespace S1API.Internal.Patches
             return !SupplierRuntimeCoordinator.TryInitializeGeneratedStash(__instance);
         }
 
+        [HarmonyPatch(
+            typeof(S1NPCs.NPC),
+            nameof(S1NPCs.NPC.SetVisible),
+            new[] { typeof(bool), typeof(bool) })]
+        [HarmonyPostfix]
+        private static void NpcSetVisiblePostfix(
+            S1NPCs.NPC __instance,
+            bool __0)
+        {
+            if (!NPCPatches.IsS1ApiCustomNpcComponent(__instance)
+                || !CrossType.Is(
+                    __instance,
+                    out S1Economy.Supplier supplier))
+            {
+                return;
+            }
+
+            SupplierRuntimeCoordinator.ReconcileMeetingDialogue(
+                supplier,
+                __0);
+        }
+
         [HarmonyPatch(typeof(S1Loaders.NPCLoader), nameof(S1Loaders.NPCLoader.Load))]
         [HarmonyPostfix]
         private static void NpcLoaderLoadPostfix(S1Datas.DynamicSaveData saveData)

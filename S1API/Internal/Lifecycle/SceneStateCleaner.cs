@@ -71,6 +71,7 @@ namespace S1API.Internal.Lifecycle
                         }
                     }
                     NPC.All.Clear();
+                    NPC.FinalizedCustomNpcTypes.Clear();
                     NPCPatches.CustomNpcsReady = false; // Reset flag for next scene load
                     
                     QuestManager.Quests.Clear();

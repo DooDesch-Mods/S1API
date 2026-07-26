@@ -379,8 +379,28 @@ namespace S1API.Internal.Entities
                 }
 
                 var go = netObject.gameObject;
-                if (go == null || netObject.IsSpawned)
+                if (go == null)
                 {
+                    PendingSpawns.RemoveAt(i);
+                    continue;
+                }
+
+                // FishNet can spawn the object through its normal host path before this
+                // deferred queue observes it. The NPC still needs S1API's one-time
+                // post-spawn hydration; dropping the entry here leaves relationship,
+                // supplier visibility, and other prefab defaults unfinished.
+                if (netObject.IsSpawned)
+                {
+                    try
+                    {
+                        owner?.FinalizeNetworkSpawn();
+                    }
+                    catch (Exception finalizeEx)
+                    {
+                        Logger.Warning(
+                            $"[NPCNetworkBootstrap] FinalizeNetworkSpawn threw for already-spawned NPC '{ownerId}': {finalizeEx.Message}");
+                    }
+
                     PendingSpawns.RemoveAt(i);
                     continue;
                 }

@@ -36,11 +36,19 @@ public sealed class WarehouseSupplier : NPC
 
 `WithSupplierDefaults(...)` calls `EnsureSupplier()` for you. Call `EnsureSupplier()` directly only when you want the supplier role with default data.
 
-The item ID passed to `WithDeliveryItem(...)` must already resolve to a registered, storable item when prefab configuration runs. You can also pass an `ItemDefinition`, a `StorableItemDefinition`, or multiple item wrappers with `WithDeliveryItems(...)`.
+The string overload of `WithDeliveryItem(...)` is declaration-order safe: S1API
+stores the stable ID during NPC prefab discovery and resolves it when supplier
+runtime data is materialized. This lets an NPC assembly be discovered before its
+mod registers custom items during pre-load. The resolved item must still be
+storable to appear in the supplier shop. You can also pass an already registered
+`ItemDefinition`, a `StorableItemDefinition`, or multiple item wrappers with
+`WithDeliveryItems(...)`.
 
 ## Configuration Rules
 
-- A supplier must return `true` from `IsPhysical`. Supplier infrastructure needs a world position, schedule, stash, shop, and delivery vehicle.
+- A supplier must return `true` from `IsPhysical`. Supplier infrastructure needs
+  a world position, its reserved meeting action, stash, shop, and delivery
+  vehicle.
 - A custom NPC cannot be both a supplier and a dealer. Choose one native root role per NPC type.
 - `WithOrderLimits(minimum, maximum)` requires finite values, `minimum >= 0`, `maximum > 0`, and `maximum >= minimum`.
 - Every delivery listing must reference a storable item. Register custom items before S1API configures the NPC prefab.
@@ -48,6 +56,11 @@ The item ID passed to `WithDeliveryItem(...)` must already resolve to a register
 - Configure supplier defaults in `ConfigurePrefab`, not in `OnCreated`. This keeps host, client, and saved-game prefab data consistent.
 
 S1API creates the native meeting action and supplier-owned stash, shop, and delivery vehicle behind the public API. Do not copy or assign native supplier scene objects yourself.
+
+Do not add an ordinary roaming schedule merely to make a supplier physical.
+Native suppliers remain hidden while idle. When the player requests a meeting,
+the game activates the reserved location-dialogue action, warps the supplier to
+the selected supplier stand point, and makes them visible until the meeting ends.
 
 ## Runtime Access
 

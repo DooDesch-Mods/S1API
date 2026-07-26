@@ -12,7 +12,7 @@ using UnityEngine;
 namespace S1API.Stations
 {
     /// <summary>
-    /// Read-only wrapper for a Chemistry Station recipe (<c>StationRecipe</c>).
+    /// Wrapper for a Chemistry Station recipe (<c>StationRecipe</c>).
     /// </summary>
     public sealed class ChemistryStationRecipe
     {
@@ -85,6 +85,31 @@ namespace S1API.Stations
         /// Calculation method used when determining resulting product's quality.
         /// </summary>
         public QualityCalculationMethod QualityCalculationMethod { get; }
+
+        /// <summary>
+        /// Whether the recipe is currently discovered and visible to the player.
+        /// </summary>
+        public bool IsDiscovered => S1StationRecipe.IsDiscovered;
+
+        /// <summary>
+        /// Whether the recipe is currently unlocked for use.
+        /// </summary>
+        public bool IsUnlocked => S1StationRecipe.Unlocked;
+
+        /// <summary>
+        /// Changes the local recipe discovery and unlock state.
+        /// </summary>
+        /// <param name="isDiscovered">Whether the recipe is visible to the player.</param>
+        /// <param name="isUnlocked">Whether the recipe can be selected and started.</param>
+        /// <remarks>
+        /// Custom recipes are registered independently on every peer. Mods should apply
+        /// progression-driven availability on each peer after its saved state has loaded.
+        /// </remarks>
+        public void SetAvailability(bool isDiscovered, bool isUnlocked)
+        {
+            S1StationRecipe.IsDiscovered = isDiscovered;
+            S1StationRecipe.Unlocked = isUnlocked;
+        }
 
         /// <summary>
         /// Returns the native product item definition.

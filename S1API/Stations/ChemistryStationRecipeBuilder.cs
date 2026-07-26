@@ -27,6 +27,8 @@ namespace S1API.Stations
         private float _cookTemperature = 250f;
         private float _cookTemperatureTolerance = 25f;
         private Color _finalLiquidColor = Color.white;
+        private bool _initiallyDiscovered = true;
+        private bool _initiallyUnlocked = true;
 
         private string? _productItemId;
         private int _productQuantity = 1;
@@ -81,6 +83,26 @@ namespace S1API.Stations
         public ChemistryStationRecipeBuilder WithFinalLiquidColor(Color color)
         {
             _finalLiquidColor = color;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets whether the recipe is discovered and unlocked when it is first registered.
+        /// </summary>
+        /// <param name="isDiscovered">Whether the recipe is visible to the player.</param>
+        /// <param name="isUnlocked">Whether the recipe can be selected and started.</param>
+        /// <returns>This builder for method chaining.</returns>
+        /// <remarks>
+        /// Both values default to <see langword="true"/> to preserve the behavior of
+        /// recipes created before availability control was added. Use
+        /// <see cref="ChemistryStationRecipe.SetAvailability"/> to change the state later.
+        /// </remarks>
+        public ChemistryStationRecipeBuilder WithInitialAvailability(
+            bool isDiscovered,
+            bool isUnlocked)
+        {
+            _initiallyDiscovered = isDiscovered;
+            _initiallyUnlocked = isUnlocked;
             return this;
         }
 
@@ -218,8 +240,8 @@ namespace S1API.Stations
                 throw new InvalidOperationException("WithProduct(...) must be called before BuildInternal().");
 
             var recipe = ScriptableObject.CreateInstance<S1StationFramework.StationRecipe>();
-            recipe.IsDiscovered = true;
-            recipe.Unlocked = true;
+            recipe.IsDiscovered = _initiallyDiscovered;
+            recipe.Unlocked = _initiallyUnlocked;
             recipe.RecipeTitle = string.IsNullOrWhiteSpace(_title) ? _productItemId! : _title!;
             recipe.CookTime_Mins = _cookTimeMinutes;
             recipe.CookTemperature = _cookTemperature;
