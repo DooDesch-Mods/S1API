@@ -39,6 +39,14 @@ Every public API PR must include a compatibility audit against the target branch
 
 Do not disguise API changes as refactors, cleanups, consistency fixes, or nullable improvements. Before changing a surprising legacy behavior, search existing tests, docs, samples, call sites, release history, and relevant native lifecycle behavior to determine whether mods may rely on it.
 
+The required `documentation` check enforces three repository-wide gates on pull
+requests: the full Mono contract suite, at least 80% public API documentation
+coverage, and Microsoft ApiCompat against the exact target-branch assembly.
+ApiCompat also checks public parameter names and attributes. Do not suppress,
+disable, or work around these checks for convenience. If an explicitly approved
+breaking release needs an exception, make that exception narrow and reviewable
+and document the migration impact in the PR.
+
 ## Testing Guidelines
 `S1API.Tests/` contains xUnit contract and compatibility tests. Before opening a PR, restore, build, and test both `MonoMelon` and `Il2CppMelon` with matching configurations. Exercise affected gameplay flows in both runtimes when behavior depends on native lifecycle, networking, save/load, or rendered state.
 
