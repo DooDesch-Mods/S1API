@@ -45,7 +45,9 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       # Determine which assembly branch to use (beta or main) - MUST run before cache
       - name: Determine Assembly Branch
@@ -254,6 +256,15 @@ jobs:
       - name: Build S1API
         run: dotnet build S1API/S1API.csproj --no-restore -c MonoMelon -v normal
 
+      - name: Run Mono contract and compatibility tests
+        run: >-
+          dotnet test
+          S1API.Tests/S1API.Tests.csproj
+          --no-restore
+          --configuration MonoMelon
+          --verbosity normal
+          --property:AutomateLocalDeployment=false
+
       - name: Upload S1API Mono Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -276,6 +287,44 @@ jobs:
           --
           --api-directory S1API/api
           --minimum 80
+
+      - name: Preserve pull request API assembly
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p "$RUNNER_TEMP/s1api-api-compat"
+          cp \
+            S1API/bin/MonoMelon/netstandard2.1/S1API.dll \
+            "$RUNNER_TEMP/s1api-api-compat/current.dll"
+
+      - name: Build target branch API baseline
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git checkout --detach --force "$BASE_SHA"
+          dotnet restore S1API/S1API.csproj -p:Configuration=MonoMelon
+          dotnet build \
+            S1API/S1API.csproj \
+            --no-restore \
+            --configuration MonoMelon \
+            --verbosity minimal \
+            --property:AutomateLocalDeployment=false
+          cp \
+            S1API/bin/MonoMelon/netstandard2.1/S1API.dll \
+            "$RUNNER_TEMP/s1api-api-compat/baseline.dll"
+
+      - name: Check public API compatibility
+        if: github.event_name == 'pull_request'
+        run: |
+          dotnet tool install \
+            Microsoft.DotNet.ApiCompat.Tool \
+            --tool-path "$RUNNER_TEMP/apicompat" \
+            --version 8.0.423
+          "$RUNNER_TEMP/apicompat/apicompat" \
+            --left "$RUNNER_TEMP/s1api-api-compat/baseline.dll" \
+            --right "$RUNNER_TEMP/s1api-api-compat/current.dll" \
+            --enable-rule-cannot-change-parameter-name \
+            --enable-rule-attributes-must-match
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
