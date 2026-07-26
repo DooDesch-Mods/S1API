@@ -23,10 +23,51 @@ namespace S1API.Entities.Supplier
             public float MaximumDeaddropOrderLimit { get; set; } = 500f;
             public List<S1ItemFramework.StorableItemDefinition> DeliveryItems { get; } =
                 new List<S1ItemFramework.StorableItemDefinition>();
+            public List<string> DeliveryItemIds { get; } =
+                new List<string>();
             public string SupplierRecommendMessage { get; set; } =
                 "My friend <NAME> can hook you up with <PRODUCT>. I've passed your number on to them.";
             public string SupplierUnlockHint { get; set; } =
                 "You can now order <PRODUCT> from <NAME>. <PRODUCT> can be used to <PURPOSE>.";
+
+            internal IReadOnlyList<S1ItemFramework.StorableItemDefinition>
+                ResolveDeliveryItems()
+            {
+                for (int idIndex = 0;
+                     idIndex < DeliveryItemIds.Count;
+                     idIndex++)
+                {
+                    ItemDefinition? item =
+                        ItemManager.GetDefinition(DeliveryItemIds[idIndex]);
+                    if (item == null ||
+                        !CrossType.Is(
+                            item.S1ItemDefinition,
+                            out S1ItemFramework.StorableItemDefinition storableItem))
+                    {
+                        continue;
+                    }
+
+                    bool alreadyResolved = false;
+                    for (int itemIndex = 0;
+                         itemIndex < DeliveryItems.Count;
+                         itemIndex++)
+                    {
+                        if (string.Equals(
+                                DeliveryItems[itemIndex]?.ID,
+                                storableItem.ID,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            alreadyResolved = true;
+                            break;
+                        }
+                    }
+
+                    if (!alreadyResolved)
+                        DeliveryItems.Add(storableItem);
+                }
+
+                return DeliveryItems;
+            }
         }
 
         private readonly SupplierConfigData data = new SupplierConfigData();
@@ -90,6 +131,7 @@ namespace S1API.Entities.Supplier
             }
 
             data.DeliveryItems.Add(storableItem);
+            AddDeliveryItemId(storableItem.ID);
             return this;
         }
 
@@ -102,21 +144,21 @@ namespace S1API.Entities.Supplier
             WithDeliveryItem((ItemDefinition)item);
 
         /// <summary>
-        /// Resolves and adds a registered item by ID.
+        /// Declares an item ID for this supplier.
         /// </summary>
-        /// <param name="itemId">The registered item ID.</param>
+        /// <param name="itemId">
+        /// The stable item ID. The item may be registered after NPC prefab discovery;
+        /// S1API resolves it when supplier runtime data is materialized.
+        /// </param>
         /// <returns>The current builder for chaining.</returns>
-        /// <exception cref="ArgumentException">Thrown when the ID is empty, missing, or resolves to a non-storable item.</exception>
+        /// <exception cref="ArgumentException">Thrown when the ID is empty.</exception>
         public SupplierDataBuilder WithDeliveryItem(string itemId)
         {
             if (string.IsNullOrWhiteSpace(itemId))
                 throw new ArgumentException("The item ID cannot be empty.", nameof(itemId));
 
-            ItemDefinition? item = ItemManager.GetDefinition(itemId);
-            if (item == null)
-                throw new ArgumentException($"No registered item has ID '{itemId}'.", nameof(itemId));
-
-            return WithDeliveryItem(item);
+            AddDeliveryItemId(itemId.Trim());
+            return this;
         }
 
         /// <summary>
@@ -158,5 +200,23 @@ namespace S1API.Entities.Supplier
         }
 
         internal SupplierConfigData BuildInternal() => data;
+
+        private void AddDeliveryItemId(string itemId)
+        {
+            for (int index = 0;
+                 index < data.DeliveryItemIds.Count;
+                 index++)
+            {
+                if (string.Equals(
+                        data.DeliveryItemIds[index],
+                        itemId,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+
+            data.DeliveryItemIds.Add(itemId);
+        }
     }
 }

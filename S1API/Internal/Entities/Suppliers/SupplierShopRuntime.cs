@@ -125,8 +125,10 @@ namespace S1API.Internal.Entities.Suppliers
             var listings = new ShopListingList();
             if (config != null)
             {
-                for (int i = 0; i < config.DeliveryItems.Count; i++)
-                    listings.Add(CreateListing(config.DeliveryItems[i]));
+                IReadOnlyList<S1Items.StorableItemDefinition> deliveryItems =
+                    config.ResolveDeliveryItems();
+                for (int i = 0; i < deliveryItems.Count; i++)
+                    listings.Add(CreateListing(deliveryItems[i]));
                 return listings;
             }
 

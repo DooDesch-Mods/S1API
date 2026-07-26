@@ -580,7 +580,6 @@ namespace S1API.Internal.Patches
 
             // We instantiated all custom NPCs up front; clear pending list to avoid duplicate fallback instantiation.
             _pendingCustomNpcTypes.Clear();
-            CustomNpcsReady = true;
         }
 
         /// <summary>
@@ -934,7 +933,8 @@ namespace S1API.Internal.Patches
                 // We use a coroutine to delay until after the NPC is fully spawned/initialized
                 if (!InstanceFinder.IsServer)
                 {
-                    MelonCoroutines.Start(SetClientVisibilityDelayed(__instance, apiNpc.IsPhysical));
+                    MelonCoroutines.Start(
+                        SetClientVisibilityDelayed(__instance, apiNpc));
                 }
             }
 
@@ -967,7 +967,9 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Coroutine to set NPC visibility on clients after a delay to ensure the NPC is fully spawned/initialized.
         /// </summary>
-        private static IEnumerator SetClientVisibilityDelayed(S1NPCs.NPC npc, bool isPhysical)
+        private static IEnumerator SetClientVisibilityDelayed(
+            S1NPCs.NPC npc,
+            NPC apiNpc)
         {
             // Wait a frame to ensure the NPC is fully initialized and spawned
             yield return null;
@@ -980,7 +982,9 @@ namespace S1API.Internal.Patches
                 if (npc != null && npc.gameObject != null)
                 {
                     // Set visibility directly on clients (not networked since we're a client)
-                    npc.SetVisible(isPhysical, networked: false);
+                    npc.SetVisible(
+                        apiNpc.ShouldBeVisibleAfterSpawn(),
+                        networked: false);
                 }
             }
             catch (Exception ex)
@@ -1341,6 +1345,14 @@ namespace S1API.Internal.Patches
                             Logger.Warning($"[S1API] NPCLoader_Load_Prefix: RelationData is null when trying to apply defaults for '{baseData.ID}'");
                         }
                     }
+
+                    // NPC.Load restores the prefab's saved visibility. Native suppliers do
+                    // not use that value as an idle-world presence: they remain hidden
+                    // until MeetAtLocation transitions them into Meeting. Reconcile after
+                    // hydration so custom suppliers follow the same lifecycle.
+                    s1BaseNpc.SetVisible(
+                        wrap.ShouldBeVisibleAfterSpawn(),
+                        networked: false);
                 }
                 else
                 {
@@ -1855,7 +1867,6 @@ namespace S1API.Internal.Patches
                 Logger.Warning($"[S1API] NPCLoader_Load_Postfix: Exception marking NPC '{baseData.ID}' as loaded: {ex.Message}");
             }
 
-            CustomNpcsReady = true;
         }
 
         /// <summary>

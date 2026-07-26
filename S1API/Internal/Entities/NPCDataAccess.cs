@@ -14,6 +14,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1Dialogue = ScheduleOne.Dialogue;
 using S1Economy = ScheduleOne.Economy;
+using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Messaging = ScheduleOne.Messaging;
 using S1NPCFramework = ScheduleOne.NPCs.Framework;
 using S1NPCs = ScheduleOne.NPCs;
@@ -269,13 +270,17 @@ namespace S1API.Internal.Entities
             supplierData.SupplierUnlockHint = data.SupplierUnlockHint;
 
 #if IL2CPPMELON
-            var listings = new Il2CppReferenceArray<Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing>(data.DeliveryItems.Count);
-            for (int i = 0; i < data.DeliveryItems.Count; i++)
-                listings[i] = new Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing(data.DeliveryItems[i]);
+            IReadOnlyList<S1ItemFramework.StorableItemDefinition> deliveryItems =
+                data.ResolveDeliveryItems();
+            var listings = new Il2CppReferenceArray<Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing>(deliveryItems.Count);
+            for (int i = 0; i < deliveryItems.Count; i++)
+                listings[i] = new Il2CppScheduleOne.UI.Phone.PhoneShopInterface.Listing(deliveryItems[i]);
 #else
-            var listings = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing[data.DeliveryItems.Count];
-            for (int i = 0; i < data.DeliveryItems.Count; i++)
-                listings[i] = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing(data.DeliveryItems[i]);
+            IReadOnlyList<S1ItemFramework.StorableItemDefinition> deliveryItems =
+                data.ResolveDeliveryItems();
+            var listings = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing[deliveryItems.Count];
+            for (int i = 0; i < deliveryItems.Count; i++)
+                listings[i] = new ScheduleOne.UI.Phone.PhoneShopInterface.Listing(deliveryItems[i]);
 #endif
             supplierData.DeliveryShopListings = listings;
         }

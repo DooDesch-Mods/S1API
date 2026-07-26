@@ -132,6 +132,9 @@ namespace S1API.Entities
         private static readonly System.Collections.Generic.Dictionary<System.Type, DealerDataBuilder.DealerConfigData> TypeToBuiltDealerDefaults = new System.Collections.Generic.Dictionary<System.Type, DealerDataBuilder.DealerConfigData>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, System.Action<SupplierDataBuilder>> TypeToSupplierDefaults = new System.Collections.Generic.Dictionary<System.Type, System.Action<SupplierDataBuilder>>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, SupplierDataBuilder.SupplierConfigData> TypeToBuiltSupplierDefaults = new System.Collections.Generic.Dictionary<System.Type, SupplierDataBuilder.SupplierConfigData>();
+        internal static readonly System.Collections.Generic.HashSet<System.Type>
+            FinalizedCustomNpcTypes =
+                new System.Collections.Generic.HashSet<System.Type>();
         private static readonly System.Collections.Generic.Dictionary<System.Type, (Vector3 position, Quaternion rotation)> TypeToSpawnPosition = new System.Collections.Generic.Dictionary<System.Type, (Vector3, Quaternion)>();
         private static readonly System.Collections.Generic.HashSet<System.Type> CustomerTypes = new System.Collections.Generic.HashSet<System.Type>();
         private static readonly System.Collections.Generic.HashSet<System.Type> DealerTypes = new System.Collections.Generic.HashSet<System.Type>();
@@ -3943,8 +3946,9 @@ namespace S1API.Entities
                     S1NPC.Awareness.Responses = validResponses;
                 }
 
-                // Always set visibility locally first (for host/client consistency)
-                S1NPC.SetVisible(IsPhysical, networked: false);
+                // Suppliers follow the native lifecycle: they remain hidden while idle and
+                // only become visible when the meeting flow places them at a supplier location.
+                S1NPC.SetVisible(ShouldBeVisibleAfterSpawn(), networked: false);
 
                 EnsureMessageConversationReady(resetDefaults: false);
                 
@@ -3952,7 +3956,7 @@ namespace S1API.Entities
                 // This ensures the NPC is fully spawned before the RPC is sent
                 if (InstanceFinder.IsServer)
                 {
-                    MelonCoroutines.Start(DelayedVisibilityRPC(IsPhysical));
+                    MelonCoroutines.Start(DelayedVisibilityRPC());
                 }
 
                 // If this prefab included a Customer, ensure it's initialized; otherwise, respect non-customer NPCs
@@ -4162,6 +4166,7 @@ namespace S1API.Entities
 
                 // Check if all custom NPCs are now ready (finalized)
                 // This sets the CustomNpcsReady flag once all custom NPCs have been spawned and finalized
+                FinalizedCustomNpcTypes.Add(GetType());
                 CheckAndSetCustomNpcsReady();
             }
             catch (Exception ex)
@@ -4182,24 +4187,18 @@ namespace S1API.Entities
 
             try
             {
-                // Check if all custom NPC types have been instantiated
-                var allCustomNpcs = All.Where(n => n.IsCustomNPC).ToList();
-
-                // If there are no custom NPCs, nothing to wait for
-                if (allCustomNpcs.Count == 0)
-                    return;
-
                 // Get all custom NPC types that should exist
                 var customNpcTypes = Internal.Utils.ReflectionUtils.GetDerivedClasses<NPC>()
                     .Where(t => t != null && !t.IsAbstract && t.Assembly != typeof(NPC).Assembly)
                     .ToList();
 
-                // Check if all custom NPC types have at least one instance
-                bool allTypesInstantiated = customNpcTypes.All(type =>
-                    allCustomNpcs.Any(npc => npc.GetType() == type)
-                );
+                if (customNpcTypes.Count == 0)
+                    return;
 
-                if (allTypesInstantiated)
+                bool allTypesFinalized = customNpcTypes.All(
+                    type => FinalizedCustomNpcTypes.Contains(type));
+
+                if (allTypesFinalized)
                     CustomNpcsReady = true;
             }
             catch (Exception ex)
@@ -4321,7 +4320,31 @@ namespace S1API.Entities
         /// <summary>
         /// Coroutine to send visibility RPC after a delay to ensure the NPC is fully spawned.
         /// </summary>
-        private IEnumerator DelayedVisibilityRPC(bool isPhysical)
+        internal bool ShouldBeVisibleAfterSpawn()
+        {
+            bool isSupplier = IsCustomNPC && IsSupplierType(GetType());
+            bool isSupplierMeeting = false;
+            if (isSupplier)
+            {
+                S1Economy.Supplier? supplier =
+                    gameObject.GetComponent<S1Economy.Supplier>();
+                isSupplierMeeting =
+                    supplier?.Status == S1Economy.Supplier.ESupplierStatus.Meeting;
+            }
+
+            return ResolveSpawnVisibility(
+                IsPhysical,
+                isSupplier,
+                isSupplierMeeting);
+        }
+
+        internal static bool ResolveSpawnVisibility(
+            bool isPhysical,
+            bool isSupplier,
+            bool isSupplierMeeting) =>
+            isPhysical && (!isSupplier || isSupplierMeeting);
+
+        private IEnumerator DelayedVisibilityRPC()
         {
             // Wait a frame to ensure the NPC is fully initialized and spawned
             yield return null;
@@ -4334,7 +4357,9 @@ namespace S1API.Entities
                 if (S1NPC != null && S1NPC.gameObject != null)
                 {
                     // Broadcast visibility to clients via RPC
-                    S1NPC.SetVisible(isPhysical, networked: true);
+                    S1NPC.SetVisible(
+                        ShouldBeVisibleAfterSpawn(),
+                        networked: true);
                 }
             }
             catch (Exception ex)

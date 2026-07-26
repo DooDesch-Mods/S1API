@@ -1,8 +1,10 @@
 #if IL2CPPMELON
+using S1Dialogue = Il2CppScheduleOne.Dialogue;
 using S1Economy = Il2CppScheduleOne.Economy;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Schedules = Il2CppScheduleOne.NPCs.Schedules;
 #elif MONOMELON
+using S1Dialogue = ScheduleOne.Dialogue;
 using S1Economy = ScheduleOne.Economy;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Schedules = ScheduleOne.NPCs.Schedules;
@@ -120,6 +122,84 @@ namespace S1API.Internal.Entities.Suppliers
             }
 
             return false;
+        }
+
+        internal static bool PrepareNativeStartDialogue(S1Economy.Supplier supplier)
+        {
+            S1Schedules.NPCEvent_LocationDialogue? reserved =
+                FindReservedAction(supplier);
+            S1Dialogue.DialogueController? controller =
+                supplier.DialogueHandler
+                    ?.GetComponent<S1Dialogue.DialogueController>();
+            if (reserved == null
+                || controller?.GreetingOverrides == null
+                || controller.Choices == null)
+            {
+                return false;
+            }
+
+            SupplierMeetingDialogueBindings bindings =
+                SupplierMeetingDialoguePolicy.ForNativeStart(
+                    controller.GreetingOverrides.Count,
+                    controller.Choices.Count);
+
+            // Content prefabs such as BaseEmployee can contribute active dialogue
+            // entries before they are converted to suppliers. Native Supplier.Start
+            // appends its meeting entries, so preserve the inherited data but leave it
+            // inactive while the supplier meeting action owns the interaction.
+            for (int i = 0; i < controller.GreetingOverrides.Count; i++)
+                controller.GreetingOverrides[i].ShouldShow = false;
+
+            for (int i = 0; i < controller.Choices.Count; i++)
+                controller.Choices[i].Enabled = false;
+
+            reserved.GreetingOverrideToEnable =
+                bindings.GreetingOverrideIndex;
+            reserved.ChoiceToEnable = bindings.ChoiceIndex;
+            return true;
+        }
+
+        internal static bool SetDialogueActive(
+            S1Economy.Supplier supplier,
+            bool active)
+        {
+            S1Schedules.NPCEvent_LocationDialogue? reserved =
+                FindReservedAction(supplier);
+            S1Dialogue.DialogueController? controller =
+                supplier.DialogueHandler
+                    ?.GetComponent<S1Dialogue.DialogueController>();
+            if (reserved == null
+                || controller?.GreetingOverrides == null
+                || controller.Choices == null
+                || reserved.GreetingOverrideToEnable < 0
+                || reserved.GreetingOverrideToEnable
+                    >= controller.GreetingOverrides.Count
+                || reserved.ChoiceToEnable < 0
+                || reserved.ChoiceToEnable >= controller.Choices.Count)
+            {
+                return false;
+            }
+
+            controller.GreetingOverrides[
+                reserved.GreetingOverrideToEnable].ShouldShow = active;
+            controller.Choices[
+                reserved.ChoiceToEnable].Enabled = active;
+            return true;
+        }
+
+        private static S1Schedules.NPCEvent_LocationDialogue?
+            FindReservedAction(S1Economy.Supplier supplier)
+        {
+            S1NPCs.NPCScheduleManager? manager =
+                supplier.Behaviour?.ScheduleManager
+                ?? supplier.GetComponentInChildren<S1NPCs.NPCScheduleManager>(
+                    true);
+            return manager
+                ?.GetComponentsInChildren<S1Schedules.NPCEvent_LocationDialogue>(
+                    true)
+                .FirstOrDefault(
+                    action => action != null
+                              && action.gameObject.name == MeetingActionName);
         }
     }
 }

@@ -81,12 +81,15 @@ namespace S1API.Internal.Entities
                 S1Shop.ShopInterface shop = SupplierShopRuntime.Ensure(supplier, stableId, config);
                 bool vehicleReady = SupplierDeliveryVehicleRuntime.Ensure(supplier, shop, stableId);
                 bool meetingReady = SupplierMeetingRuntime.EnsureSelected(supplier);
+                bool meetingDialogueReady =
+                    SupplierMeetingRuntime.PrepareNativeStartDialogue(supplier);
                 SupplierStashRuntime.SchedulePlacement(supplier);
 
                 return shop != null
                        && vehicleReady
                        && supplier.Stash?.Storage != null
-                       && meetingReady;
+                       && meetingReady
+                       && meetingDialogueReady;
             }
             catch (Exception ex)
             {
@@ -144,6 +147,24 @@ namespace S1API.Internal.Entities
             catch (Exception ex)
             {
                 Logger.Warning($"Failed to restore delivery availability for supplier '{supplier.ID}': {ex.Message}");
+            }
+        }
+
+        internal static void ReconcileMeetingDialogue(
+            S1Economy.Supplier supplier,
+            bool visible)
+        {
+            if (supplier == null)
+                return;
+
+            bool active = SupplierMeetingDialoguePolicy.ShouldActivate(
+                visible,
+                supplier.Status == S1Economy.Supplier.ESupplierStatus.Meeting);
+            if (!SupplierMeetingRuntime.SetDialogueActive(supplier, active)
+                && active)
+            {
+                Logger.Warning(
+                    $"Supplier '{supplier.ID}' entered a meeting without a bound shop dialogue choice.");
             }
         }
 
