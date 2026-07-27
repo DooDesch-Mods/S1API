@@ -24,4 +24,16 @@ public sealed class NpcVisibilityPolicyTests
                 isSupplier,
                 isSupplierMeeting));
     }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void LoadedVisibilityIsDeferredForSuppliersUntilAfterSpawn(
+        bool isSupplier,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            NPC.ShouldApplyLoadedVisibilityBeforeSpawn(isSupplier));
+    }
 }

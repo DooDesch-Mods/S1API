@@ -1346,13 +1346,15 @@ namespace S1API.Internal.Patches
                         }
                     }
 
-                    // NPC.Load restores the prefab's saved visibility. Native suppliers do
-                    // not use that value as an idle-world presence: they remain hidden
-                    // until MeetAtLocation transitions them into Meeting. Reconcile after
-                    // hydration so custom suppliers follow the same lifecycle.
-                    s1BaseNpc.SetVisible(
-                        wrap.ShouldBeVisibleAfterSpawn(),
-                        networked: false);
+                    // SetVisible(false) deactivates the Avatar GameObject. Custom suppliers
+                    // must remain active through FishNet spawn so native NPC.Awake can find
+                    // the Avatar reference; FinalizeNetworkSpawn applies idle visibility.
+                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(wrap.IsSupplier))
+                    {
+                        s1BaseNpc.SetVisible(
+                            wrap.ShouldBeVisibleAfterSpawn(),
+                            networked: false);
+                    }
                 }
                 else
                 {
