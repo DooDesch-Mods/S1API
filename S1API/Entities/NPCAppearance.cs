@@ -596,6 +596,11 @@ namespace S1API.Entities
             avatarSettings.CombinedLayer = null;
         }
 
+        internal S1AvatarFramework.AvatarSettings CreateSettingsSnapshot()
+        {
+            return ScriptableObject.Instantiate(_customAvatarSettings);
+        }
+
         private void InvalidateCombinedLayer()
         {
             _customAvatarSettings.UseCombinedLayer = false;

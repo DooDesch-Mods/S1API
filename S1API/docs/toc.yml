@@ -22,6 +22,8 @@
           href: custom-npcs.md
         - name: Basic NPC Creation
           href: basic-npc-creation.md
+        - name: NPC Workbench
+          href: npc-workbench.md
         - name: Prefab Configuration
           href: prefab-configuration.md
         - name: NPC Runtime Management
