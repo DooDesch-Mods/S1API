@@ -59,6 +59,89 @@ public sealed class ProductPresentationProfileBuilderTests
         Assert.Same(held, resolved);
     }
 
+    [Fact]
+    public void AvatarHeldPresentationFallsBackToLegacyHeldPresentation()
+    {
+        Func<GameObject?> held = () => null;
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithHeldVisual(held)
+                .Build();
+
+        Assert.True(
+            profile.TryGetAvatarHeldVisualProvider(
+                out Func<GameObject?>? avatarProvider));
+        Assert.Same(held, avatarProvider);
+        Assert.False(
+            profile.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? avatarTransform));
+        Assert.Null(avatarTransform);
+    }
+
+#if MONOMELON
+    [Fact]
+    public void AvatarHeldPresentationMayOverrideHeldPoseAndSource()
+    {
+        Func<GameObject?> held = () => null;
+        Func<GameObject?> avatar = () => null;
+        var heldTransform =
+            new ProductPresentationTransform(
+                Vector3.zero,
+                new Vector3(0f, 180f, 0f),
+                Vector3.one * 1.8f);
+        var avatarTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, -0.16f, 0f),
+                new Vector3(0f, 270f, 0f),
+                Vector3.one * 2.25f);
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithHeldVisual(held, heldTransform)
+                .WithAvatarHeldVisual(avatar, avatarTransform)
+                .Build();
+
+        Assert.True(
+            profile.TryGetAvatarHeldVisualProvider(
+                out Func<GameObject?>? resolvedProvider));
+        Assert.Same(avatar, resolvedProvider);
+        Assert.True(
+            profile.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? resolvedTransform));
+        Assert.Same(avatarTransform, resolvedTransform);
+    }
+
+    [Fact]
+    public void AvatarHeldSourceAndTransformAreOrderIndependent()
+    {
+        Func<GameObject?> avatar = () => null;
+        var avatarTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, -0.16f, 0f),
+                new Vector3(0f, 270f, 0f),
+                Vector3.one * 2.25f);
+
+        ProductPresentationProfile transformFirst =
+            new ProductPresentationProfileBuilder()
+                .WithAvatarHeldTransform(avatarTransform)
+                .WithAvatarHeldVisual(avatar)
+                .Build();
+        ProductPresentationProfile sourceFirst =
+            new ProductPresentationProfileBuilder()
+                .WithAvatarHeldVisual(avatar)
+                .WithAvatarHeldTransform(avatarTransform)
+                .Build();
+
+        Assert.True(
+            transformFirst.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? transformFirstResult));
+        Assert.True(
+            sourceFirst.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? sourceFirstResult));
+        Assert.Same(avatarTransform, transformFirstResult);
+        Assert.Same(avatarTransform, sourceFirstResult);
+    }
+#endif
+
 #if MONOMELON
     [Fact]
     public void LooseTransformFallsBackUntilAContextDefinesItsOwnProvider()
