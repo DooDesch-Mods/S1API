@@ -415,11 +415,19 @@ namespace S1API.Internal.Entities
 
                 try
                 {
-                    owner?.PrepareForNetworkSpawn();
+                    if (owner != null && !owner.PrepareForNetworkSpawn())
+                    {
+                        Logger.Warning(
+                            $"[NPCNetworkBootstrap] Dropping invalid pending spawn for '{ownerId}'.");
+                        PendingSpawns.RemoveAt(i);
+                        continue;
+                    }
                 }
                 catch (Exception prepEx)
                 {
                     Logger.Warning($"[NPCNetworkBootstrap] PrepareForNetworkSpawn threw for '{ownerId}': {prepEx.Message}");
+                    PendingSpawns.RemoveAt(i);
+                    continue;
                 }
 
                 try

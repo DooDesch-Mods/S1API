@@ -2,6 +2,7 @@
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
 using S1Dialogue = Il2CppScheduleOne.Dialogue;
+using S1Equipping = Il2CppScheduleOne.Equipping.Framework;
 using S1Interaction = Il2CppScheduleOne.Interaction;
 using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1Noise = Il2CppScheduleOne.Noise;
@@ -15,6 +16,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Behaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1Vision = Il2CppScheduleOne.Vision;
+using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Employees = Il2CppScheduleOne.Employees;
 using S1Combat = Il2CppScheduleOne.Combat;
@@ -29,6 +31,7 @@ using ConversationCategoryList = Il2CppSystem.Collections.Generic.List<Il2CppSch
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 using S1Dialogue = ScheduleOne.Dialogue;
+using S1Equipping = ScheduleOne.Equipping.Framework;
 using S1Interaction = ScheduleOne.Interaction;
 using S1Messaging = ScheduleOne.Messaging;
 using S1Noise = ScheduleOne.Noise;
@@ -42,6 +45,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1Behaviour = ScheduleOne.NPCs.Behaviour;
 using S1Vehicles = ScheduleOne.Vehicles;
 using S1Vision = ScheduleOne.Vision;
+using S1VoiceOver = ScheduleOne.VoiceOver;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Employees = ScheduleOne.Employees;
 using S1Combat = ScheduleOne.Combat;
@@ -3907,10 +3911,17 @@ namespace S1API.Entities
             }
         }
 
-        internal void PrepareForNetworkSpawn()
+        internal bool PrepareForNetworkSpawn()
         {
             try
             {
+                if (!TryValidateNativeAwakeReferences(out string diagnostic))
+                {
+                    Logger.Error(
+                        $"[NPC] Refusing to spawn custom NPC '{GetSafeNpcId()}' because its native Awake reference graph is invalid: {diagnostic}");
+                    return false;
+                }
+
                 NPCDataAccess.PrepareForRuntime(S1NPC);
 
                 var customer = gameObject.GetComponent<S1Economy.Customer>();
@@ -3928,11 +3939,66 @@ namespace S1API.Entities
 
                     SupplierRuntimeCoordinator.EnsureReady(supplier, ID, defaults);
                 }
+
+                return true;
             }
             catch (Exception ex)
             {
                 Logger.Warning($"[S1API] Failed to prepare NPC runtime data before spawn: {ex.Message}");
+                return false;
             }
+        }
+
+        private bool TryValidateNativeAwakeReferences(out string diagnostic)
+        {
+            var missing = new System.Collections.Generic.List<string>();
+
+            if (gameObject.GetComponent<S1NPCs.NPCInventory>() == null)
+                missing.Add(nameof(S1NPCs.NPCInventory));
+            if (gameObject.GetComponent<S1NPCs.NPCHealth>() == null)
+                missing.Add(nameof(S1NPCs.NPCHealth));
+            if (gameObject.GetComponent<S1Vision.EntityVisibility>() == null)
+                missing.Add(nameof(S1Vision.EntityVisibility));
+            if (gameObject.GetComponent<S1NPCs.NPCMovement>() == null)
+                missing.Add(nameof(S1NPCs.NPCMovement));
+            if (gameObject.GetComponent<S1Equipping.NetworkedEquipper>() == null)
+                missing.Add(nameof(S1Equipping.NetworkedEquipper));
+
+            var activeAvatar =
+                gameObject.GetComponentInChildren<S1AvatarFramework.Avatar>();
+            var anyAvatar =
+                gameObject.GetComponentInChildren<S1AvatarFramework.Avatar>(true);
+            if (activeAvatar == null)
+            {
+                missing.Add(
+                    anyAvatar == null
+                        ? "Avatar"
+                        : "Avatar(active)");
+            }
+            else if (activeAvatar.HeadBone == null)
+            {
+                missing.Add("Avatar.HeadBone");
+            }
+            else if (activeAvatar.HeadBone.GetComponentInChildren<S1VoiceOver.VOEmitter>() == null)
+            {
+                missing.Add(nameof(S1VoiceOver.VOEmitter));
+            }
+
+            if (gameObject.GetComponentInChildren<S1Dialogue.DialogueHandler>() == null)
+                missing.Add(nameof(S1Dialogue.DialogueHandler));
+            if (gameObject.GetComponentInChildren<S1NPCs.NPCAwareness>() == null)
+                missing.Add(nameof(S1NPCs.NPCAwareness));
+            if (gameObject.GetComponentInChildren<S1Responses.NPCResponses>() == null)
+                missing.Add(nameof(S1Responses.NPCResponses));
+            if (gameObject.GetComponentInChildren<S1NPCs.Actions.NPCActions>() == null)
+                missing.Add(nameof(S1NPCs.Actions.NPCActions));
+            if (gameObject.GetComponentInChildren<S1Behaviour.NPCBehaviour>() == null)
+                missing.Add(nameof(S1Behaviour.NPCBehaviour));
+
+            diagnostic = missing.Count == 0
+                ? string.Empty
+                : string.Join(", ", missing);
+            return missing.Count == 0;
         }
 
         internal void FinalizeNetworkSpawn()
@@ -4343,6 +4409,10 @@ namespace S1API.Entities
             bool isSupplier,
             bool isSupplierMeeting) =>
             isPhysical && (!isSupplier || isSupplierMeeting);
+
+        internal static bool ShouldApplyLoadedVisibilityBeforeSpawn(
+            bool isSupplier) =>
+            !isSupplier;
 
         private IEnumerator DelayedVisibilityRPC()
         {

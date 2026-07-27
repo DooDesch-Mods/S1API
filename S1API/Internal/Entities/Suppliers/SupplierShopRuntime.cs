@@ -165,8 +165,18 @@ namespace S1API.Internal.Entities.Suppliers
                 for (int i = shop.ListingContainer.childCount - 1; i >= 0; i--)
                 {
                     Transform child = shop.ListingContainer.GetChild(i);
-                    if (shop.ListingUIPrefab != null && child.gameObject == shop.ListingUIPrefab.gameObject)
+                    bool isAmountSelector =
+                        shop.AmountSelector != null &&
+                        child == shop.AmountSelector.transform;
+                    bool isListingUi =
+                        child.GetComponent<S1Shop.ListingUI>() != null;
+                    if (!ShouldRemoveClonedUiChild(
+                            isListingUi,
+                            isAmountSelector))
+                    {
                         continue;
+                    }
+
                     Object.DestroyImmediate(child.gameObject);
                 }
             }
@@ -181,5 +191,10 @@ namespace S1API.Internal.Entities.Suppliers
                     | System.Reflection.BindingFlags.Instance)
                 ?.Invoke(listingPanel, null);
         }
+
+        internal static bool ShouldRemoveClonedUiChild(
+            bool isListingUi,
+            bool isAmountSelector) =>
+            isListingUi && !isAmountSelector;
     }
 }
