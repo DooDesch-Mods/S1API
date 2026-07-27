@@ -11,7 +11,6 @@ namespace S1API.Internal.Rendering
 
             Renderer[] renderers = source.GetComponentsInChildren<Renderer>(true);
             Transform? common = null;
-            bool foundEnabled = false;
 
             for (int index = 0; index < renderers.Length; index++)
             {
@@ -22,23 +21,9 @@ namespace S1API.Internal.Rendering
                 common = common == null
                     ? renderer.transform
                     : FindCommonAncestor(common, renderer.transform, source.transform);
-                foundEnabled = true;
             }
 
-            if (!foundEnabled)
-            {
-                for (int index = 0; index < renderers.Length; index++)
-                {
-                    common = common == null
-                        ? renderers[index].transform
-                        : FindCommonAncestor(
-                            common,
-                            renderers[index].transform,
-                            source.transform);
-                }
-            }
-
-            return (common ?? source.transform).gameObject;
+            return common?.gameObject;
         }
 
         private static Transform FindCommonAncestor(

@@ -4,6 +4,7 @@ using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 #endif
 
+using System;
 using S1API.Items;
 using UnityEngine;
 
@@ -25,28 +26,39 @@ namespace S1API.Internal.Rendering
 
             GameObject equippableRoot =
                 item.S1ItemDefinition.Equippable.gameObject;
+            PresentationWorkbenchDefinition.AvatarPreviewContext? avatar =
+                TryCreateAvatarContext(equippableRoot);
             GameObject? firstPersonVisual =
                 PresentationWorkbenchVisualResolver.FindVisibleRoot(
                     equippableRoot);
-            if (firstPersonVisual == null)
+            if (firstPersonVisual == null && avatar == null)
                 return false;
 
-            var firstPerson =
-                new PresentationWorkbenchDefinition.PreviewContext(
-                    () => ResolveItemVisual(itemId),
-                    PresentationWorkbenchTransform.From(
-                        firstPersonVisual.transform),
-                    PresentationWorkbenchExportKind.LocalTransformAssignments);
+            PresentationWorkbenchDefinition.PreviewContext? firstPerson =
+                firstPersonVisual == null
+                    ? null
+                    : new PresentationWorkbenchDefinition.PreviewContext(
+                        () => ResolveItemVisual(itemId),
+                        PresentationWorkbenchTransform.From(
+                            firstPersonVisual.transform),
+                        PresentationWorkbenchExportKind.LocalTransformAssignments);
 
-            PresentationWorkbenchDefinition.AvatarPreviewContext? avatar =
-                TryCreateAvatarContext(equippableRoot);
+            GameObject iconVisual =
+                firstPersonVisual ??
+                avatar!.Provider() ??
+                throw new InvalidOperationException(
+                    $"Avatar visual for item '{itemId}' disappeared during discovery.");
+            Func<GameObject?> iconProvider =
+                firstPersonVisual != null
+                    ? () => ResolveItemVisual(itemId)
+                    : avatar!.Provider;
             var icon =
                 new PresentationWorkbenchDefinition.IconPreviewContext(
-                    () => ResolveItemVisual(itemId),
+                    iconProvider,
                     new PresentationWorkbenchTransform(
                         Vector3.zero,
-                        firstPersonVisual.transform.localEulerAngles,
-                        firstPersonVisual.transform.localScale),
+                        iconVisual.transform.localEulerAngles,
+                        iconVisual.transform.localScale),
                     DefaultIconSize,
                     fitToCamera: true,
                     DefaultCameraFill);

@@ -662,6 +662,8 @@ namespace S1API.Internal.Rendering
             {
                 GameObject source = GetSource(provider, context);
                 GameObject clone = Object.Instantiate(source);
+                clone.SetActive(false);
+                DisableBehaviours(clone);
                 clone.name = $"S1API {context} Preview ({source.name})";
                 return clone;
             }
@@ -725,6 +727,14 @@ namespace S1API.Internal.Rendering
                     rigidbody.isKinematic = true;
                     rigidbody.detectCollisions = false;
                 }
+            }
+
+            private static void DisableBehaviours(GameObject root)
+            {
+                var behaviours =
+                    root.GetComponentsInChildren<Behaviour>(true);
+                for (int index = 0; index < behaviours.Length; index++)
+                    behaviours[index].enabled = false;
             }
 
             private static bool IsFinite(Vector3 value) =>
