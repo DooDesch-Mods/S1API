@@ -3915,6 +3915,13 @@ namespace S1API.Entities
         {
             try
             {
+                if (!TryValidateNativeAwakeReferences(out string diagnostic))
+                {
+                    Logger.Error(
+                        $"[NPC] Refusing to spawn custom NPC '{GetSafeNpcId()}' because its native Awake reference graph is invalid: {diagnostic}");
+                    return false;
+                }
+
                 NPCDataAccess.PrepareForRuntime(S1NPC);
 
                 var customer = gameObject.GetComponent<S1Economy.Customer>();
@@ -3931,13 +3938,6 @@ namespace S1API.Entities
                         TryApplySupplierDefaults(supplier, defaults);
 
                     SupplierRuntimeCoordinator.EnsureReady(supplier, ID, defaults);
-                }
-
-                if (!TryValidateNativeAwakeReferences(out string diagnostic))
-                {
-                    Logger.Error(
-                        $"[NPC] Refusing to spawn custom NPC '{GetSafeNpcId()}' because its native Awake reference graph is invalid: {diagnostic}");
-                    return false;
                 }
 
                 return true;
