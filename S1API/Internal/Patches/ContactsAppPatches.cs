@@ -180,8 +180,7 @@ namespace S1API.Internal.Patches
         private static void AddRelationCircles(S1ContactsApp.ContactsApp contactsApp)
         {
             var customNPCs = NPC.All
-                .Where(n => n.IsCustomNPC &&
-                            (NPC.IsCustomerType(n.GetType()) || NPC.IsDealerType(n.GetType())))
+                .Where(n => n.IsCustomNPC && IsContactRole(n.GetType()))
                 .ToList();
 
             var regionUIs = contactsApp.RegionUIs.ToDictionary(r => r.Region, r => r);
@@ -377,6 +376,13 @@ namespace S1API.Internal.Patches
 
             // Create connection lines for custom NPCs
             CreateConnectionLines(contactsApp, customNPCs, regionUIs);
+        }
+
+        internal static bool IsContactRole(System.Type npcType)
+        {
+            return NPC.IsCustomerType(npcType)
+                   || NPC.IsDealerType(npcType)
+                   || NPC.IsSupplierType(npcType);
         }
 
         /// <summary>
