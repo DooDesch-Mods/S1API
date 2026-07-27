@@ -110,7 +110,8 @@ namespace S1API.Items
 
         /// <summary>
         /// Configures the third-person avatar equippable animation.
-        /// Only applies to viewmodel equippables created with <see cref="CreateViewmodelEquippable"/>.
+        /// Viewmodel equippables use the native viewmodel lifecycle. Other
+        /// equippable types use S1API's shared avatar synchronization runtime.
         /// </summary>
         /// <param name="assetPath">Resources path to the AvatarEquippable prefab (e.g., "Equippables/MyItem").</param>
         /// <param name="hand">Which hand holds the item in third-person (Left or Right).</param>
@@ -204,39 +205,13 @@ namespace S1API.Items
                     viewmodelEquippable.localScale = _viewmodelScale.Value;
                 }
 
-                // Configure AvatarEquippable if provided
-                if (!string.IsNullOrEmpty(_avatarEquippableAssetPath))
-                {
-                    // Create a child GameObject for the AvatarEquippable
-                    var avatarEquippableGO = new GameObject("AvatarEquippable");
-                    avatarEquippableGO.transform.SetParent(_gameObject.transform);
-                    
-                    var avatarEquippable = avatarEquippableGO.AddComponent<S1AvatarEquipping.AvatarEquippable>();
-                    avatarEquippable.AssetPath = _avatarEquippableAssetPath;
-                    avatarEquippable.Hand = _avatarHand;
-                    avatarEquippable.AnimationTrigger = _avatarAnimationTrigger;
-                    
-                    // Create an alignment point if it doesn't exist
-                    if (avatarEquippable.AlignmentPoint == null)
-                    {
-                        var alignmentPoint = new GameObject("AlignmentPoint");
-                        alignmentPoint.transform.SetParent(avatarEquippableGO.transform);
-                        alignmentPoint.transform.localPosition = Vector3.zero;
-                        alignmentPoint.transform.localRotation = Quaternion.identity;
-                        avatarEquippable.AlignmentPoint = alignmentPoint.transform;
-                    }
-                    
-                    viewmodelEquippable.AvatarEquippable = avatarEquippable;
-                }
             }
+
+            ApplyAvatarPresentation();
 
             ApplyInteractionSettings(_equippable);
 
-            // Make it persistent across scene loads
-            Object.DontDestroyOnLoad(_gameObject);
-
-            // Set inactive (prefab-like state)
-            _gameObject.SetActive(false);
+            RuntimePrefabCache.Store(_gameObject);
 
             return new Equippable(_equippable);
         }
@@ -252,15 +227,51 @@ namespace S1API.Items
                 throw new System.InvalidOperationException("Cannot build equippable: No equippable component created. Call CreateEquippable<T>() or CreateBasicEquippable() first.");
             }
 
+            ApplyAvatarPresentation();
             ApplyInteractionSettings(_equippable);
 
-            // Make it persistent across scene loads
-            Object.DontDestroyOnLoad(_gameObject);
-
-            // Set inactive (prefab-like state)
-            _gameObject.SetActive(false);
+            RuntimePrefabCache.Store(_gameObject);
 
             return _equippable;
+        }
+
+        private void ApplyAvatarPresentation()
+        {
+            if (_gameObject == null ||
+                _equippable == null ||
+                string.IsNullOrEmpty(_avatarEquippableAssetPath))
+            {
+                return;
+            }
+
+            var avatarEquippable =
+                _gameObject.GetComponentInChildren<
+                    S1AvatarEquipping.AvatarEquippable>(true);
+            if (avatarEquippable == null)
+            {
+                var avatarEquippableObject =
+                    new GameObject("AvatarEquippable");
+                avatarEquippableObject.transform.SetParent(
+                    _gameObject.transform,
+                    false);
+                avatarEquippable =
+                    avatarEquippableObject
+                        .AddComponent<
+                            S1AvatarEquipping.AvatarEquippable>();
+
+                var alignmentPoint = new GameObject("AlignmentPoint");
+                alignmentPoint.transform.SetParent(
+                    avatarEquippableObject.transform,
+                    false);
+                avatarEquippable.AlignmentPoint =
+                    alignmentPoint.transform;
+            }
+
+            avatarEquippable.AssetPath = _avatarEquippableAssetPath;
+            avatarEquippable.Hand = _avatarHand;
+            avatarEquippable.AnimationTrigger = _avatarAnimationTrigger;
+            if (_equippable is S1Equipping.Equippable_Viewmodel viewmodel)
+                viewmodel.AvatarEquippable = avatarEquippable;
         }
 
         /// <summary>
