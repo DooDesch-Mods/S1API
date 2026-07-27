@@ -11,23 +11,22 @@ or the game:
 - **Product** targets read existing `ProductPresentationProfile` registrations.
 - **Item** targets read the registered item definition, its equippable visual,
   and its linked avatar-equippable resource.
-- **Avatar** targets read a registered or native avatar-equippable resource
-  path directly.
 
 The workbench provides three context-accurate previews when the discovered
 target supports them:
 
 - **First person** clones the visual into the local player's real viewmodel
   container and assigns the `Viewmodel` layer.
-- **Avatar** aligns the visual to the configured hand on the local player's
-  visible avatar and renders the result through a dedicated preview camera.
+- **Avatar** clones the native mugshot avatar into an isolated stage, aligns
+  the item's linked equippable with the same alignment-point math used by the
+  game, and renders it through a dedicated preview camera.
 - **Icon** captures the visual through the base game's native `IconGenerator`
   rig. Position is intentionally omitted because `IconFactory` centers the
   renderer bounds before capture.
 
 The workbench never equips an inventory slot, mutates a registered definition,
 persists values, or sends an RPC. Closing it or unloading the scene destroys
-all preview objects and restores movement, inventory, cursor, camera, avatar,
+all preview objects and restores movement, inventory, cursor, camera,
 and previously visible equippable state.
 
 ## Open a registered target
@@ -38,12 +37,11 @@ explicit forms are:
 ```text
 presentation_workbench product example.mod:products/focus-tablet
 presentation_workbench item example.mod:items/storage-pallet
-presentation_workbench avatar ExampleMod/Items/StoragePallet/Held
 presentation_workbench close
 ```
 
-For convenience, omit the target kind to resolve a value in product, item,
-then avatar order:
+For convenience, omit the target kind to resolve a value in product, then
+item order:
 
 ```text
 presentation_workbench example.mod:products/focus-tablet
@@ -60,11 +58,13 @@ Enter or by moving focus. Icon changes are debounced before the native rig is
 captured again. `Fit` enables bounds-based automatic scale fitting;
 `cameraFill` controls how much of the native camera's vertical view the fitted
 model occupies. Values greater than `1` intentionally crop the model.
+In the avatar preview, drag with the left mouse button to orbit and use the
+mouse wheel to zoom. Reset restores both the authored transform and camera.
 
 Use **Copy C#** to copy an invariant-culture fragment for an existing API:
 
 - product poses copy a `ProductPresentationTransform`;
-- item and avatar resources copy local transform assignments for the visible
+- item avatar previews copy local transform assignments for the visible
   prefab root selected by the tool;
 - icons copy `IconFactory.GenerateIconSprite(...)` setup and arguments.
 
@@ -95,7 +95,7 @@ Use `WithAvatarHeldVisual(provider, avatarPose)` when the avatar also needs a
 different source. Omitting both avatar-specific methods keeps the existing
 held visual and pose behavior.
 
-## Item and avatar discovery
+## Item discovery
 
 An item target uses the enabled renderer hierarchy under the registered
 equippable as its editable visual root. If the equippable references an
@@ -117,7 +117,8 @@ the Main or Tutorial scene. It is a local authoring aid, not a multiplayer
 content transfer or runtime customization protocol.
 
 The first-person preview uses the game's actual viewmodel container, so it is
-the authoritative camera-space preview. The avatar panel isolates the player
-layer against a neutral background; it does not simulate every locomotion or
-animation state. Icon preview uses the authoritative native capture pipeline,
-including automatic centering and optional bounds fitting.
+the authoritative camera-space preview. The avatar panel uses a detached
+native mugshot rig against a neutral background; it does not mutate the local
+player or simulate every locomotion or animation state. Icon preview uses the
+authoritative native capture pipeline, including automatic centering and
+optional bounds fitting.

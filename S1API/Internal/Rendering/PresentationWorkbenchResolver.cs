@@ -7,12 +7,10 @@ namespace S1API.Internal.Rendering
     {
         internal const string ProductTarget = "product";
         internal const string ItemTarget = "item";
-        internal const string AvatarTarget = "avatar";
 
         internal static bool IsTargetKind(string value) =>
             value.Equals(ProductTarget, StringComparison.OrdinalIgnoreCase) ||
-            value.Equals(ItemTarget, StringComparison.OrdinalIgnoreCase) ||
-            value.Equals(AvatarTarget, StringComparison.OrdinalIgnoreCase);
+            value.Equals(ItemTarget, StringComparison.OrdinalIgnoreCase);
 
         internal static bool TryResolve(
             string id,
@@ -24,7 +22,7 @@ namespace S1API.Internal.Rendering
             failure = string.Empty;
             if (string.IsNullOrWhiteSpace(id))
             {
-                failure = "A product ID, item ID, or avatar resource path is required.";
+                failure = "A product ID or item ID is required.";
                 return false;
             }
 
@@ -61,24 +59,10 @@ namespace S1API.Internal.Rendering
                 return false;
             }
 
-            if (normalizedKind == AvatarTarget)
-            {
-                if (ItemPresentationWorkbenchAdapter.TryCreateAvatarDefinition(
-                        normalizedId,
-                        out definition))
-                {
-                    return true;
-                }
-
-                failure =
-                    $"No avatar equippable is registered at '{normalizedId}'.";
-                return false;
-            }
-
             if (normalizedKind != null)
             {
                 failure =
-                    $"Unknown presentation target '{targetKind}'. Expected product, item, or avatar.";
+                    $"Unknown presentation target '{targetKind}'. Expected product or item.";
                 return false;
             }
 
@@ -87,16 +71,13 @@ namespace S1API.Internal.Rendering
                     out definition) ||
                 ItemPresentationWorkbenchAdapter.TryCreateDefinition(
                     normalizedId,
-                    out definition) ||
-                ItemPresentationWorkbenchAdapter.TryCreateAvatarDefinition(
-                    normalizedId,
                     out definition))
             {
                 return true;
             }
 
             failure =
-                $"No product profile, item equippable, or avatar resource was found for '{normalizedId}'.";
+                $"No product profile or item equippable was found for '{normalizedId}'.";
             return false;
         }
     }

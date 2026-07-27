@@ -73,45 +73,6 @@ namespace S1API.Internal.Rendering
             return true;
         }
 
-        internal static bool TryCreateAvatarDefinition(
-            string assetPath,
-            out PresentationWorkbenchDefinition? definition)
-        {
-            definition = null;
-            GameObject? prefab = ResolveAvatarPrefab(assetPath);
-            GameObject? visual =
-                PresentationWorkbenchVisualResolver.FindVisibleRoot(prefab);
-            if (prefab == null || visual == null)
-                return false;
-
-            S1AvatarEquipping.AvatarEquippable? avatarEquippable =
-                prefab.GetComponentInChildren<
-                    S1AvatarEquipping.AvatarEquippable>(true);
-            AvatarHand hand =
-                avatarEquippable != null &&
-                avatarEquippable.Hand ==
-                S1AvatarEquipping.AvatarEquippable.EHand.Left
-                    ? AvatarHand.Left
-                    : AvatarHand.Right;
-            string animationTrigger =
-                avatarEquippable?.AnimationTrigger ??
-                "RightArm_Hold_ClosedHand";
-
-            definition =
-                new PresentationWorkbenchDefinition(
-                    assetPath,
-                    $"Avatar equippable: {assetPath}",
-                    firstPerson: null,
-                    new PresentationWorkbenchDefinition.AvatarPreviewContext(
-                        () => ResolveAvatarVisual(assetPath),
-                        PresentationWorkbenchTransform.From(visual.transform),
-                        hand,
-                        animationTrigger,
-                        PresentationWorkbenchExportKind.LocalTransformAssignments),
-                    icon: null);
-            return true;
-        }
-
         private static PresentationWorkbenchDefinition.AvatarPreviewContext?
             TryCreateAvatarContext(GameObject equippableRoot)
         {
@@ -140,7 +101,13 @@ namespace S1API.Internal.Rendering
                 hand,
                 avatarEquippable.AnimationTrigger ??
                 "RightArm_Hold_ClosedHand",
-                PresentationWorkbenchExportKind.LocalTransformAssignments);
+                PresentationWorkbenchExportKind.LocalTransformAssignments,
+                () => ResolveAvatarPrefab(assetPath),
+                PresentationWorkbenchVisualResolver.FindVisibleRoot,
+                alignAvatarEquippable: true,
+                animationUsesBool:
+                    avatarEquippable.TriggerType ==
+                    S1AvatarEquipping.AvatarEquippable.ETriggerType.Bool);
         }
 
         private static GameObject? ResolveItemVisual(string itemId)

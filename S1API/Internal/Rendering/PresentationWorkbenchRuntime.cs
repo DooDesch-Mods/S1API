@@ -1,16 +1,22 @@
 #if IL2CPPMELON
+using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
+using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 #elif MONOMELON
+using S1AvatarFramework = ScheduleOne.AvatarFramework;
+using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 #endif
 
 using System;
+using System.Collections;
 using S1API.Internal.Utils;
 using S1API.Items;
 using S1API.Logging;
 using S1API.Rendering;
+using MelonLoader;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -58,7 +64,6 @@ namespace S1API.Internal.Rendering
 
                 var session = new Session(
                     definition,
-                    player!,
                     inventory!,
                     playerCamera!,
                     movement!);
@@ -142,13 +147,11 @@ namespace S1API.Internal.Rendering
 
         private sealed class Session : IDisposable
         {
-            private readonly S1PlayerScripts.Player _player;
             private readonly S1PlayerScripts.PlayerInventory _inventory;
             private readonly S1PlayerScripts.PlayerCamera _playerCamera;
             private readonly S1PlayerScripts.PlayerMovement _movement;
             private readonly bool _previousCanLook;
             private readonly bool _previousCanMove;
-            private readonly bool _previousAvatarVisible;
             private readonly bool _previousHotbarEnabled;
             private readonly bool _previousEquippingEnabled;
             private readonly CursorLockMode _previousCursorLockMode;
@@ -161,22 +164,36 @@ namespace S1API.Internal.Rendering
             private readonly PresentationWorkbenchView _view;
             private PresentationWorkbenchMode _mode;
             private GameObject? _previewVisual;
+            private GameObject? _avatarPreviewRoot;
             private GameObject? _avatarAnchor;
+            private GameObject? _avatarStage;
+            private S1AvatarFramework.Avatar? _avatarRig;
+            private S1AvatarFramework.AvatarSettings? _avatarSettings;
             private Camera? _avatarCamera;
             private RenderTexture? _avatarTexture;
+            private Vector3 _avatarLastMousePosition;
+            private float _avatarYaw = 180f;
+            private float _avatarPitch;
+            private float _avatarDistance = 2.8f;
+            private int _avatarSettleFrames;
+            private int _avatarRendererRefreshFrames;
+            private bool _avatarAppearanceApplied;
+            private bool _avatarAnimationApplied;
+            private bool _avatarHasMousePosition;
             private Texture2D? _iconTexture;
+            private Sprite? _iconSprite;
             private float _iconRefreshAt = -1f;
+            private int _iconCaptureRevision;
+            private bool _iconCaptureRunning;
             private bool _disposed;
 
             internal Session(
                 PresentationWorkbenchDefinition definition,
-                S1PlayerScripts.Player player,
                 S1PlayerScripts.PlayerInventory inventory,
                 S1PlayerScripts.PlayerCamera playerCamera,
                 S1PlayerScripts.PlayerMovement movement)
             {
                 Definition = definition;
-                _player = player;
                 _inventory = inventory;
                 _playerCamera = playerCamera;
                 _movement = movement;
@@ -186,10 +203,6 @@ namespace S1API.Internal.Rendering
                 _previousEquippingEnabled = inventory.EquippingEnabled;
                 _previousCursorLockMode = Cursor.lockState;
                 _previousCursorVisible = Cursor.visible;
-                _previousAvatarVisible =
-                    ReflectionUtils.TryGetFieldOrProperty(
-                        player,
-                        "avatarVisibleToLocalPlayer") as bool? ?? false;
                 _previousEquippable = inventory.Equippable?.gameObject;
                 _previousEquippableActive =
                     _previousEquippable != null &&
@@ -235,16 +248,22 @@ namespace S1API.Internal.Rendering
             {
                 if (_mode == PresentationWorkbenchMode.Icon &&
                     _iconRefreshAt >= 0f &&
-                    Time.unscaledTime >= _iconRefreshAt)
+                    Time.unscaledTime >= _iconRefreshAt &&
+                    !_iconCaptureRunning)
                 {
                     _iconRefreshAt = -1f;
-                    CaptureIcon();
+                    _iconCaptureRunning = true;
+                    MelonCoroutines.Start(
+                        CaptureIconAfterRender(_iconCaptureRevision));
                 }
 
                 if (_mode == PresentationWorkbenchMode.Avatar &&
                     _avatarCamera != null)
                 {
-                    PositionAvatarCamera();
+                    TickAvatarStage();
+                    UpdateAvatarCameraInput();
+                    UpdateAvatarCamera();
+                    _avatarCamera.Render();
                 }
             }
 
@@ -259,7 +278,6 @@ namespace S1API.Internal.Rendering
                 _view.Dispose();
                 if (_previousEquippable != null)
                     _previousEquippable.SetActive(_previousEquippableActive);
-                _player.SetVisibleToLocalPlayer(_previousAvatarVisible);
                 ReflectionUtils.TrySetFieldOrProperty(
                     _inventory,
                     "HotbarEnabled",
@@ -320,80 +338,376 @@ namespace S1API.Internal.Rendering
             private void CreateAvatarPreview()
             {
                 PreviewState state = _avatar!;
+                PresentationWorkbenchDefinition.AvatarPreviewContext context =
+                    Definition.Avatar!;
                 Transform handContainer;
                 Transform alignmentPoint;
+                object avatar =
+                    CreateAvatarStage();
                 ResolveAvatarHand(
-                    Definition.Avatar!.Hand,
+                    avatar,
+                    context.Hand,
                     out handContainer,
                     out alignmentPoint);
 
-                _player.SetVisibleToLocalPlayer(true);
-                _avatarAnchor = new GameObject("S1API Avatar Preview Anchor");
-                _avatarAnchor.transform.SetParent(handContainer, false);
-                _avatarAnchor.transform.SetPositionAndRotation(
-                    alignmentPoint.position,
-                    alignmentPoint.rotation);
+                _avatarPreviewRoot =
+                    CloneSource(context.PreviewRootProvider, "Avatar");
+                _previewVisual =
+                    context.EditableVisualResolver(_avatarPreviewRoot) ??
+                    throw new InvalidOperationException(
+                        "The avatar preview prefab has no editable visual.");
 
-                _previewVisual = CloneSource(state.Provider, "Avatar");
-                _previewVisual.transform.SetParent(
-                    _avatarAnchor.transform,
-                    false);
+                if (context.AlignAvatarEquippable)
+                {
+                    AlignAvatarEquippable(
+                        _avatarPreviewRoot,
+                        handContainer,
+                        alignmentPoint);
+                }
+                else
+                {
+                    _avatarAnchor =
+                        new GameObject("S1API Avatar Preview Anchor");
+                    _avatarAnchor.transform.SetParent(handContainer, false);
+                    _avatarAnchor.transform.SetPositionAndRotation(
+                        alignmentPoint.position,
+                        alignmentPoint.rotation);
+                    _avatarPreviewRoot.transform.SetParent(
+                        _avatarAnchor.transform,
+                        false);
+                }
+
                 state.Current.ApplyTo(_previewVisual.transform);
-                SetLayerRecursively(_previewVisual, "Player");
-                DisablePhysics(_previewVisual);
-                _previewVisual.SetActive(true);
+                SetLayerRecursively(
+                    _avatarPreviewRoot,
+                    "IconGeneration");
+                DisablePhysics(_avatarPreviewRoot);
+                _avatarPreviewRoot.SetActive(true);
                 CreateAvatarCamera();
+            }
+
+            private static void AlignAvatarEquippable(
+                GameObject root,
+                Transform handContainer,
+                Transform handAlignmentPoint)
+            {
+                S1AvatarEquipping.AvatarEquippable? equippable =
+                    root.GetComponentInChildren<
+                        S1AvatarEquipping.AvatarEquippable>(true);
+                Transform? modelAlignmentPoint =
+                    equippable?.AlignmentPoint;
+                if (modelAlignmentPoint == null)
+                {
+                    throw new InvalidOperationException(
+                        "The avatar equippable preview has no alignment point.");
+                }
+
+                root.transform.SetParent(handContainer);
+                root.transform.rotation =
+                    handAlignmentPoint.rotation *
+                    (Quaternion.Inverse(modelAlignmentPoint.rotation) *
+                     root.transform.rotation);
+                root.transform.position =
+                    handAlignmentPoint.position +
+                    (root.transform.position - modelAlignmentPoint.position);
+            }
+
+            private object CreateAvatarStage()
+            {
+                var generator = S1AvatarFramework.MugshotGenerator.Instance;
+                var source = generator != null ? generator.MugshotRig : null;
+                if (source == null)
+                {
+                    throw new InvalidOperationException(
+                        "The native avatar preview rig is not ready.");
+                }
+
+                int layer = LayerMask.NameToLayer("IconGeneration");
+                if (layer < 0)
+                    layer = 30;
+
+                _avatarStage = new GameObject(
+                    "S1API Presentation Workbench Avatar Stage");
+                _avatarStage.transform.position =
+                    new Vector3(0f, -1000f, 0f);
+
+                GameObject avatarObject =
+                    Object.Instantiate(
+                        source.gameObject,
+                        _avatarStage.transform,
+                        false);
+                avatarObject.name = "Detached Avatar";
+                avatarObject.SetActive(true);
+                S1DevUtilities.LayerUtility.SetLayerRecursively(
+                    avatarObject,
+                    layer);
+
+                var avatar =
+                    avatarObject.GetComponent<S1AvatarFramework.Avatar>() ??
+                    throw new InvalidOperationException(
+                        "The native avatar preview rig has no Avatar component.");
+                _avatarRig = avatar;
+                S1AvatarFramework.AvatarSettings? defaultSettings =
+                    generator?.DefaultSettings;
+                _avatarSettings =
+                    source.CurrentSettings != null
+                        ? Object.Instantiate(source.CurrentSettings)
+                        : defaultSettings != null
+                            ? Object.Instantiate(defaultSettings)
+                            : CreateFallbackAvatarSettings();
+                _avatarSettleFrames = 1;
+                avatar.SetVisible(true);
+                if (avatar.Animation != null)
+                    avatar.Animation.AllowCulling = false;
+                RefreshAvatarRenderers();
+
+                return avatar;
+            }
+
+            private void TickAvatarStage()
+            {
+                if (_avatarRig == null)
+                    return;
+
+                if (!_avatarAppearanceApplied)
+                {
+                    if (_avatarSettleFrames-- > 0)
+                        return;
+
+                    _avatarRig.LoadAvatarSettings(_avatarSettings!);
+                    _avatarRig.SetVisible(true);
+                    _avatarRig.Impostor.DisableImpostor();
+                    if (_avatarRig.Animation != null)
+                        _avatarRig.Animation.AllowCulling = false;
+                    _avatarRendererRefreshFrames = 2;
+                    _avatarAppearanceApplied = true;
+                    _avatarSettleFrames = 2;
+                    RefreshAvatarRenderers();
+                    return;
+                }
+
+                if (!_avatarAnimationApplied)
+                {
+                    if (_avatarSettleFrames-- > 0)
+                    {
+                        RefreshAvatarRenderers();
+                        return;
+                    }
+
+                    ApplyAvatarAnimation();
+                }
+
+                if (_avatarRendererRefreshFrames-- > 0)
+                    RefreshAvatarRenderers();
+            }
+
+            private static S1AvatarFramework.AvatarSettings
+                CreateFallbackAvatarSettings()
+            {
+                var settings =
+                    ScriptableObject.CreateInstance<
+                        S1AvatarFramework.AvatarSettings>();
+                settings.SkinColor = new Color32(150, 120, 95, 255);
+                settings.Height = 1f;
+                settings.Gender = 0.5f;
+                settings.Weight = 0.5f;
+                settings.EyeBallTint = Color.white;
+                settings.PupilDilation = 1f;
+                settings.HairPath = string.Empty;
+                settings.HairColor = Color.black;
+                settings.LeftEyeRestingState =
+                    new S1AvatarFramework.Eye.EyeLidConfiguration
+                    {
+                        topLidOpen = 0.5f,
+                        bottomLidOpen = 0.5f,
+                    };
+                settings.RightEyeRestingState =
+                    new S1AvatarFramework.Eye.EyeLidConfiguration
+                    {
+                        topLidOpen = 0.5f,
+                        bottomLidOpen = 0.5f,
+                    };
+                settings.LeftEyeLidColor =
+                    new Color32(150, 120, 95, 255);
+                settings.RightEyeLidColor =
+                    new Color32(150, 120, 95, 255);
+                return settings;
+            }
+
+            private void ApplyAvatarAnimation()
+            {
+                if (_avatarRig == null || _avatarAnimationApplied)
+                    return;
+
+                _avatarAnimationApplied = true;
+                PresentationWorkbenchDefinition.AvatarPreviewContext context =
+                    Definition.Avatar!;
+                if (string.IsNullOrWhiteSpace(context.AnimationTrigger))
+                    return;
+
+                if (context.AnimationUsesBool)
+                {
+                    _avatarRig.SetAnimationBool(
+                        context.AnimationTrigger,
+                        true);
+                }
+                else
+                {
+                    _avatarRig.SetAnimationTrigger(
+                        context.AnimationTrigger);
+                }
+            }
+
+            private void RefreshAvatarRenderers()
+            {
+                if (_avatarRig == null)
+                    return;
+
+                SetLayerRecursively(
+                    _avatarRig.gameObject,
+                    "IconGeneration");
+                var renderers =
+                    _avatarRig.gameObject.GetComponentsInChildren<
+                        SkinnedMeshRenderer>(true);
+                for (int index = 0; index < renderers.Length; index++)
+                    renderers[index].updateWhenOffscreen = true;
             }
 
             private void CreateAvatarCamera()
             {
+                if (_avatarStage == null)
+                    throw new InvalidOperationException(
+                        "The avatar preview stage is unavailable.");
+
+                int layer = LayerMask.NameToLayer("IconGeneration");
+                if (layer < 0)
+                    layer = 30;
+
                 var cameraRoot =
                     new GameObject("S1API Presentation Workbench Camera");
+                cameraRoot.transform.SetParent(
+                    _avatarStage.transform,
+                    false);
                 _avatarCamera = cameraRoot.AddComponent<Camera>();
                 _avatarCamera.enabled = true;
                 _avatarCamera.clearFlags = CameraClearFlags.SolidColor;
                 _avatarCamera.backgroundColor =
                     new Color(0.025f, 0.03f, 0.04f, 1f);
-                _avatarCamera.fieldOfView = 38f;
+                _avatarCamera.fieldOfView = 34f;
                 _avatarCamera.nearClipPlane = 0.05f;
                 _avatarCamera.farClipPlane = 20f;
-                int playerLayer = LayerMask.NameToLayer("Player");
-                _avatarCamera.cullingMask =
-                    playerLayer >= 0 ? 1 << playerLayer : -1;
+                _avatarCamera.cullingMask = 1 << layer;
                 _avatarTexture =
-                    new RenderTexture(768, 768, 24, RenderTextureFormat.ARGB32)
+                    new RenderTexture(640, 800, 24, RenderTextureFormat.ARGB32)
                     {
                         name = "S1API Presentation Workbench Avatar",
-                    };
+                        antiAliasing = 2,
+                };
                 _avatarTexture.Create();
                 _avatarCamera.targetTexture = _avatarTexture;
-                PositionAvatarCamera();
+                CreateAvatarKeyLight(layer);
+                CreateAvatarLight(
+                    "Fill Light",
+                    new Vector3(30f, 210f, 0f),
+                    0.65f,
+                    new Color(0.55f, 0.72f, 1f),
+                    layer);
+                UpdateAvatarCamera();
                 _view.SetPreview(_avatarTexture);
             }
 
-            private void PositionAvatarCamera()
+            private void CreateAvatarKeyLight(int layer)
             {
-                if (_avatarCamera == null)
+                var lightObject = new GameObject("Key Light");
+                lightObject.transform.SetParent(
+                    _avatarStage!.transform,
+                    false);
+                lightObject.transform.localPosition =
+                    new Vector3(-2f, 3f, -3f);
+                lightObject.transform.LookAt(
+                    _avatarStage.transform.position + Vector3.up);
+                var light = lightObject.AddComponent<Light>();
+                light.type = LightType.Directional;
+                light.intensity = 1.25f;
+                light.color = new Color(1f, 0.88f, 0.76f);
+                light.cullingMask = 1 << layer;
+            }
+
+            private void UpdateAvatarCameraInput()
+            {
+                Vector3 mouse = UnityEngine.Input.mousePosition;
+                if (!_avatarHasMousePosition)
+                {
+                    _avatarLastMousePosition = mouse;
+                    _avatarHasMousePosition = true;
+                    return;
+                }
+
+                if (_view.IsPointerOverPreview(mouse))
+                {
+                    if (UnityEngine.Input.GetMouseButton(0))
+                    {
+                        Vector3 delta = mouse - _avatarLastMousePosition;
+                        _avatarYaw += delta.x * 0.35f;
+                        _avatarPitch =
+                            Mathf.Clamp(
+                                _avatarPitch - delta.y * 0.35f,
+                                -25f,
+                                45f);
+                    }
+
+                    _avatarDistance =
+                        Mathf.Clamp(
+                            _avatarDistance -
+                            UnityEngine.Input.mouseScrollDelta.y * 0.2f,
+                            1.45f,
+                            4.5f);
+                }
+
+                _avatarLastMousePosition = mouse;
+            }
+
+            private void UpdateAvatarCamera()
+            {
+                if (_avatarCamera == null || _avatarStage == null)
                     return;
 
-                Transform player = _player.transform;
-                Vector3 target = player.position + Vector3.up * 1.05f;
-                Vector3 position =
-                    target + player.forward * 2.15f + Vector3.up * 0.1f;
-                _avatarCamera.transform.position = position;
-                _avatarCamera.transform.rotation =
-                    Quaternion.LookRotation(target - position, Vector3.up);
+                Vector3 target =
+                    _avatarStage.transform.position +
+                    new Vector3(0f, 1.05f, 0f);
+                Quaternion rotation =
+                    Quaternion.Euler(_avatarPitch, _avatarYaw, 0f);
+                _avatarCamera.transform.position =
+                    target +
+                    rotation * new Vector3(0f, 0f, _avatarDistance);
+                _avatarCamera.transform.LookAt(target);
+            }
+
+            private void CreateAvatarLight(
+                string name,
+                Vector3 rotation,
+                float intensity,
+                Color color,
+                int layer)
+            {
+                var lightObject = new GameObject(name);
+                lightObject.transform.SetParent(
+                    _avatarStage!.transform,
+                    false);
+                lightObject.transform.localEulerAngles = rotation;
+                var light = lightObject.AddComponent<Light>();
+                light.type = LightType.Directional;
+                light.intensity = intensity;
+                light.color = color;
+                light.cullingMask = 1 << layer;
             }
 
             private void ResolveAvatarHand(
+                object avatar,
                 AvatarHand hand,
                 out Transform handContainer,
                 out Transform alignmentPoint)
             {
-                object avatar =
-                    ReflectionUtils.TryGetFieldOrProperty(_player, "Avatar") ??
-                    throw new InvalidOperationException(
-                        "The local player avatar is unavailable.");
                 object animation =
                     ReflectionUtils.TryGetFieldOrProperty(avatar, "Animation") ??
                     throw new InvalidOperationException(
@@ -488,6 +802,14 @@ namespace S1API.Internal.Rendering
                     state.Current.ApplyTo(_previewVisual.transform);
                 }
 
+                if (_mode == PresentationWorkbenchMode.Avatar)
+                {
+                    _avatarYaw = 180f;
+                    _avatarPitch = 0f;
+                    _avatarDistance = 2.8f;
+                    UpdateAvatarCamera();
+                }
+
                 _view.SetMode(
                     _mode,
                     state.Current,
@@ -518,44 +840,81 @@ namespace S1API.Internal.Rendering
 
             private void ScheduleIconCapture(bool immediate)
             {
-                if (immediate)
+                _iconCaptureRevision++;
+                _iconRefreshAt =
+                    Time.unscaledTime +
+                    (immediate ? 0f : IconDebounceSeconds);
+                _view.SetStatus(
+                    immediate
+                        ? "Preparing icon preview..."
+                        : "Icon recapture scheduled.");
+            }
+
+            private IEnumerator CaptureIconAfterRender(int revision)
+            {
+                try
                 {
-                    _iconRefreshAt = -1f;
-                    CaptureIcon();
+                    const int maxAttempts = 8;
+                    for (int attempt = 1; attempt <= maxAttempts; attempt++)
+                    {
+                        yield return null;
+                        yield return new WaitForEndOfFrame();
+                        if (_disposed ||
+                            _mode != PresentationWorkbenchMode.Icon ||
+                            revision != _iconCaptureRevision)
+                        {
+                            yield break;
+                        }
+
+                        if (TryCaptureIcon())
+                        {
+                            _view.SetStatus(
+                                $"Icon preview captured after {attempt} attempt(s).");
+                            yield break;
+                        }
+                    }
+
+                    _view.SetStatus(
+                        "Icon capture produced no visible pixels after 8 attempts.");
                 }
-                else
+                finally
                 {
-                    _iconRefreshAt =
-                        Time.unscaledTime + IconDebounceSeconds;
-                    _view.SetStatus("Icon recapture scheduled.");
+                    _iconCaptureRunning = false;
+                    if (!_disposed &&
+                        _mode == PresentationWorkbenchMode.Icon &&
+                        revision != _iconCaptureRevision)
+                    {
+                        _iconRefreshAt = Time.unscaledTime;
+                    }
                 }
             }
 
-            private void CaptureIcon()
+            private bool TryCaptureIcon()
             {
                 IconState state = _icon!;
                 GameObject visual = CloneSource(state.Provider, "Icon");
                 try
                 {
                     state.Current.ApplyTo(visual.transform);
-                    Texture2D? texture =
-                        IconFactory.GenerateIcon(
+                    Sprite? icon =
+                        IconFactory.GenerateIconSprite(
                             visual.transform,
                             state.Size,
                             bakeSkinnedMeshes: true,
                             state.FitToCamera,
                             state.CameraFill);
-                    if (texture == null)
+                    if (icon == null || icon.texture == null)
                     {
-                        _view.SetStatus(
-                            "Icon capture is not ready. Try again after the scene renders.");
-                        return;
+                        if (icon != null)
+                            Object.Destroy(icon);
+                        return false;
                     }
 
                     DestroyIconTexture();
-                    _iconTexture = texture;
+                    _iconSprite = icon;
+                    _iconTexture = icon.texture;
                     _view.SetPreview(_iconTexture);
-                    _view.SetStatus("Icon preview captured with the native rig.");
+                    return true;
                 }
                 finally
                 {
@@ -565,7 +924,9 @@ namespace S1API.Internal.Rendering
 
             private void DestroyPreview()
             {
-                if (_previewVisual != null)
+                if (_avatarPreviewRoot != null)
+                    Object.Destroy(_avatarPreviewRoot);
+                else if (_previewVisual != null)
                     Object.Destroy(_previewVisual);
                 if (_avatarAnchor != null)
                     Object.Destroy(_avatarAnchor);
@@ -579,18 +940,34 @@ namespace S1API.Internal.Rendering
                     _avatarTexture.Release();
                     Object.Destroy(_avatarTexture);
                 }
+                if (_avatarStage != null)
+                    Object.Destroy(_avatarStage);
+                if (_avatarSettings != null)
+                    Object.Destroy(_avatarSettings);
 
                 _previewVisual = null;
+                _avatarPreviewRoot = null;
                 _avatarAnchor = null;
+                _avatarStage = null;
+                _avatarRig = null;
+                _avatarSettings = null;
                 _avatarCamera = null;
                 _avatarTexture = null;
+                _avatarSettleFrames = 0;
+                _avatarRendererRefreshFrames = 0;
+                _avatarAppearanceApplied = false;
+                _avatarAnimationApplied = false;
+                _avatarHasMousePosition = false;
                 _view.SetPreview(null);
             }
 
             private void DestroyIconTexture()
             {
+                if (_iconSprite != null)
+                    Object.Destroy(_iconSprite);
                 if (_iconTexture != null)
                     Object.Destroy(_iconTexture);
+                _iconSprite = null;
                 _iconTexture = null;
             }
 

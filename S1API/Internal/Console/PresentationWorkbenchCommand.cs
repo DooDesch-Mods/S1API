@@ -20,7 +20,7 @@ namespace S1API.Internal.Console
             "Open the local icon and equippable presentation authoring workbench.";
 
         public override string ExampleUsage =>
-            "presentation_workbench [product|item|avatar] <id-or-path> | close";
+            "presentation_workbench [product|item] <id> | close";
 
         public override void ExecuteCommand(List<string> args)
         {

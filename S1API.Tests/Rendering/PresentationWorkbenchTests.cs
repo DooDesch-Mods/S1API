@@ -11,10 +11,15 @@ public sealed class PresentationWorkbenchTests
     [InlineData("product")]
     [InlineData("PRODUCT")]
     [InlineData("item")]
-    [InlineData("avatar")]
     public void ResolverRecognizesInternalTargetKinds(string value)
     {
         Assert.True(PresentationWorkbenchResolver.IsTargetKind(value));
+    }
+
+    [Fact]
+    public void ResolverDoesNotExposeStandaloneAvatarTargets()
+    {
+        Assert.False(PresentationWorkbenchResolver.IsTargetKind("avatar"));
     }
 
     [Fact]

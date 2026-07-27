@@ -260,13 +260,22 @@ namespace S1API.Internal.Rendering
             SetVector(_positionFields, transform.LocalPosition);
             SetVector(_rotationFields, transform.LocalEulerAngles);
             SetVector(_scaleFields, transform.LocalScale);
-            SetStatus("Edits are local and temporary.");
+            SetStatus(
+                mode == PresentationWorkbenchMode.Avatar
+                    ? "Drag the preview to orbit; use the mouse wheel to zoom."
+                    : "Edits are local and temporary.");
         }
 
         internal void SetPreview(Texture? texture)
         {
             _preview.texture = texture;
         }
+
+        internal bool IsPointerOverPreview(Vector2 screenPoint) =>
+            _previewPanel.activeInHierarchy &&
+            RectTransformUtility.RectangleContainsScreenPoint(
+                _preview.rectTransform,
+                screenPoint);
 
         internal void SetStatus(string message)
         {

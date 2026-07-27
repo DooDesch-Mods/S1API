@@ -60,14 +60,16 @@ namespace S1API.Internal.Products
                 ResolveAvatarMetadata(
                     id,
                     out AvatarHand hand,
-                    out string animationTrigger);
+                    out string animationTrigger,
+                    out bool animationUsesBool);
                 avatar =
                     new PresentationWorkbenchDefinition.AvatarPreviewContext(
                         avatarProvider,
                         avatarTransform,
                         hand,
                         animationTrigger,
-                        PresentationWorkbenchExportKind.ProductTransform);
+                        PresentationWorkbenchExportKind.ProductTransform,
+                        animationUsesBool: animationUsesBool);
             }
 
             if (profile.GenerateIconFromLooseVisual &&
@@ -135,10 +137,12 @@ namespace S1API.Internal.Products
         private static void ResolveAvatarMetadata(
             string productId,
             out AvatarHand hand,
-            out string animationTrigger)
+            out string animationTrigger,
+            out bool animationUsesBool)
         {
             hand = AvatarHand.Right;
             animationTrigger = "RightArm_Hold_ClosedHand";
+            animationUsesBool = true;
 
             ItemDefinition? item = ItemManager.GetDefinition(productId);
             S1AvatarEquipping.AvatarEquippable? avatar =
@@ -154,6 +158,9 @@ namespace S1API.Internal.Products
                     : AvatarHand.Right;
             if (!string.IsNullOrWhiteSpace(avatar.AnimationTrigger))
                 animationTrigger = avatar.AnimationTrigger;
+            animationUsesBool =
+                avatar.TriggerType ==
+                S1AvatarEquipping.AvatarEquippable.ETriggerType.Bool;
         }
     }
 }

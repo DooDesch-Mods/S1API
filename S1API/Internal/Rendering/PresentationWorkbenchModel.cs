@@ -115,16 +115,36 @@ namespace S1API.Internal.Rendering
                 PresentationWorkbenchTransform? initialTransform,
                 AvatarHand hand,
                 string animationTrigger,
-                PresentationWorkbenchExportKind exportKind)
+                PresentationWorkbenchExportKind exportKind,
+                Func<GameObject?>? previewRootProvider = null,
+                Func<GameObject, GameObject?>? editableVisualResolver = null,
+                bool alignAvatarEquippable = false,
+                bool animationUsesBool = true)
                 : base(provider, initialTransform, exportKind)
             {
                 Hand = hand;
                 AnimationTrigger = animationTrigger;
+                PreviewRootProvider = previewRootProvider ?? provider;
+                EditableVisualResolver =
+                    editableVisualResolver ?? (root => root);
+                AlignAvatarEquippable = alignAvatarEquippable;
+                AnimationUsesBool = animationUsesBool;
             }
 
             internal AvatarHand Hand { get; }
 
             internal string AnimationTrigger { get; }
+
+            internal Func<GameObject?> PreviewRootProvider { get; }
+
+            internal Func<GameObject, GameObject?> EditableVisualResolver
+            {
+                get;
+            }
+
+            internal bool AlignAvatarEquippable { get; }
+
+            internal bool AnimationUsesBool { get; }
         }
 
         internal sealed class IconPreviewContext : PreviewContext
