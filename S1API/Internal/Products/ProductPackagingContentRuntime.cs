@@ -102,7 +102,7 @@ namespace S1API.Internal.Products
             }
 
             if (!TryCreateContentRoot(
-                    setter.transform,
+                    setter,
                     registration,
                     expectedRootName,
                     out GameObject? generatedRoot))
@@ -373,7 +373,7 @@ namespace S1API.Internal.Products
                 }
 
                 if (!TryCreateContentRoot(
-                        setter.transform,
+                        setter,
                         registration,
                         GetGeneratedRootName(registration.Key),
                         out GameObject? generatedRoot))
@@ -790,19 +790,35 @@ namespace S1API.Internal.Products
         }
 
         private static bool TryCreateContentRoot(
-            Transform parent,
+            S1Product.MultiTypeVisualsSetter setter,
             ProductPackagingContentProfileRegistration registration,
             string rootName,
             out GameObject? generatedRoot)
         {
+            Transform parent = setter.transform;
             generatedRoot = new GameObject(rootName);
             generatedRoot.transform.SetParent(parent, false);
             generatedRoot.SetActive(false);
 
+            if (registration.Profile.Source ==
+                ProductPackagingContentSource.NativeFilledVisualScaffold)
+            {
+                if (TryCreateNativeScaffold(
+                    setter,
+                    registration,
+                    generatedRoot))
+                {
+                    return true;
+                }
+
+                generatedRoot = null;
+                return false;
+            }
+
             GameObject? source;
             try
             {
-                source = registration.Profile.ContentProvider();
+                source = registration.Profile.ContentProvider!();
             }
             catch (Exception exception)
             {
@@ -828,9 +844,24 @@ namespace S1API.Internal.Products
 
             try
             {
+                if (registration.Profile.Source ==
+                    ProductPackagingContentSource.CompleteFilledVisual)
+                {
+                    AddContentClone(
+                        source,
+                        generatedRoot.transform,
+                        registration.Profile.CompleteVisualTransform,
+                        null);
+                    return true;
+                }
+
                 if (registration.Profile.Placements.Count == 0)
                 {
-                    AddContentClone(source, generatedRoot.transform, null);
+                    AddContentClone(
+                        source,
+                        generatedRoot.transform,
+                        null,
+                        null);
                     return true;
                 }
 
@@ -839,7 +870,8 @@ namespace S1API.Internal.Products
                     AddContentClone(
                         source,
                         generatedRoot.transform,
-                        registration.Profile.Placements[i]);
+                        registration.Profile.Placements[i],
+                        null);
                 }
 
                 return true;
@@ -856,10 +888,78 @@ namespace S1API.Internal.Products
             }
         }
 
+        private static bool TryCreateNativeScaffold(
+            S1Product.MultiTypeVisualsSetter setter,
+            ProductPackagingContentProfileRegistration registration,
+            GameObject generatedRoot)
+        {
+            GameObject? source =
+                GetNativeScaffoldSource(
+                    setter,
+                    registration.Profile.NativeVisualTemplate!.Value);
+            if (source == null)
+            {
+                LogFailureOnce(
+                    registration,
+                    "native visual scaffold",
+                    $"the selected template " +
+                    $"'{registration.Profile.NativeVisualTemplate!.Value}' is " +
+                    "unavailable in this packaging context");
+                DestroyOwnedRoot(generatedRoot);
+                return false;
+            }
+
+            try
+            {
+                AddContentClone(
+                    source,
+                    generatedRoot.transform,
+                    registration.Profile.CompleteVisualTransform,
+                    registration.Profile.NativeVisualCustomizer);
+                return true;
+            }
+            catch (Exception exception)
+            {
+                LogFailureOnce(
+                    registration,
+                    "native visual scaffold",
+                    exception.Message);
+                DestroyOwnedRoot(generatedRoot);
+                return false;
+            }
+        }
+
+        private static GameObject? GetNativeScaffoldSource(
+            S1Product.MultiTypeVisualsSetter setter,
+            ProductPackagingVisualTemplate template)
+        {
+            Transform? container;
+            switch (template)
+            {
+                case ProductPackagingVisualTemplate.Marijuana:
+                    container = setter.WeedVisuals?.VisualsContainer;
+                    break;
+                case ProductPackagingVisualTemplate.Methamphetamine:
+                    container = setter.MethVisuals?.VisualsContainer;
+                    break;
+                case ProductPackagingVisualTemplate.Cocaine:
+                    container = setter.CocaineVisuals?.VisualsContainer;
+                    break;
+                case ProductPackagingVisualTemplate.Shrooms:
+                    container = setter.ShroomVisuals?.VisualsContainer;
+                    break;
+                default:
+                    return null;
+            }
+
+            return container?.gameObject;
+        }
+
         private static void AddContentClone(
             GameObject source,
             Transform parent,
-            ProductPresentationTransform? placement)
+            ProductPresentationTransform? placement,
+            Action<GameObject>? customize)
         {
             Vector3 authoredPosition = source.transform.localPosition;
             Quaternion authoredRotation = source.transform.localRotation;
@@ -877,6 +977,7 @@ namespace S1API.Internal.Products
                 content.transform.localScale = authoredScale;
             }
 
+            customize?.Invoke(content);
             content.SetActive(true);
         }
 

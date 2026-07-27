@@ -11,7 +11,12 @@ namespace S1API.Products
     {
         private readonly List<ProductPresentationTransform> _placements =
             new List<ProductPresentationTransform>();
+        private ProductPackagingContentSource _source =
+            ProductPackagingContentSource.RepeatedContent;
         private Func<GameObject?>? _contentProvider;
+        private ProductPresentationTransform? _completeVisualTransform;
+        private ProductPackagingVisualTemplate? _nativeVisualTemplate;
+        private Action<GameObject>? _nativeVisualCustomizer;
 
         /// <summary>
         /// Sets the reusable mod-owned content prefab source.
@@ -23,6 +28,74 @@ namespace S1API.Products
         {
             _contentProvider =
                 provider ?? throw new ArgumentNullException(nameof(provider));
+            _source = ProductPackagingContentSource.RepeatedContent;
+            _completeVisualTransform = null;
+            _nativeVisualTemplate = null;
+            _nativeVisualCustomizer = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets one complete mod-owned visual for packaging whose filled form is the product.
+        /// </summary>
+        /// <param name="provider">A provider that returns a reusable complete visual source.</param>
+        /// <param name="transform">
+        /// An optional local transform applied to the cloned visual. When omitted, S1API
+        /// preserves the transform authored by the provider.
+        /// </param>
+        /// <returns>This builder.</returns>
+        /// <remarks>
+        /// Use this for packaging such as <c>brick</c>, where the native variants represent
+        /// the complete filled item instead of repeated contents inside a shared shell.
+        /// The same strategy is applied to stored, equipped, and composite-icon contexts.
+        /// </remarks>
+        public ProductPackagingContentProfileBuilder WithCompleteFilledVisual(
+            Func<GameObject?> provider,
+            ProductPresentationTransform? transform = null)
+        {
+            _contentProvider =
+                provider ?? throw new ArgumentNullException(nameof(provider));
+            _source = ProductPackagingContentSource.CompleteFilledVisual;
+            _completeVisualTransform = transform;
+            _nativeVisualTemplate = null;
+            _nativeVisualCustomizer = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Clones one game-owned filled visual template and optionally customizes the clone.
+        /// </summary>
+        /// <param name="template">The presentation-only game-owned visual template.</param>
+        /// <param name="customize">
+        /// An optional callback that receives each newly cloned visual before it is shown.
+        /// Only the clone is passed; shared game-owned prefabs are never exposed or mutated.
+        /// </param>
+        /// <param name="transform">
+        /// An optional local transform applied to the clone. When omitted, S1API preserves
+        /// the context-specific transform authored by the game-owned template.
+        /// </param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="template"/> is not a defined value.
+        /// </exception>
+        /// <remarks>
+        /// The template controls presentation only and does not alter the custom product's
+        /// logical kind or native execution strategy. The callback should assign only
+        /// mod-owned materials or other local presentation data.
+        /// </remarks>
+        public ProductPackagingContentProfileBuilder WithNativeFilledVisualScaffold(
+            ProductPackagingVisualTemplate template,
+            Action<GameObject>? customize = null,
+            ProductPresentationTransform? transform = null)
+        {
+            if (!Enum.IsDefined(typeof(ProductPackagingVisualTemplate), template))
+                throw new ArgumentOutOfRangeException(nameof(template));
+
+            _source = ProductPackagingContentSource.NativeFilledVisualScaffold;
+            _contentProvider = null;
+            _completeVisualTransform = transform;
+            _nativeVisualTemplate = template;
+            _nativeVisualCustomizer = customize;
             return this;
         }
 
@@ -65,19 +138,34 @@ namespace S1API.Products
         /// </summary>
         /// <returns>The packaging-content profile.</returns>
         /// <exception cref="InvalidOperationException">
-        /// Thrown when no content provider is configured.
+        /// Thrown when no visual source is configured or placements are combined with a
+        /// complete-filled strategy.
         /// </exception>
         public ProductPackagingContentProfile Build()
         {
-            if (_contentProvider == null)
+            if (_source != ProductPackagingContentSource.NativeFilledVisualScaffold &&
+                _contentProvider == null)
             {
                 throw new InvalidOperationException(
                     "A packaging content provider must be configured before Build().");
             }
 
+            if (_source != ProductPackagingContentSource.RepeatedContent &&
+                _placements.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "Explicit content placements cannot be combined with a complete " +
+                    "filled visual or a native filled visual scaffold. Configure the " +
+                    "optional transform instead.");
+            }
+
             return new ProductPackagingContentProfile(
+                _source,
                 _contentProvider,
-                new List<ProductPresentationTransform>(_placements).AsReadOnly());
+                new List<ProductPresentationTransform>(_placements).AsReadOnly(),
+                _completeVisualTransform,
+                _nativeVisualTemplate,
+                _nativeVisualCustomizer);
         }
     }
 }
