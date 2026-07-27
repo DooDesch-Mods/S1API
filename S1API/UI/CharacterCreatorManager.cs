@@ -437,7 +437,7 @@ namespace S1API.UI
                 var currentSettings = localPlayer.GetCurrentBasicAvatarSettings();
                 if (currentSettings == null)
                 {
-                    Logger.Msg("Player has no current avatar settings, using default");
+                    Logger.Debug("Player has no current avatar settings, using default");
                     return null;
                 }
 

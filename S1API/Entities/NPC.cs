@@ -550,7 +550,7 @@ namespace S1API.Entities
                 return;
 
             _loggedBaseEmployeeNormalization = true;
-            Logger.Msg($"[S1API] Normalized {BaseEmployeePrefabName} source prefab for beta NPC fallback.");
+            Logger.Debug($"[S1API] Normalized {BaseEmployeePrefabName} source prefab for beta NPC fallback.");
         }
 
         private static void LogBetaNpcPrefabDiagnostic(string message)
@@ -814,7 +814,7 @@ namespace S1API.Entities
                 }
 
                 if (removed > 0)
-                    Logger.Msg($"[S1API] Removed {removed} Employee component(s) from {BaseEmployeePrefabName} NPC fallback prefab.");
+                    Logger.Debug($"[S1API] Removed {removed} Employee component(s) from {BaseEmployeePrefabName} NPC fallback prefab.");
             }
             catch (Exception ex)
             {

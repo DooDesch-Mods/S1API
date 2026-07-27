@@ -380,7 +380,7 @@ namespace S1API.PhoneApp
                 // Set app state to open using the same pattern as native apps
                 SetAppOpen(true);
 
-                Logger.Msg($"Opened phone app: {AppName}");
+                Logger.Debug($"Opened phone app: {AppName}");
             }
             catch (Exception e)
             {
@@ -401,7 +401,7 @@ namespace S1API.PhoneApp
                     SetAppOpen(false);
                 }
 
-                Logger.Msg($"Closed phone app: {AppName}");
+                Logger.Debug($"Closed phone app: {AppName}");
             }
             catch (Exception e)
             {

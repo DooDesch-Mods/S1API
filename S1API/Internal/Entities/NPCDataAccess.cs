@@ -64,6 +64,12 @@ namespace S1API.Internal.Entities
             dataObject.Initialize();
             S1NPCFramework.NPCData data = dataObject.GetOriginalData();
             PrepareData(data);
+            if (rootRole == NpcRootRole.Supplier)
+            {
+                // Native supplier messaging presets do not allow their persistent
+                // order conversations to be hidden from the Messages app.
+                data.Messaging.ConversationCanBeHidden = false;
+            }
             EnsureDialogueDatabase(data, sourceNpc);
             if (rootRole == NpcRootRole.Supplier)
                 EnsureSupplierDialogueDatabase(data, required: false);

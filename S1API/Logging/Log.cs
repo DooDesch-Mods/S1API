@@ -1,4 +1,5 @@
 using MelonLoader;
+using S1API.Internal;
 
 namespace S1API.Logging
 {
@@ -25,6 +26,16 @@ namespace S1API.Logging
         public void Msg(string message)
         {
             _loggerInstance.Msg(message);
+        }
+
+        /// <summary>
+        /// Logs an internal diagnostic message when verbose S1API logging is enabled.
+        /// </summary>
+        /// <param name="message">Diagnostic message to log.</param>
+        internal void Debug(string message)
+        {
+            if (S1APIPreferences.EnableVerboseLogging?.Value == true)
+                _loggerInstance.Msg(message);
         }
 
         /// <summary>

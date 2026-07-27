@@ -45,7 +45,7 @@ namespace S1API.Internal.Patches
             var phoneApps = ReflectionUtils.GetDerivedClasses<PhoneApp.PhoneApp>();
             foreach (var type in phoneApps)
             {
-                Logger.Msg($"Found phone app: {type.FullName}");
+                Logger.Debug($"Found phone app: {type.FullName}");
 
                 if (type.GetConstructor(Type.EmptyTypes) == null)
                     continue;
