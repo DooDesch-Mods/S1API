@@ -5,6 +5,8 @@ tuning visual position, rotation, scale, and native icon framing without
 rebuilding a mod after every value change. It is not a mod-facing API and mods
 do not register workbench definitions.
 
+![The presentation workbench showing a storage pallet on the detached avatar preview](assets/presentation-workbench.png)
+
 Instead, the tool discovers content that is already registered through S1API
 or the game:
 
@@ -47,15 +49,15 @@ item order:
 presentation_workbench example.mod:products/focus-tablet
 ```
 
-No initialization code is required in the consuming mod. If the requested
-target has not been registered yet, run the command after that mod finishes
-its normal content registration.
+A consuming mod does not need initialization code for the workbench. If the
+target is unavailable, wait for the mod to finish its normal content
+registration, then run the command again.
 
 ## Edit and copy values
 
 Select a supported context, enter numeric values, and commit each field with
-Enter or by moving focus. Icon changes are debounced before the native rig is
-captured again. `Fit` enables bounds-based automatic scale fitting;
+Enter or by moving focus. The workbench debounces icon changes before it
+captures the native rig again. `Fit` enables bounds-based automatic scale fitting;
 `cameraFill` controls how much of the native camera's vertical view the fitted
 model occupies. Values greater than `1` intentionally crop the model.
 In the avatar preview, drag with the left mouse button to orbit and use the
@@ -104,11 +106,10 @@ its configured hand.
 
 The item icon tab uses that same visible equippable hierarchy as a practical
 icon source. Product profiles retain their exact loose-icon source and framing
-settings. A transient custom icon source that a mod creates, captures, and
-destroys outside a product profile cannot be reconstructed from the final
-sprite; use the closest registered product or item visual as the starting
-point and paste the copied `IconFactory` values into that icon-generation
-code.
+settings. The workbench cannot reconstruct a transient custom icon source from
+the final sprite after a mod destroys that source. Use the closest registered
+product or item visual as the starting point, then paste the copied
+`IconFactory` values into the icon-generation code.
 
 ## Runtime requirements and limits
 

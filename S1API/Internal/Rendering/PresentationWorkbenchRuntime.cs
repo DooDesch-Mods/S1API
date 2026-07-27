@@ -172,7 +172,7 @@ namespace S1API.Internal.Rendering
             private Camera? _avatarCamera;
             private RenderTexture? _avatarTexture;
             private Vector3 _avatarLastMousePosition;
-            private float _avatarYaw = 180f;
+            private float _avatarYaw;
             private float _avatarPitch;
             private float _avatarDistance = 2.8f;
             private int _avatarSettleFrames;
@@ -804,7 +804,7 @@ namespace S1API.Internal.Rendering
 
                 if (_mode == PresentationWorkbenchMode.Avatar)
                 {
-                    _avatarYaw = 180f;
+                    _avatarYaw = 0f;
                     _avatarPitch = 0f;
                     _avatarDistance = 2.8f;
                     UpdateAvatarCamera();
