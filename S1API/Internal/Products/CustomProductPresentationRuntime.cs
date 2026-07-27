@@ -274,11 +274,13 @@ namespace S1API.Internal.Products
                     profile,
                     ProductPresentationContext.Held);
             held.ModelContainer = held.Visuals.VisualsContainer;
+            GameObject avatarSource =
+                ResolveAvatarHeldSource(product, profile, source, sources);
             held.AvatarEquippable =
                 BuildAvatarEquippable(
                     product,
                     held.AvatarEquippable,
-                    source,
+                    avatarSource,
                     profile,
                     created);
             registeredAvatarPrefab = held.AvatarEquippable.gameObject;
@@ -906,10 +908,11 @@ namespace S1API.Internal.Products
             created.Add(root);
             GameObject visual = Object.Instantiate(source);
             visual.transform.SetParent(root.transform, false);
-            ApplyVisualTransform(
-                visual.transform,
-                profile,
-                ProductPresentationContext.Held);
+            if (profile.TryGetAvatarHeldTransform(
+                    out ProductPresentationTransform? avatarTransform))
+            {
+                avatarTransform?.ApplyTo(visual.transform);
+            }
 
             S1AvatarEquipping.AvatarEquippable avatar =
                 root.AddComponent<S1AvatarEquipping.AvatarEquippable>();
@@ -932,6 +935,41 @@ namespace S1API.Internal.Products
             }
 
             return avatar;
+        }
+
+        private static GameObject ResolveAvatarHeldSource(
+            CustomProductDefinitionRegistration product,
+            ProductPresentationProfile profile,
+            GameObject heldSource,
+            Dictionary<Func<GameObject?>, GameObject?> sources)
+        {
+            Func<GameObject?>? provider = profile.AvatarHeldVisualProvider;
+            if (provider == null)
+                return heldSource;
+
+            if (sources.TryGetValue(provider, out GameObject? cached))
+            {
+                return cached ??
+                       throw new InvalidOperationException(
+                           $"Avatar-held visual provider for '{product.ProductId}' returned null.");
+            }
+
+            GameObject? source;
+            try
+            {
+                source = provider();
+            }
+            catch (Exception exception)
+            {
+                throw new InvalidOperationException(
+                    $"Avatar-held visual provider for '{product.ProductId}' failed.",
+                    exception);
+            }
+
+            sources.Add(provider, source);
+            return source ??
+                   throw new InvalidOperationException(
+                       $"Avatar-held visual provider for '{product.ProductId}' returned null.");
         }
 
         private static void ApplyVisualTransform(

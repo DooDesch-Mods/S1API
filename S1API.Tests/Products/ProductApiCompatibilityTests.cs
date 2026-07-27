@@ -253,6 +253,16 @@ public sealed class ProductApiCompatibilityTests
             nameof(ProductPresentationProfileBuilder.WithHeldVisual),
             typeof(Func<UnityEngine.GameObject>));
         AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithAvatarHeldVisual),
+            typeof(Func<UnityEngine.GameObject>));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithAvatarHeldVisual),
+            typeof(Func<UnityEngine.GameObject>),
+            typeof(ProductPresentationTransform));
+        AssertBuilderMethod(
+            nameof(ProductPresentationProfileBuilder.WithAvatarHeldTransform),
+            typeof(ProductPresentationTransform));
+        AssertBuilderMethod(
             nameof(ProductPresentationProfileBuilder.WithStationVisual),
             typeof(Func<UnityEngine.GameObject>));
         AssertBuilderMethod(

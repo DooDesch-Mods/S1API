@@ -211,6 +211,15 @@ deterministic resource path
 `S1API/ProductPresentation/{productId}/Held`. Every peer must register the same
 product and profile locally before that path is received over the network.
 S1API does not transmit the mesh, materials, textures, definition, or profile.
+By default, this avatar equippable preserves the held visual and transform.
+Use `WithAvatarHeldTransform(...)` when a shared model needs a different
+third-person pose, or `WithAvatarHeldVisual(provider, transform)` when it also
+needs a different source. These methods are additive; profiles that omit them
+retain the existing held fallback.
+
+Registered profiles can be tuned in game through the
+[presentation workbench](presentation-workbench.md) by opening their stable
+product ID.
 
 An explicit consumption provider must return a prefab containing the native
 `ProductConsumeAnimation` component. Generated icons reuse the base game's

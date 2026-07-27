@@ -68,6 +68,8 @@
           href: product-kinds.md
         - name: Generic Custom Products
           href: generic-custom-products.md
+        - name: Presentation Workbench
+          href: presentation-workbench.md
         - name: ProductPopulator
           href: products-populator.md
         - name: Runtime Additives

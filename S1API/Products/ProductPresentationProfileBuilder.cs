@@ -28,6 +28,8 @@ namespace S1API.Products
         private bool _fitGeneratedIconToCamera = true;
         private float _generatedIconCameraFill = 0.72f;
         private ProductPresentationTransform? _generatedIconTransform;
+        private Func<GameObject?>? _avatarHeldVisualProvider;
+        private ProductPresentationTransform? _avatarHeldTransform;
         private bool _useFunctionalProductConvexMeshColliders;
 
         /// <summary>
@@ -110,6 +112,61 @@ namespace S1API.Products
                 ProductPresentationContext.Held,
                 provider,
                 presentationTransform);
+        }
+
+        /// <summary>
+        /// Sets a third-person avatar-held visual provider independently of the first-person
+        /// held visual.
+        /// </summary>
+        /// <param name="provider">A provider that returns a mod-owned visual prefab source.</param>
+        /// <returns>This builder.</returns>
+        /// <remarks>
+        /// When omitted, the avatar equippable continues to use the held visual provider and
+        /// transform, preserving the existing presentation behavior.
+        /// </remarks>
+        public ProductPresentationProfileBuilder WithAvatarHeldVisual(
+            Func<GameObject?> provider)
+        {
+            _avatarHeldVisualProvider =
+                provider ?? throw new ArgumentNullException(nameof(provider));
+            _avatarHeldTransform = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets a third-person avatar-held visual provider and transform independently of the
+        /// first-person held visual.
+        /// </summary>
+        /// <param name="provider">A provider that returns a mod-owned visual prefab source.</param>
+        /// <param name="presentationTransform">The cloned avatar visual root transform.</param>
+        /// <returns>This builder.</returns>
+        public ProductPresentationProfileBuilder WithAvatarHeldVisual(
+            Func<GameObject?> provider,
+            ProductPresentationTransform presentationTransform)
+        {
+            _avatarHeldVisualProvider =
+                provider ?? throw new ArgumentNullException(nameof(provider));
+            _avatarHeldTransform =
+                presentationTransform ??
+                throw new ArgumentNullException(nameof(presentationTransform));
+            return this;
+        }
+
+        /// <summary>
+        /// Sets a third-person avatar-held transform while reusing the held visual provider.
+        /// </summary>
+        /// <param name="presentationTransform">The cloned avatar visual root transform.</param>
+        /// <returns>This builder.</returns>
+        /// <remarks>
+        /// Use this when first- and third-person views share a model but need different poses.
+        /// </remarks>
+        public ProductPresentationProfileBuilder WithAvatarHeldTransform(
+            ProductPresentationTransform presentationTransform)
+        {
+            _avatarHeldTransform =
+                presentationTransform ??
+                throw new ArgumentNullException(nameof(presentationTransform));
+            return this;
         }
 
         /// <summary>
@@ -355,6 +412,8 @@ namespace S1API.Products
                 _fitGeneratedIconToCamera,
                 _generatedIconCameraFill,
                 _generatedIconTransform,
+                _avatarHeldVisualProvider,
+                _avatarHeldTransform,
                 _useFunctionalProductConvexMeshColliders,
                 new List<ProductPresentationContext>(_requiredContexts).AsReadOnly());
         }

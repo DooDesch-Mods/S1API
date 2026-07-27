@@ -6,6 +6,7 @@ using S1API.Internal.Diagnostics;
 using S1API.Internal.Entities;
 using S1API.Internal.Lifecycle;
 using S1API.Internal.Products;
+using S1API.Internal.Rendering;
 using S1API.Lifecycle;
 using S1API.Map;
 
@@ -34,6 +35,7 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            PresentationWorkbenchRuntime.Close();
             ProductPackagingContentRuntime.ResetForSceneChange();
             CutsceneManager.Deinitialize();
             MapPOIManager.RemoveAll();
@@ -42,6 +44,7 @@ namespace S1API
 
         public override void OnUpdate()
         {
+            PresentationWorkbenchRuntime.Tick();
             CutsceneManager.Tick(UnityEngine.Time.unscaledDeltaTime);
         }
 
@@ -60,6 +63,7 @@ namespace S1API
 
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
+            PresentationWorkbenchRuntime.Close();
             CutsceneManager.CleanupForSceneChange();
             SceneStateCleaner.ResetForSceneChange(sceneName, afterUnload: true);
 
