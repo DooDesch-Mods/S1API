@@ -352,6 +352,85 @@ into their game-owned packaging objects, so this profile intentionally does not
 replace that interaction. Custom packaging definitions, packaging asset
 networking, and extra packaging save data remain outside this API.
 
+### Complete filled visuals and Brick Press support
+
+Some packaging does not have a reusable shell with repeated contents. The
+native `brick` packaging is a complete filled product form. Register one
+complete mod-owned visual explicitly:
+
+```csharp
+var brick = ProductPopulator.GetPackaging("brick");
+if (brick == null)
+{
+    throw new InvalidOperationException(
+        "The native 'brick' packaging is unavailable during OnPreLoad.");
+}
+
+// Include brick when building the product:
+// .WithValidPackaging(baggie, brick)
+
+var pressedBrick =
+    new ProductPackagingContentProfileBuilder()
+        .WithCompleteFilledVisual(
+            provider: () => modOwnedBrickPrefab,
+            transform: new ProductPresentationTransform(
+                Vector3.zero,
+                Vector3.zero,
+                Vector3.one))
+        .Build();
+
+ProductPackagingContentProfileRegistry.Register(
+    ownerId: "example.mod",
+    productId: "example.mod:products/focus-tablet",
+    packagingId: "brick",
+    profile: pressedBrick);
+```
+
+`WithCompleteFilledVisual(...)` creates exactly one clone in each filled stored,
+equipped, and composite-icon context. The provider may return a mod-owned prefab,
+an object loaded from the mod's asset bundle, or another reusable local source.
+It must not return or modify the shared native packaging prefab.
+
+If a mod wants the native brick geometry and wrapping without extracting or
+redistributing them, it can instead select a presentation-only runtime scaffold:
+
+```csharp
+var pressedBrick =
+    new ProductPackagingContentProfileBuilder()
+        .WithNativeFilledVisualScaffold(
+            template: ProductPackagingVisualTemplate.Marijuana,
+            customize: clone =>
+            {
+                Renderer[] renderers =
+                    clone.GetComponentsInChildren<Renderer>(true);
+                for (int i = 0; i < renderers.Length; i++)
+                    renderers[i].sharedMaterial = modOwnedBrickMaterial;
+            })
+        .Build();
+```
+
+S1API resolves and clones the selected game-owned visual independently from the
+active stored, equipped, or icon prefab, then invokes `customize` only with that
+clone. The template does not change `ProductKind`, compatibility metadata,
+native execution behavior, stable IDs, save data, or network data. Use only
+mod-owned materials or other local presentation data in the callback.
+
+The native Brick Press remains authoritative for conversion: it groups
+stack-compatible unpackaged inputs, consumes 20 units, copies one product
+instance, and applies packaging ID `brick`. S1API does not patch its batch size,
+eligibility, task flow, player path, or NPC/server path. Adding `brick` through
+`WithValidPackaging(...)` is the explicit product declaration and keeps ordinary
+packaged-instance APIs consistent; registering the `brick` presentation profile
+is the separate visual opt-in.
+
+The 20 loose objects poured into the mould still use the product's
+`ProductPresentationProfile` functional-product context. Presentation assets
+are local per peer and are never saved or transmitted. Every participating peer
+must register the same product/profile IDs and provide its own assets. If the
+complete provider, selected runtime scaffold, or customization callback fails,
+S1API removes the partial clone, logs the failure once for that pair and
+operation, and preserves the native fallback.
+
 ## Loose and packaged instances
 
 ```csharp
