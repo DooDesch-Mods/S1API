@@ -1,5 +1,12 @@
+#if (IL2CPPMELON)
+using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
+#elif MONOMELON
+using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
+#endif
+
 using System;
 using S1API.Internal.Rendering;
+using S1API.Items;
 using S1API.Products;
 using UnityEngine;
 
@@ -50,12 +57,16 @@ namespace S1API.Internal.Products
                     configuredTransform != null
                         ? Convert(configuredTransform)
                         : null;
+                ResolveAvatarMetadata(
+                    id,
+                    out AvatarHand hand,
+                    out string animationTrigger);
                 avatar =
                     new PresentationWorkbenchDefinition.AvatarPreviewContext(
                         avatarProvider,
                         avatarTransform,
-                        global::S1API.Items.AvatarHand.Right,
-                        "RightArm_Hold_ClosedHand",
+                        hand,
+                        animationTrigger,
                         PresentationWorkbenchExportKind.ProductTransform);
             }
 
@@ -120,5 +131,29 @@ namespace S1API.Internal.Products
                 transform.LocalPosition,
                 transform.LocalEulerAngles,
                 transform.LocalScale);
+
+        private static void ResolveAvatarMetadata(
+            string productId,
+            out AvatarHand hand,
+            out string animationTrigger)
+        {
+            hand = AvatarHand.Right;
+            animationTrigger = "RightArm_Hold_ClosedHand";
+
+            ItemDefinition? item = ItemManager.GetDefinition(productId);
+            S1AvatarEquipping.AvatarEquippable? avatar =
+                item?.S1ItemDefinition.Equippable
+                    ?.GetComponentInChildren<
+                        S1AvatarEquipping.AvatarEquippable>(true);
+            if (avatar == null)
+                return;
+
+            hand =
+                avatar.Hand == S1AvatarEquipping.AvatarEquippable.EHand.Left
+                    ? AvatarHand.Left
+                    : AvatarHand.Right;
+            if (!string.IsNullOrWhiteSpace(avatar.AnimationTrigger))
+                animationTrigger = avatar.AnimationTrigger;
+        }
     }
 }
