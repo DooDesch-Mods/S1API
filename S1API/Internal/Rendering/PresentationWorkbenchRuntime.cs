@@ -518,9 +518,6 @@ namespace S1API.Internal.Rendering
 
             private void ScheduleIconCapture(bool immediate)
             {
-                _iconRefreshAt =
-                    immediate ? Time.unscaledTime : Time.unscaledTime +
-                    IconDebounceSeconds;
                 if (immediate)
                 {
                     _iconRefreshAt = -1f;
@@ -528,6 +525,8 @@ namespace S1API.Internal.Rendering
                 }
                 else
                 {
+                    _iconRefreshAt =
+                        Time.unscaledTime + IconDebounceSeconds;
                     _view.SetStatus("Icon recapture scheduled.");
                 }
             }

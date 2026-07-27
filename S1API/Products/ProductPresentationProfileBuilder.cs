@@ -129,7 +129,6 @@ namespace S1API.Products
         {
             _avatarHeldVisualProvider =
                 provider ?? throw new ArgumentNullException(nameof(provider));
-            _avatarHeldTransform = null;
             return this;
         }
 
