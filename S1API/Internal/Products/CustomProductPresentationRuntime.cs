@@ -948,11 +948,7 @@ namespace S1API.Internal.Products
                 return heldSource;
 
             if (sources.TryGetValue(provider, out GameObject? cached))
-            {
-                return cached ??
-                       throw new InvalidOperationException(
-                           $"Avatar-held visual provider for '{product.ProductId}' returned null.");
-            }
+                return cached ?? heldSource;
 
             GameObject? source;
             try
@@ -961,15 +957,22 @@ namespace S1API.Internal.Products
             }
             catch (Exception exception)
             {
-                throw new InvalidOperationException(
-                    $"Avatar-held visual provider for '{product.ProductId}' failed.",
-                    exception);
+                sources.Add(provider, null);
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Avatar-held visual provider for " +
+                    $"'{product.ProductId}' failed; using the held visual instead: " +
+                    exception.Message);
+                return heldSource;
             }
 
             sources.Add(provider, source);
-            return source ??
-                   throw new InvalidOperationException(
-                       $"Avatar-held visual provider for '{product.ProductId}' returned null.");
+            if (source != null)
+                return source;
+
+            MelonLogger.Warning(
+                $"[ProductPresentationProfile] Avatar-held visual provider for " +
+                $"'{product.ProductId}' returned null; using the held visual instead.");
+            return heldSource;
         }
 
         private static void ApplyVisualTransform(

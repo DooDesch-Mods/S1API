@@ -43,11 +43,11 @@ namespace S1API.Internal.Rendering
                             firstPersonVisual.transform),
                         PresentationWorkbenchExportKind.LocalTransformAssignments);
 
-            GameObject iconVisual =
-                firstPersonVisual ??
-                avatar!.Provider() ??
-                throw new InvalidOperationException(
-                    $"Avatar visual for item '{itemId}' disappeared during discovery.");
+            GameObject? iconVisual =
+                firstPersonVisual ?? avatar!.Provider();
+            if (iconVisual == null)
+                return false;
+
             Func<GameObject?> iconProvider =
                 firstPersonVisual != null
                     ? () => ResolveItemVisual(itemId)
@@ -95,12 +95,15 @@ namespace S1API.Internal.Rendering
                 S1AvatarEquipping.AvatarEquippable.EHand.Left
                     ? AvatarHand.Left
                     : AvatarHand.Right;
+            string animationTrigger =
+                string.IsNullOrWhiteSpace(avatarEquippable.AnimationTrigger)
+                    ? "RightArm_Hold_ClosedHand"
+                    : avatarEquippable.AnimationTrigger;
             return new PresentationWorkbenchDefinition.AvatarPreviewContext(
                 () => ResolveAvatarVisual(assetPath),
                 PresentationWorkbenchTransform.From(visual.transform),
                 hand,
-                avatarEquippable.AnimationTrigger ??
-                "RightArm_Hold_ClosedHand",
+                animationTrigger,
                 PresentationWorkbenchExportKind.LocalTransformAssignments,
                 () => ResolveAvatarPrefab(assetPath),
                 PresentationWorkbenchVisualResolver.FindVisibleRoot,

@@ -188,7 +188,13 @@ namespace S1API.Internal.Rendering
                 value =>
                 {
                     if (TryParse(value, out float parsed))
+                    {
                         updateCameraFill(parsed);
+                    }
+                    else
+                    {
+                        SetStatus("Camera fill must be a finite number.");
+                    }
                 });
 
             Button resetButton =
@@ -475,7 +481,8 @@ namespace S1API.Internal.Rendering
             root.transform.SetParent(parent, false);
             var text = root.AddComponent<Text>();
             text.text = value;
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.font =
+                Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             text.fontSize = size;
             text.alignment = anchor;
             text.fontStyle = style;
