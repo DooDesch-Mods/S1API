@@ -251,6 +251,14 @@ namespace S1API.Entities.Relation
                     var targetList = relationData.Connections;
                     if (targetList != null)
                     {
+                        foreach (var previousConnection in targetList)
+                        {
+                            var reverseConnections =
+                                previousConnection?.RelationData?.Connections;
+                            if (reverseConnections != null)
+                                reverseConnections.Remove(owner);
+                        }
+
                         int previousCount = targetList.Count;
                         targetList.Clear();
                         int foundCount = 0;
@@ -281,6 +289,14 @@ namespace S1API.Entities.Relation
                                 else
                                 {
                                     foundCount++;
+                                }
+
+                                var reverseConnections =
+                                    other.RelationData?.Connections;
+                                if (reverseConnections != null &&
+                                    !reverseConnections.Contains(owner))
+                                {
+                                    reverseConnections.Add(owner);
                                 }
                             }
                             else

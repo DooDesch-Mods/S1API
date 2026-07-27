@@ -2334,7 +2334,9 @@ namespace S1API.Entities
             SetConversationCategories(categories);
         }
 
-        internal void SetConversationCategory(S1Messaging.EConversationCategory category)
+        internal void SetConversationCategory(
+            S1Messaging.EConversationCategory category,
+            bool ensureUi = true)
         {
             var categories = new ConversationCategoryList();
             categories.Add(category);
@@ -2344,7 +2346,8 @@ namespace S1API.Entities
                 return;
 
             S1NPC.MSGConversation.SetCategories(categories);
-            S1NPC.MSGConversation.EnsureUIExists();
+            if (ensureUi)
+                S1NPC.MSGConversation.EnsureUIExists();
         }
 
         private bool ShouldUseDealerCategory()
