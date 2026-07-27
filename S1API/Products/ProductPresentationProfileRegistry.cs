@@ -184,6 +184,50 @@ namespace S1API.Products
             }
         }
 
+        internal static bool TryGetWorkbenchProfile(
+            string key,
+            out ProductPresentationProfile? profile)
+        {
+            lock (Gate)
+            {
+                if (ProductProfiles.TryGetValue(
+                        key,
+                        out ProductPresentationProfileRegistration? product))
+                {
+                    profile = product.Profile;
+                    return true;
+                }
+
+                if (KindProfiles.TryGetValue(
+                        key,
+                        out ProductPresentationProfileRegistration? kind))
+                {
+                    profile = kind.Profile;
+                    return true;
+                }
+            }
+
+            if (CustomProductDefinitionRegistry.TryGetMetadata(
+                    key,
+                    out CustomProductDefinitionMetadata? metadata) &&
+                metadata != null)
+            {
+                lock (Gate)
+                {
+                    if (KindProfiles.TryGetValue(
+                            metadata.ProductKind.Id,
+                            out ProductPresentationProfileRegistration? kind))
+                    {
+                        profile = kind.Profile;
+                        return true;
+                    }
+                }
+            }
+
+            profile = null;
+            return false;
+        }
+
         internal static bool TryGetManifestIdentity(
             string productId,
             string productKindId,

@@ -26,6 +26,8 @@ namespace S1API.Products
             bool fitGeneratedIconToCamera,
             float generatedIconCameraFill,
             ProductPresentationTransform? generatedIconTransform,
+            Func<GameObject?>? avatarHeldVisualProvider,
+            ProductPresentationTransform? avatarHeldTransform,
             bool useFunctionalProductConvexMeshColliders,
             IReadOnlyCollection<ProductPresentationContext> requiredContexts)
         {
@@ -38,6 +40,8 @@ namespace S1API.Products
             FitGeneratedIconToCamera = fitGeneratedIconToCamera;
             GeneratedIconCameraFill = generatedIconCameraFill;
             GeneratedIconTransform = generatedIconTransform;
+            AvatarHeldVisualProvider = avatarHeldVisualProvider;
+            AvatarHeldTransform = avatarHeldTransform;
             UseFunctionalProductConvexMeshColliders =
                 useFunctionalProductConvexMeshColliders;
             RequiredContexts = requiredContexts;
@@ -63,6 +67,10 @@ namespace S1API.Products
         internal float GeneratedIconCameraFill { get; }
 
         internal ProductPresentationTransform? GeneratedIconTransform { get; }
+
+        internal Func<GameObject?>? AvatarHeldVisualProvider { get; }
+
+        internal ProductPresentationTransform? AvatarHeldTransform { get; }
 
         internal bool UseFunctionalProductConvexMeshColliders { get; }
 
@@ -116,6 +124,32 @@ namespace S1API.Products
 
             presentationTransform = null;
             return false;
+        }
+
+        internal bool TryGetAvatarHeldVisualProvider(
+            out Func<GameObject?>? provider)
+        {
+            if (AvatarHeldVisualProvider != null)
+            {
+                provider = AvatarHeldVisualProvider;
+                return true;
+            }
+
+            return TryGetVisualProvider(ProductPresentationContext.Held, out provider);
+        }
+
+        internal bool TryGetAvatarHeldTransform(
+            out ProductPresentationTransform? presentationTransform)
+        {
+            if (AvatarHeldTransform != null)
+            {
+                presentationTransform = AvatarHeldTransform;
+                return true;
+            }
+
+            return TryGetVisualTransform(
+                ProductPresentationContext.Held,
+                out presentationTransform);
         }
     }
 }
