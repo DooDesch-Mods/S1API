@@ -58,7 +58,7 @@ namespace S1API.Items
             bool success = RuntimeResourceRegistry.RegisterGameObject(assetPath, prefab);
             if (success)
             {
-                _logger.Msg($"Registered AvatarEquippable prefab: {assetPath}");
+                _logger.Debug($"Registered AvatarEquippable prefab: {assetPath}");
             }
             return success;
         }

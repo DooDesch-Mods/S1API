@@ -9,6 +9,7 @@ namespace S1API.Internal
     {
         internal static MelonPreferences_Entry<bool>? EnableMugshotLoadingScreen { get; private set; }
         internal static MelonPreferences_Entry<bool>? EnableUnityNullReferenceTraceLogging { get; private set; }
+        internal static MelonPreferences_Entry<bool>? EnableVerboseLogging { get; private set; }
 
         /// <summary>
         /// Initializes the S1API preferences category and entries. Call from OnInitializeMelon.
@@ -25,6 +26,11 @@ namespace S1API.Internal
                 "EnableUnityNullReferenceTraceLogging",
                 false,
                 "When true, S1API subscribes to Unity's threaded log callback and emits stack traces for NullReferenceException logs to help diagnose runtime issues.");
+
+            EnableVerboseLogging = category.CreateEntry<bool>(
+                "EnableVerboseLogging",
+                false,
+                "When true, S1API emits internal implementation diagnostics for rendering, resource registration, and runtime fallback behavior.");
         }
     }
 }

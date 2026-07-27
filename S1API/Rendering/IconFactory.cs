@@ -175,7 +175,7 @@ namespace S1API.Rendering
                         iconLayer);
                 }
 
-                Logger.Msg(
+                Logger.Debug(
                     $"Icon generation for '{model.name}': world pos={model.position}, " +
                     $"layer={model.gameObject.layer} " +
                     $"({LayerMask.LayerToName(model.gameObject.layer)}), " +
@@ -185,7 +185,7 @@ namespace S1API.Rendering
                 if (bakeSkinnedMeshes)
                 {
                     bakedRenderers = BakeSkinnedMeshRenderers(model.gameObject);
-                    Logger.Msg($"Baked {bakedRenderers.Count} SkinnedMeshRenderer(s)");
+                    Logger.Debug($"Baked {bakedRenderers.Count} SkinnedMeshRenderer(s)");
                 }
 
                 // Center the model in the container to ensure it's in view of the camera
@@ -205,7 +205,7 @@ namespace S1API.Rendering
                 generator.ModifyLighting = true;
 
                 texture = generator.GetTexture(model);
-                Logger.Msg($"Generated texture: {(texture != null ? $"{texture.width}x{texture.height}" : "null")}");
+                Logger.Debug($"Generated texture: {(texture != null ? $"{texture.width}x{texture.height}" : "null")}");
                 if (texture != null && !HasVisibleContent(texture))
                 {
                     Logger.Warning(
@@ -553,7 +553,7 @@ namespace S1API.Rendering
                 // Moving the model position shifts the bounds center to the container position.
                 model.position += centerOffset;
 
-                Logger.Msg($"Recentered model '{model.name}'. Old Bounds Center: {bounds.center}, New Center: {container.position}, Offset: {centerOffset}");
+                Logger.Debug($"Recentered model '{model.name}'. Old Bounds Center: {bounds.center}, New Center: {container.position}, Offset: {centerOffset}");
             }
             else
             {
@@ -591,7 +591,7 @@ namespace S1API.Rendering
 
             float scaleFactor = targetDimension / largestDimension;
             model.localScale *= scaleFactor;
-            Logger.Msg(
+            Logger.Debug(
                 $"Fit model '{model.name}' to native icon camera. " +
                 $"Bounds={bounds.size}, target={targetDimension:F3}, scale={scaleFactor:F3}");
         }
@@ -758,7 +758,7 @@ namespace S1API.Rendering
                         {
                             generatedMugshot.Apply();
                             capturedTexture = generatedMugshot;
-                            Logger.Msg($"Generated accessory icon for '{next.AccessoryPath}': {generatedMugshot.width}x{generatedMugshot.height}");
+                            Logger.Debug($"Generated accessory icon for '{next.AccessoryPath}': {generatedMugshot.width}x{generatedMugshot.height}");
                         }
                         else
                         {
@@ -809,7 +809,7 @@ namespace S1API.Rendering
             if (playerSettings != null)
             {
                 settings = playerSettings.ToAvatarSettings().S1AvatarSettings;
-                Logger.Msg("Using local player's avatar settings for accessory icon");
+                Logger.Debug("Using local player's avatar settings for accessory icon");
             }
             else
             {
@@ -832,7 +832,7 @@ namespace S1API.Rendering
         /// </summary>
         private static S1AvatarFramework.AvatarSettings CreateFallbackAvatarSettings()
         {
-            Logger.Msg("Local player not available, using fallback avatar settings for accessory icon");
+            Logger.Debug("Local player not available, using fallback avatar settings for accessory icon");
             var settings = ScriptableObject.CreateInstance<S1AvatarFramework.AvatarSettings>();
 
             // Set minimal defaults

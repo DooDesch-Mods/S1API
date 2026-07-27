@@ -66,7 +66,7 @@ namespace S1API.Rendering
             string typedKey = GetTypedKey(resourcePath, asset.GetType());
             _typedAssets[typedKey] = asset;
 
-            Logger.Msg($"Registered '{resourcePath}' as type '{asset.GetType().Name}'");
+            Logger.Debug($"Registered '{resourcePath}' as type '{asset.GetType().Name}'");
             return true;
         }
 
@@ -103,7 +103,7 @@ namespace S1API.Rendering
             string typedKey = GetTypedKey(resourcePath, forType);
             _typedAssets[typedKey] = asset;
 
-            Logger.Msg($"Registered '{resourcePath}' for type '{NormalizeTypeName(forType.FullName)}'");
+            Logger.Debug($"Registered '{resourcePath}' for type '{NormalizeTypeName(forType.FullName)}'");
             return true;
         }
 
@@ -322,7 +322,7 @@ namespace S1API.Rendering
                 }
 
                 _isPatched = true;
-                Logger.Msg($"Patched Resources.Load methods (typed={loadWithTypeMethod != null}, string={loadStringMethod != null})");
+                Logger.Debug($"Patched Resources.Load methods (typed={loadWithTypeMethod != null}, string={loadStringMethod != null})");
             }
             catch (Exception ex)
             {

@@ -70,7 +70,7 @@ namespace S1API.Internal.Patches
             var commandTypes = ReflectionUtils.GetDerivedClasses<BaseConsoleCommand>();
             foreach (var type in commandTypes)
             {
-                Logger.Msg($"Found console command: {type.FullName}");
+                Logger.Debug($"Found console command: {type.FullName}");
 
                 if (type.GetConstructor(Type.EmptyTypes) == null)
                     continue;
