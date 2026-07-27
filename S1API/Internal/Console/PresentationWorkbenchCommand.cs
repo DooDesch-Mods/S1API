@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using S1API.Internal.Rendering;
 using S1API.Logging;
-using S1API.Rendering;
 
 namespace S1API.Internal.Console
 {
@@ -20,7 +20,7 @@ namespace S1API.Internal.Console
             "Open the local icon and equippable presentation authoring workbench.";
 
         public override string ExampleUsage =>
-            "presentation_workbench <namespaced-id|list|close>";
+            "presentation_workbench [product|item|avatar] <id-or-path> | close";
 
         public override void ExecuteCommand(List<string> args)
         {
@@ -33,28 +33,34 @@ namespace S1API.Internal.Console
             string action = args[0]?.Trim() ?? string.Empty;
             if (action.Equals("close", StringComparison.OrdinalIgnoreCase))
             {
-                PresentationWorkbench.Close();
+                PresentationWorkbenchRuntime.Close();
                 Logger.Msg("Presentation workbench closed.");
                 return;
             }
 
-            if (action.Equals("list", StringComparison.OrdinalIgnoreCase))
+            string? targetKind = null;
+            string targetId = action;
+            if (PresentationWorkbenchResolver.IsTargetKind(action))
             {
-                IReadOnlyList<string> ids =
-                    PresentationWorkbenchRegistry.GetRegisteredIds();
-                Logger.Msg(
-                    ids.Count == 0
-                        ? "No explicit presentation workbench definitions are registered. " +
-                          "Product presentation profile IDs can still be opened directly."
-                        : "Presentation workbench IDs: " +
-                          string.Join(", ", ids));
+                if (args.Count != 2 || string.IsNullOrWhiteSpace(args[1]))
+                {
+                    Logger.Msg($"Usage: {ExampleUsage}");
+                    return;
+                }
+
+                targetKind = action;
+                targetId = args[1].Trim();
+            }
+            else if (args.Count != 1)
+            {
+                Logger.Msg($"Usage: {ExampleUsage}");
                 return;
             }
 
-            if (!PresentationWorkbench.Open(action))
+            if (!PresentationWorkbenchRuntime.Open(targetId, targetKind))
             {
                 Logger.Warning(
-                    $"Could not open presentation workbench '{action}'.");
+                    $"Could not open presentation workbench target '{targetId}'.");
             }
         }
     }

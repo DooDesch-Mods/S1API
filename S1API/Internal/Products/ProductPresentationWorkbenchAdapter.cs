@@ -1,6 +1,6 @@
 using System;
+using S1API.Internal.Rendering;
 using S1API.Products;
-using S1API.Rendering;
 using UnityEngine;
 
 namespace S1API.Internal.Products
@@ -20,52 +20,43 @@ namespace S1API.Internal.Products
                 return false;
             }
 
-            var builder =
-                new PresentationWorkbenchDefinitionBuilder(
-                    id,
-                    $"Product presentation: {id}");
-            bool configured = false;
+            PresentationWorkbenchDefinition.PreviewContext? firstPerson = null;
+            PresentationWorkbenchDefinition.AvatarPreviewContext? avatar = null;
+            PresentationWorkbenchDefinition.IconPreviewContext? icon = null;
 
             if (profile.TryGetVisualProvider(
                     ProductPresentationContext.Held,
                     out Func<GameObject?>? heldProvider) &&
                 heldProvider != null)
             {
-                if (profile.TryGetVisualTransform(
-                        ProductPresentationContext.Held,
-                        out ProductPresentationTransform? heldTransform) &&
-                    heldTransform != null)
-                {
-                    builder.WithFirstPersonPreview(
+                PresentationWorkbenchTransform? heldTransform =
+                    ResolveTransform(
+                        profile,
+                        ProductPresentationContext.Held);
+                firstPerson =
+                    new PresentationWorkbenchDefinition.PreviewContext(
                         heldProvider,
-                        Convert(heldTransform));
-                }
-                else
-                {
-                    builder.WithFirstPersonPreview(heldProvider);
-                }
-
-                configured = true;
+                        heldTransform,
+                        PresentationWorkbenchExportKind.ProductTransform);
             }
 
             if (profile.TryGetAvatarHeldVisualProvider(
                     out Func<GameObject?>? avatarProvider) &&
                 avatarProvider != null)
             {
-                if (profile.TryGetAvatarHeldTransform(
-                        out ProductPresentationTransform? avatarTransform) &&
-                    avatarTransform != null)
-                {
-                    builder.WithAvatarPreview(
+                PresentationWorkbenchTransform? avatarTransform =
+                    profile.TryGetAvatarHeldTransform(
+                        out ProductPresentationTransform? configuredTransform) &&
+                    configuredTransform != null
+                        ? Convert(configuredTransform)
+                        : null;
+                avatar =
+                    new PresentationWorkbenchDefinition.AvatarPreviewContext(
                         avatarProvider,
-                        Convert(avatarTransform));
-                }
-                else
-                {
-                    builder.WithAvatarPreview(avatarProvider);
-                }
-
-                configured = true;
+                        avatarTransform,
+                        global::S1API.Items.AvatarHand.Right,
+                        "RightArm_Hold_ClosedHand",
+                        PresentationWorkbenchExportKind.ProductTransform);
             }
 
             if (profile.GenerateIconFromLooseVisual &&
@@ -83,21 +74,44 @@ namespace S1API.Internal.Products
                         out iconTransform);
                 }
 
-                builder.WithIconPreview(
-                    iconProvider,
-                    iconTransform?.LocalEulerAngles ?? Vector3.zero,
-                    profile.FitGeneratedIconToCamera,
-                    profile.GeneratedIconCameraFill,
-                    profile.GeneratedIconSize,
-                    iconTransform?.LocalScale ?? Vector3.one);
-                configured = true;
+                icon =
+                    new PresentationWorkbenchDefinition.IconPreviewContext(
+                        iconProvider,
+                        new PresentationWorkbenchTransform(
+                            Vector3.zero,
+                            iconTransform?.LocalEulerAngles ?? Vector3.zero,
+                            iconTransform?.LocalScale ?? Vector3.one),
+                        profile.GeneratedIconSize,
+                        profile.FitGeneratedIconToCamera,
+                        profile.GeneratedIconCameraFill);
             }
 
-            if (!configured)
+            if (firstPerson == null && avatar == null && icon == null)
                 return false;
 
-            definition = builder.Build();
+            definition =
+                new PresentationWorkbenchDefinition(
+                    id,
+                    $"Product presentation: {id}",
+                    firstPerson,
+                    avatar,
+                    icon);
             return true;
+        }
+
+        private static PresentationWorkbenchTransform? ResolveTransform(
+            ProductPresentationProfile profile,
+            ProductPresentationContext context)
+        {
+            if (profile.TryGetVisualTransform(
+                    context,
+                    out ProductPresentationTransform? transform) &&
+                transform != null)
+            {
+                return Convert(transform);
+            }
+
+            return null;
         }
 
         private static PresentationWorkbenchTransform Convert(

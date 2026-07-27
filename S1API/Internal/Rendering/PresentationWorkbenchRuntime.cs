@@ -27,21 +27,23 @@ namespace S1API.Internal.Rendering
 
         internal static string? ActiveDefinitionId => _session?.Definition.Id;
 
-        internal static bool Open(string id)
+        internal static bool Open(string id, string? targetKind = null)
         {
-            if (!PresentationWorkbenchRegistry.TryGet(
-                    id,
-                    out PresentationWorkbenchDefinition? definition) ||
-                definition == null)
-            {
-                Logger.Warning(
-                    $"No presentation workbench definition is registered for '{id}'.");
-                return false;
-            }
-
             Close();
+            PresentationWorkbenchDefinition? definition = null;
             try
             {
+                if (!PresentationWorkbenchResolver.TryResolve(
+                        id,
+                        targetKind,
+                        out definition,
+                        out string failure) ||
+                    definition == null)
+                {
+                    Logger.Warning(failure);
+                    return false;
+                }
+
                 if (!TryGetGameplayState(
                         out S1PlayerScripts.Player? player,
                         out S1PlayerScripts.PlayerInventory? inventory,
@@ -67,7 +69,8 @@ namespace S1API.Internal.Rendering
             catch (Exception exception)
             {
                 Logger.Error(
-                    $"Could not open presentation workbench '{definition.Id}': " +
+                    $"Could not open presentation workbench " +
+                    $"'{definition?.Id ?? id}': " +
                     exception);
                 Close();
                 return false;
@@ -505,7 +508,7 @@ namespace S1API.Internal.Rendering
                             _icon.CameraFill,
                             _icon.Size)
                         : PresentationWorkbenchExporter.FormatTransform(
-                            _mode,
+                            state.ExportKind,
                             state.Current.LocalPosition,
                             state.Current.LocalEulerAngles,
                             state.Current.LocalScale);
@@ -612,7 +615,11 @@ namespace S1API.Internal.Rendering
                 if (context == null)
                     return null;
 
-                return CreateState(context.Provider, context.InitialTransform);
+                return new PreviewState(
+                    context.Provider,
+                    context.InitialTransform ??
+                    CaptureAuthoredTransform(context.Provider),
+                    context.ExportKind);
             }
 
             private static PreviewState? CreateState(
@@ -621,17 +628,11 @@ namespace S1API.Internal.Rendering
                 if (context == null)
                     return null;
 
-                return CreateState(context.Provider, context.InitialTransform);
-            }
-
-            private static PreviewState CreateState(
-                Func<GameObject?> provider,
-                PresentationWorkbenchTransform? initialTransform)
-            {
-                PresentationWorkbenchTransform initial =
-                    initialTransform ??
-                    CaptureAuthoredTransform(provider);
-                return new PreviewState(provider, initial);
+                return new PreviewState(
+                    context.Provider,
+                    context.InitialTransform ??
+                    CaptureAuthoredTransform(context.Provider),
+                    context.ExportKind);
             }
 
             private static IconState? CreateIconState(
@@ -642,10 +643,8 @@ namespace S1API.Internal.Rendering
 
                 return new IconState(
                     context.Provider,
-                    new PresentationWorkbenchTransform(
-                        Vector3.zero,
-                        context.InitialEulerAngles,
-                        context.InitialScale),
+                    context.InitialTransform ??
+                    CaptureAuthoredTransform(context.Provider),
                     context.Size,
                     context.FitToCamera,
                     context.CameraFill);
@@ -740,11 +739,13 @@ namespace S1API.Internal.Rendering
         {
             internal PreviewState(
                 Func<GameObject?> provider,
-                PresentationWorkbenchTransform initial)
+                PresentationWorkbenchTransform initial,
+                PresentationWorkbenchExportKind exportKind)
             {
                 Provider = provider;
                 Initial = initial;
                 Current = initial;
+                ExportKind = exportKind;
             }
 
             internal Func<GameObject?> Provider { get; }
@@ -752,6 +753,8 @@ namespace S1API.Internal.Rendering
             internal PresentationWorkbenchTransform Initial { get; }
 
             internal PresentationWorkbenchTransform Current { get; set; }
+
+            internal PresentationWorkbenchExportKind ExportKind { get; }
         }
 
         private sealed class IconState : PreviewState
@@ -762,7 +765,10 @@ namespace S1API.Internal.Rendering
                 int size,
                 bool fitToCamera,
                 float cameraFill)
-                : base(provider, initial)
+                : base(
+                    provider,
+                    initial,
+                    PresentationWorkbenchExportKind.IconFactory)
             {
                 Size = size;
                 InitialFitToCamera = fitToCamera;

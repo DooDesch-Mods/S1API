@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text;
-using S1API.Rendering;
 using UnityEngine;
 
 namespace S1API.Internal.Rendering
@@ -8,20 +7,24 @@ namespace S1API.Internal.Rendering
     internal static class PresentationWorkbenchExporter
     {
         internal static string FormatTransform(
-            PresentationWorkbenchMode mode,
+            PresentationWorkbenchExportKind exportKind,
             Vector3 position,
             Vector3 eulerAngles,
             Vector3 scale)
         {
-            string typeName =
-                mode == PresentationWorkbenchMode.Avatar
-                    ? "ProductPresentationTransform"
-                    : "PresentationWorkbenchTransform";
+            if (exportKind == PresentationWorkbenchExportKind.ProductTransform)
+            {
+                return
+                    "new ProductPresentationTransform(\n" +
+                    $"    {FormatVector(position)},\n" +
+                    $"    {FormatVector(eulerAngles)},\n" +
+                    $"    {FormatVector(scale)})";
+            }
+
             return
-                $"new {typeName}(\n" +
-                $"    {FormatVector(position)},\n" +
-                $"    {FormatVector(eulerAngles)},\n" +
-                $"    {FormatVector(scale)})";
+                $"visual.transform.localPosition = {FormatVector(position)};\n" +
+                $"visual.transform.localEulerAngles = {FormatVector(eulerAngles)};\n" +
+                $"visual.transform.localScale = {FormatVector(scale)};";
         }
 
         internal static string FormatIcon(
@@ -32,21 +35,24 @@ namespace S1API.Internal.Rendering
             int size)
         {
             var result = new StringBuilder();
-            result.AppendLine(".WithIconPreview(");
-            result.AppendLine("    provider,");
-            result.Append("    ").Append(FormatVector(eulerAngles)).AppendLine(",");
+            result.Append("iconSource.transform.localEulerAngles = ")
+                .Append(FormatVector(eulerAngles))
+                .AppendLine(";");
+            result.Append("iconSource.transform.localScale = ")
+                .Append(FormatVector(scale))
+                .AppendLine(";");
+            result.AppendLine("IconFactory.GenerateIconSprite(");
+            result.AppendLine("    iconSource.transform,");
+            result.Append("    size: ")
+                .Append(size.ToString(CultureInfo.InvariantCulture))
+                .AppendLine(",");
+            result.AppendLine("    bakeSkinnedMeshes: true,");
             result.Append("    fitToCamera: ")
                 .Append(fitToCamera ? "true" : "false")
                 .AppendLine(",");
             result.Append("    cameraFill: ")
                 .Append(FormatFloat(cameraFill))
-                .AppendLine(",");
-            result.Append("    size: ")
-                .Append(size.ToString(CultureInfo.InvariantCulture))
-                .AppendLine(",");
-            result.Append("    initialScale: ")
-                .Append(FormatVector(scale))
-                .Append(")");
+                .Append(");");
             return result.ToString();
         }
 

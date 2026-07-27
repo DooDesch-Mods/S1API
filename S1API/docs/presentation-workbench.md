@@ -1,91 +1,59 @@
 # Presentation workbench
 
-The presentation workbench is an in-game authoring tool for tuning visual
-position, rotation, scale, and native icon framing without rebuilding the mod
-after every value change. It provides three context-accurate previews:
+The presentation workbench is an S1API-owned, in-game developer tool for
+tuning visual position, rotation, scale, and native icon framing without
+rebuilding a mod after every value change. It is not a mod-facing API and mods
+do not register workbench definitions.
+
+Instead, the tool discovers content that is already registered through S1API
+or the game:
+
+- **Product** targets read existing `ProductPresentationProfile` registrations.
+- **Item** targets read the registered item definition, its equippable visual,
+  and its linked avatar-equippable resource.
+- **Avatar** targets read a registered or native avatar-equippable resource
+  path directly.
+
+The workbench provides three context-accurate previews when the discovered
+target supports them:
 
 - **First person** clones the visual into the local player's real viewmodel
   container and assigns the `Viewmodel` layer.
-- **Avatar** aligns the visual to the selected hand on the local player's
+- **Avatar** aligns the visual to the configured hand on the local player's
   visible avatar and renders the result through a dedicated preview camera.
 - **Icon** captures the visual through the base game's native `IconGenerator`
   rig. Position is intentionally omitted because `IconFactory` centers the
   renderer bounds before capture.
 
-The workbench never equips an inventory slot, registers a preview object,
+The workbench never equips an inventory slot, mutates a registered definition,
 persists values, or sends an RPC. Closing it or unloading the scene destroys
 all preview objects and restores movement, inventory, cursor, camera, avatar,
 and previously visible equippable state.
 
-## Register a definition
+## Open a registered target
 
-Create one immutable definition during mod initialization and register it under
-a stable namespaced ID:
-
-```csharp
-using S1API.Items;
-using S1API.Rendering;
-using UnityEngine;
-
-GameObject firstPersonSource = LoadFirstPersonSource();
-GameObject avatarSource = LoadAvatarSource();
-GameObject iconSource = LoadIconSource();
-
-PresentationWorkbenchDefinition definition =
-    new PresentationWorkbenchDefinitionBuilder(
-            "example.mod:items/focus-tablet",
-            "Focus tablet")
-        .WithFirstPersonPreview(
-            () => firstPersonSource,
-            new PresentationWorkbenchTransform(
-                Vector3.zero,
-                new Vector3(0f, 180f, 0f),
-                Vector3.one * 1.8f))
-        .WithAvatarPreview(
-            () => avatarSource,
-            new PresentationWorkbenchTransform(
-                new Vector3(0f, -0.16f, 0f),
-                new Vector3(0f, 270f, 0f),
-                Vector3.one * 2.25f),
-            hand: AvatarHand.Right,
-            animationTrigger: "RightArm_Hold_ClosedHand")
-        .WithIconPreview(
-            () => iconSource,
-            initialEulerAngles: new Vector3(18f, -32f, 0f),
-            fitToCamera: true,
-            cameraFill: 0.8f)
-        .Build();
-
-PresentationWorkbenchRegistry.Register("example.mod", definition);
-```
-
-Providers return reusable prefab sources. The workbench clones each result and
-does not mutate the provider-owned object. Registering the same definition
-instance again under the same owner is idempotent. IDs and owner IDs are
-case-insensitive; another owner cannot replace an existing ID.
-
-The animation trigger is included as authoring metadata for the eventual
-`AvatarEquippable`. The preview does not apply it because changing the local
-avatar animator could leak state beyond the authoring session.
-
-## Open and edit
-
-Open the native developer console after the local player has spawned:
+Open the native developer console after the local player has spawned. The
+explicit forms are:
 
 ```text
-presentation_workbench example.mod:items/focus-tablet
-```
-
-Other command forms are:
-
-```text
-presentation_workbench list
+presentation_workbench product example.mod:products/focus-tablet
+presentation_workbench item example.mod:items/storage-pallet
+presentation_workbench avatar ExampleMod/Items/StoragePallet/Held
 presentation_workbench close
 ```
 
-`list` reports explicit workbench definitions. A product presentation profile
-can still be opened directly by its stable product ID even though it does not
-appear in that list.
+For convenience, omit the target kind to resolve a value in product, item,
+then avatar order:
+
+```text
+presentation_workbench example.mod:products/focus-tablet
+```
+
+No initialization code is required in the consuming mod. If the requested
+target has not been registered yet, run the command after that mod finishes
+its normal content registration.
+
+## Edit and copy values
 
 Select a supported context, enter numeric values, and commit each field with
 Enter or by moving focus. Icon changes are debounced before the native rig is
@@ -93,24 +61,20 @@ captured again. `Fit` enables bounds-based automatic scale fitting;
 `cameraFill` controls how much of the native camera's vertical view the fitted
 model occupies. Values greater than `1` intentionally crop the model.
 
-Use **Copy C#** to copy an invariant-culture
-`PresentationWorkbenchTransform`, `ProductPresentationTransform`, or
-`WithIconPreview(...)` fragment to the clipboard. The workbench does not write
-source files or modify the registered definition.
+Use **Copy C#** to copy an invariant-culture fragment for an existing API:
+
+- product poses copy a `ProductPresentationTransform`;
+- item and avatar resources copy local transform assignments for the visible
+  prefab root selected by the tool;
+- icons copy `IconFactory.GenerateIconSprite(...)` setup and arguments.
+
+The tool does not write source files or change the registered content.
 
 ## Product presentation profiles
 
-Profiles registered through `ProductPresentationProfileRegistry` are exposed
-automatically:
-
-```text
-presentation_workbench example.mod:products/focus-tablet
-```
-
-The held visual supplies the first-person preview. The avatar preview uses the
-avatar-held override when configured and otherwise preserves the legacy held
-visual and transform fallback. Generated loose icons use the same rotation,
-scale, fit, fill, and size settings as runtime icon generation.
+Profiles registered through `ProductPresentationProfileRegistry` automatically
+provide the held first-person preview, avatar-held preview, and generated
+loose-icon preview that they support.
 
 Use a separate avatar pose when a shared source needs different first- and
 third-person placement:
@@ -130,6 +94,21 @@ ProductPresentationProfile profile =
 Use `WithAvatarHeldVisual(provider, avatarPose)` when the avatar also needs a
 different source. Omitting both avatar-specific methods keeps the existing
 held visual and pose behavior.
+
+## Item and avatar discovery
+
+An item target uses the enabled renderer hierarchy under the registered
+equippable as its editable visual root. If the equippable references an
+`AvatarEquippable`, the linked registered prefab supplies the avatar tab and
+its configured hand.
+
+The item icon tab uses that same visible equippable hierarchy as a practical
+icon source. Product profiles retain their exact loose-icon source and framing
+settings. A transient custom icon source that a mod creates, captures, and
+destroys outside a product profile cannot be reconstructed from the final
+sprite; use the closest registered product or item visual as the starting
+point and paste the copied `IconFactory` values into that icon-generation
+code.
 
 ## Runtime requirements and limits
 
