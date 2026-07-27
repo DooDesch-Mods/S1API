@@ -155,7 +155,8 @@ namespace S1API.Products
             {
                 throw new InvalidOperationException(
                     "Explicit content placements cannot be combined with a complete " +
-                    "filled visual. Configure its optional transform instead.");
+                    "filled visual or a native filled visual scaffold. Configure the " +
+                    "optional transform instead.");
             }
 
             return new ProductPackagingContentProfile(

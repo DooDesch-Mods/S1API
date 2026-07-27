@@ -902,7 +902,9 @@ namespace S1API.Internal.Products
                 LogFailureOnce(
                     registration,
                     "native visual scaffold",
-                    "the selected template is unavailable in this packaging context");
+                    $"the selected template " +
+                    $"'{registration.Profile.NativeVisualTemplate!.Value}' is " +
+                    "unavailable in this packaging context");
                 DestroyOwnedRoot(generatedRoot);
                 return false;
             }
