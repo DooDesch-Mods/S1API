@@ -351,7 +351,7 @@ namespace S1API.Internal.NPCWorkbench
                 {
                     try
                     {
-                        _draft = NPCWorkbenchRuntimeAdapter.Import(option.Id);
+                        _draft = NPCWorkbenchRuntimeAdapter.Import(option.Id, option.IsCustom);
                         BuildEditor();
                         Refresh();
                     }

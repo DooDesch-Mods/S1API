@@ -1,7 +1,9 @@
 #if IL2CPPMELON
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
+using S1NPCs = Il2CppScheduleOne.NPCs;
 #elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
+using S1NPCs = ScheduleOne.NPCs;
 #endif
 
 using System;
@@ -9,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using S1API.Entities;
 using S1API.Internal.Entities;
+using S1API.Internal.Utils;
 using UnityEngine;
 
 namespace S1API.Internal.NPCWorkbench
@@ -31,22 +34,36 @@ namespace S1API.Internal.NPCWorkbench
     {
         internal static IReadOnlyList<NPCWorkbenchSourceOption> GetSources(bool custom)
         {
+            if (!custom)
+                return GetNativeSources();
+
             return NPC.All
-                .Where(npc => npc != null && npc.IsCustomNPC == custom)
+                .Where(npc => npc != null && npc.IsCustomNPC)
                 .OrderBy(npc => npc.ID, StringComparer.OrdinalIgnoreCase)
-                .Select(npc => new NPCWorkbenchSourceOption(npc.ID, $"{npc.FullName} ({npc.ID})", custom))
+                .Select(npc => new NPCWorkbenchSourceOption(
+                    npc.ID,
+                    $"{npc.FullName} ({npc.ID})",
+                    isCustom: true))
                 .ToArray();
         }
 
-        internal static NPCWorkbenchDraft Import(string id)
+        internal static NPCWorkbenchDraft Import(string id, bool custom)
         {
-            var npc = NPC.Get(id);
+            return custom ? ImportCustom(id) : ImportNative(id);
+        }
+
+        private static NPCWorkbenchDraft ImportCustom(string id)
+        {
+            var npc = NPC.All.FirstOrDefault(candidate =>
+                candidate != null &&
+                candidate.IsCustomNPC &&
+                string.Equals(candidate.ID, id, StringComparison.OrdinalIgnoreCase));
             if (npc == null)
-                throw new InvalidOperationException($"NPC '{id}' is not available in the current scene.");
+                throw new InvalidOperationException($"S1API NPC '{id}' is not available in the current scene.");
 
             var draft = new NPCWorkbenchDraft
             {
-                SourceKind = npc.IsCustomNPC ? NPCWorkbenchSourceKind.S1API : NPCWorkbenchSourceKind.Native,
+                SourceKind = NPCWorkbenchSourceKind.S1API,
                 SourceId = npc.ID,
                 SourceDisplayName = $"{npc.FullName} ({npc.ID})"
             };
@@ -63,6 +80,83 @@ namespace S1API.Internal.NPCWorkbench
                 draft.Appearance.ImpostorId = impostor.Definition?.Name;
 
             return draft;
+        }
+
+        private static NPCWorkbenchDraft ImportNative(string id)
+        {
+            var npc = S1NPCs.NPCManager.NPCRegistry.ToArray().FirstOrDefault(candidate =>
+                candidate != null &&
+                string.Equals(NPCDataAccess.GetId(candidate), id, StringComparison.OrdinalIgnoreCase) &&
+                !IsCustom(candidate));
+            if (npc == null)
+                throw new InvalidOperationException($"Native NPC '{id}' is not available in the current scene.");
+
+            var avatar = npc.Avatar ?? npc.gameObject.GetComponentInChildren<S1AvatarFramework.Avatar>(true);
+            var sourceSettings = avatar?.CurrentSettings;
+            if (sourceSettings == null && avatar != null)
+            {
+                sourceSettings = ReflectionUtils.TryGetFieldOrProperty(
+                    avatar,
+                    "InitialAvatarSettings") as S1AvatarFramework.AvatarSettings;
+            }
+            if (sourceSettings == null)
+                throw new InvalidOperationException($"Native NPC '{id}' has no available appearance settings.");
+
+            var draft = new NPCWorkbenchDraft
+            {
+                SourceKind = NPCWorkbenchSourceKind.Native,
+                SourceId = id,
+                SourceDisplayName = $"{GetDisplayName(npc)} ({id})"
+            };
+
+            using (var settings = new AvatarSettingsScope(ScriptableObject.Instantiate(sourceSettings)))
+                CopyAppearance(settings.Value, draft.Appearance);
+
+            return draft;
+        }
+
+        private static IReadOnlyList<NPCWorkbenchSourceOption> GetNativeSources()
+        {
+            return S1NPCs.NPCManager.NPCRegistry.ToArray()
+                .Where(npc =>
+                    npc != null &&
+                    !IsCustom(npc) &&
+                    !string.IsNullOrWhiteSpace(NPCDataAccess.GetId(npc)))
+                .GroupBy(NPCDataAccess.GetId, StringComparer.OrdinalIgnoreCase)
+                .Select(group => group.First())
+                .OrderBy(NPCDataAccess.GetId, StringComparer.OrdinalIgnoreCase)
+                .Select(npc =>
+                {
+                    var id = NPCDataAccess.GetId(npc);
+                    return new NPCWorkbenchSourceOption(
+                        id,
+                        $"{GetDisplayName(npc)} ({id})",
+                        isCustom: false);
+                })
+                .ToArray();
+        }
+
+        private static bool IsCustom(S1NPCs.NPC npc)
+        {
+            if (npc.gameObject.GetComponent<NPCPrefabIdentity>() != null)
+                return true;
+
+            return NPC.All.Any(wrapper =>
+                wrapper != null &&
+                wrapper.IsCustomNPC &&
+                wrapper.S1NPC == npc);
+        }
+
+        private static string GetDisplayName(S1NPCs.NPC npc)
+        {
+            var firstName = NPCDataAccess.GetFirstName(npc);
+            var lastName = NPCDataAccess.GetLastName(npc);
+            var fullName = string.Join(
+                " ",
+                new[] { firstName, lastName }.Where(value => !string.IsNullOrWhiteSpace(value)));
+            return string.IsNullOrWhiteSpace(fullName)
+                ? NPCDataAccess.GetId(npc)
+                : fullName;
         }
 
         internal static S1AvatarFramework.AvatarSettings CreateSettings(
