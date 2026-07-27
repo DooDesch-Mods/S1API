@@ -8,6 +8,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1CoreEquipping = Il2CppScheduleOne.Core.Equipping.Framework;
+using S1MapBase = Il2CppScheduleOne.Map;
 #elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
@@ -18,6 +19,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;
 using S1CoreEquipping = ScheduleOne.Core.Equipping.Framework;
+using S1MapBase = ScheduleOne.Map;
 #endif
 
 using System;
@@ -36,6 +38,7 @@ using System.Collections.Generic;
 using S1API.Internal.Entities;
 using S1API.Internal.Utils;
 using S1API.Logging;
+using S1API.Map;
 using Object = UnityEngine.Object;
 
 namespace S1API.Entities
@@ -575,6 +578,32 @@ namespace S1API.Entities
             // Configuration will be applied when the NPC instance is created as a Dealer.
             // This is handled in NPC.cs during FinalizeNetworkSpawn or similar lifecycle methods.
             
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the NPC's designated map region on the native prefab before it is network-spawned.
+        /// </summary>
+        /// <remarks>
+        /// Configure this in <see cref="NPC.ConfigurePrefab"/> when the NPC has relationship connections.
+        /// The native relationship initializer removes connections to NPCs in a different region, so setting
+        /// <see cref="NPC.Region"/> later in <see cref="NPC.OnCreated"/> is too late.
+        /// </remarks>
+        /// <param name="region">The NPC's designated map region.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public NPCPrefabBuilder WithRegion(Region region)
+        {
+            try
+            {
+                var npc = prefabRoot.GetComponent<S1NPCs.NPC>();
+                if (npc != null)
+                    npc.Region = (S1MapBase.EMapRegion)(int)region;
+            }
+            catch
+            {
+                // Keep the existing prefab defaults when the native NPC component is unavailable.
+            }
+
             return this;
         }
 
