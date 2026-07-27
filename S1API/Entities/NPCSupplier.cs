@@ -150,7 +150,11 @@ namespace S1API.Entities
                 return;
             }
 
-            npc.SetConversationCategory(S1Messaging.EConversationCategory.Supplier);
+            // Native suppliers keep a conversation object for persistence and
+            // networking, but do not add it to Messages until SupplierUnlocked.
+            npc.SetConversationCategory(
+                S1Messaging.EConversationCategory.Supplier,
+                ensureUi: false);
             npc.EnsureMessageConversationReady(resetDefaults: false);
             EnsureDeadDropReadyDispatcher();
         }

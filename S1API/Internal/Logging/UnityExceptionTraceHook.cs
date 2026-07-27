@@ -12,6 +12,9 @@ namespace S1API.Internal.Diagnostics
     /// </summary>
     internal static class UnityExceptionTraceHook
     {
+        private const string KnownBaseGameNullReferenceAdvisory =
+            "[Unity] Note: this NullReferenceException is commonly observed in the native/base game and is usually not caused by a mod. The original stack trace is retained for diagnosis.";
+
         private static readonly Log Logger = new Log("S1API.UnityExceptionTrace");
         private static readonly object Sync = new object();
 #if IL2CPPMELON
@@ -82,6 +85,11 @@ namespace S1API.Internal.Diagnostics
 
             Logger.Error($"[Unity] {condition}");
 
+            if (GetKnownBaseGameNullReferenceAdvisory(stackTrace) is not null)
+            {
+                Logger.Warning(KnownBaseGameNullReferenceAdvisory);
+            }
+
             if (!string.IsNullOrWhiteSpace(stackTrace))
             {
                 Logger.Error($"[Unity] stack trace:\n{stackTrace}");
@@ -92,6 +100,21 @@ namespace S1API.Internal.Diagnostics
         {
             string haystack = string.Concat(condition ?? string.Empty, "\n", stackTrace ?? string.Empty);
             return haystack.Contains("NullReferenceException", StringComparison.Ordinal);
+        }
+
+        internal static string? GetKnownBaseGameNullReferenceAdvisory(string? stackTrace)
+        {
+            if (string.IsNullOrWhiteSpace(stackTrace))
+            {
+                return null;
+            }
+
+            return stackTrace.Contains("ScheduleOne.Weather.EnvironmentManager.GetWeatherProfileFromPosition", StringComparison.Ordinal)
+                || stackTrace.Contains("ScheduleOne.NPCs.NPCMovement+<FaceDirection_Process>", StringComparison.Ordinal)
+                || stackTrace.Contains("ScheduleOne.Configuration.ConfigurationServiceNetworker.OnDestroy", StringComparison.Ordinal)
+                || stackTrace.Contains("ScheduleOne.UI.PauseMenu.OnDestroy", StringComparison.Ordinal)
+                ? KnownBaseGameNullReferenceAdvisory
+                : null;
         }
 
         private static bool ShouldSuppressDuplicate(string signature)
