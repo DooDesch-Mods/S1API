@@ -195,7 +195,8 @@ namespace S1API.Internal.Rendering
                     {
                         SetStatus("Camera fill must be a finite number.");
                     }
-                });
+                },
+                live: true);
 
             Button resetButton =
                 CreateButton("Reset", "Reset", controls.transform);
@@ -219,7 +220,7 @@ namespace S1API.Internal.Rendering
 
             _status = CreateText(
                 "Status",
-                "Edits are local and temporary.",
+                "Preview edits are temporary. Copy C# to persist them.",
                 controls.transform,
                 15,
                 TextAnchor.UpperLeft,
@@ -262,14 +263,14 @@ namespace S1API.Internal.Rendering
             _iconRow.SetActive(icon);
             _previewPanel.SetActive(mode != PresentationWorkbenchMode.FirstPerson);
             _fitLabel.text = fitToCamera ? "Fit: On" : "Fit: Off";
-            _cameraFillField.text = Format(cameraFill);
+            _cameraFillField.SetTextWithoutNotify(Format(cameraFill));
             SetVector(_positionFields, transform.LocalPosition);
             SetVector(_rotationFields, transform.LocalEulerAngles);
             SetVector(_scaleFields, transform.LocalScale);
             SetStatus(
                 mode == PresentationWorkbenchMode.Avatar
-                    ? "Drag the preview to orbit; use the mouse wheel to zoom."
-                    : "Edits are local and temporary.");
+                    ? "Drag to orbit and scroll to zoom. Preview edits are temporary."
+                    : "Preview edits update live. Copy C# to persist them.");
         }
 
         internal void SetPreview(Texture? texture)
@@ -296,7 +297,9 @@ namespace S1API.Internal.Rendering
             {
                 EventHelper.RemoveListener(
                     binding.Action,
-                    binding.Input.onEndEdit);
+                    binding.Live
+                        ? binding.Input.onValueChanged
+                        : binding.Input.onEndEdit);
             }
 
             _buttonBindings.Clear();
@@ -347,9 +350,9 @@ namespace S1API.Internal.Rendering
 
             for (int i = 0; i < 3; i++)
             {
-                Bind(position[i], Apply);
-                Bind(rotation[i], Apply);
-                Bind(scale[i], Apply);
+                Bind(position[i], Apply, live: true);
+                Bind(rotation[i], Apply, live: true);
+                Bind(scale[i], Apply, live: true);
             }
         }
 
@@ -359,11 +362,21 @@ namespace S1API.Internal.Rendering
             _buttonBindings.Add(new ButtonBinding(button, action));
         }
 
-        private void Bind(InputField input, Action<string> action)
+        private void Bind(
+            InputField input,
+            Action<string> action,
+            bool live = false)
         {
-            EventHelper.AddListener(action, input.onEndEdit);
-            _inputBindings.Add(new InputBinding(input, action));
+            Action<string> bindingAction = CreateInputBindingAction(action);
+            EventHelper.AddListener(
+                bindingAction,
+                live ? input.onValueChanged : input.onEndEdit);
+            _inputBindings.Add(new InputBinding(input, bindingAction, live));
         }
+
+        internal static Action<string> CreateInputBindingAction(
+            Action<string> action) =>
+            value => action(value);
 
         private static GameObject CreateVectorRow(
             string label,
@@ -508,9 +521,9 @@ namespace S1API.Internal.Rendering
 
         private static void SetVector(InputField[] fields, Vector3 value)
         {
-            fields[0].text = Format(value.x);
-            fields[1].text = Format(value.y);
-            fields[2].text = Format(value.z);
+            fields[0].SetTextWithoutNotify(Format(value.x));
+            fields[1].SetTextWithoutNotify(Format(value.y));
+            fields[2].SetTextWithoutNotify(Format(value.z));
         }
 
         private static bool TryRead(
@@ -556,15 +569,21 @@ namespace S1API.Internal.Rendering
 
         private sealed class InputBinding
         {
-            internal InputBinding(InputField input, Action<string> action)
+            internal InputBinding(
+                InputField input,
+                Action<string> action,
+                bool live)
             {
                 Input = input;
                 Action = action;
+                Live = live;
             }
 
             internal InputField Input { get; }
 
             internal Action<string> Action { get; }
+
+            internal bool Live { get; }
         }
     }
 }

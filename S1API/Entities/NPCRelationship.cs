@@ -44,6 +44,10 @@ namespace S1API.Entities
         internal readonly NPC NPC;
         private readonly Dictionary<Action<float>, Delegate> _relationshipChangedHandlers = new Dictionary<Action<float>, Delegate>();
         private readonly Dictionary<Action<UnlockType, bool>, Delegate> _relationshipUnlockedHandlers = new Dictionary<Action<UnlockType, bool>, Delegate>();
+        private static readonly MemberInfo? RelationshipChangedMember =
+            ResolveNativeEventMember("OnRelationshipChange", "onRelationshipChange");
+        private static readonly MemberInfo? RelationshipUnlockedMember =
+            ResolveNativeEventMember("OnUnlocked", "onUnlocked");
 
         internal NPCRelationship(NPC npc)
         {
@@ -178,20 +182,20 @@ namespace S1API.Entities
 
                 try
                 {
-                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
-                    if (field == null)
+                    MemberInfo? member = RelationshipChangedMember;
+                    if (member == null)
                         return;
 
-                    object? existing = field.GetValue(Component);
+                    object? existing = GetNativeEventValue(member, Component);
 #if IL2CPPMELON
                     System.Action<float> wrapped = new System.Action<float>(d => { try { value(d); } catch { } });
                     var combined = (Il2CppSystem.Delegate)Il2CppSystem.Delegate.Combine(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped);
-                    field.SetValue(Component, combined);
+                    SetNativeEventValue(member, Component, combined);
                     _relationshipChangedHandlers[value] = wrapped;
 #else
                     Action<float> wrapped = d => { try { value(d); } catch { } };
                     var combined = Delegate.Combine(existing as Delegate, wrapped);
-                    field.SetValue(Component, combined);
+                    SetNativeEventValue(member, Component, combined);
                     _relationshipChangedHandlers[value] = wrapped;
 #endif
                 }
@@ -208,22 +212,22 @@ namespace S1API.Entities
                 _relationshipChangedHandlers.Remove(value);
                 try
                 {
-                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onRelationshipChange", BindingFlags.Public | BindingFlags.Instance);
-                    if (field == null)
+                    MemberInfo? member = RelationshipChangedMember;
+                    if (member == null)
                         return;
 
 #if IL2CPPMELON
-                    var existing = field.GetValue(Component);
+                    var existing = GetNativeEventValue(member, Component);
                     var remaining = existing != null
                         ? Il2CppSystem.Delegate.Remove(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped)
                         : null;
-                    field.SetValue(Component, remaining);
+                    SetNativeEventValue(member, Component, remaining);
 #else
-                    var existing = field.GetValue(Component);
+                    var existing = GetNativeEventValue(member, Component);
                     var remaining = existing != null
                         ? Delegate.Remove(existing as Delegate, (Delegate)wrapped)
                         : null;
-                    field.SetValue(Component, remaining);
+                    SetNativeEventValue(member, Component, remaining);
 #endif
                 }
                 catch { }
@@ -246,18 +250,18 @@ namespace S1API.Entities
 
                 try
                 {
-                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
-                    if (field == null)
+                    MemberInfo? member = RelationshipUnlockedMember;
+                    if (member == null)
                         return;
 
-                    object? existing = field.GetValue(Component);
+                    object? existing = GetNativeEventValue(member, Component);
 #if IL2CPPMELON
                     System.Action<S1Relation.NPCRelationData.EUnlockType, bool> wrapped = new System.Action<S1Relation.NPCRelationData.EUnlockType, bool>((t, notify) =>
                     {
                         try { value(FromS1(t), notify); } catch { }
                     });
                     var combined = (Il2CppSystem.Delegate)Il2CppSystem.Delegate.Combine(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped);
-                    field.SetValue(Component, combined);
+                    SetNativeEventValue(member, Component, combined);
                     _relationshipUnlockedHandlers[value] = wrapped;
 #else
                     Action<S1Relation.NPCRelationData.EUnlockType, bool> wrapped = (t, notify) =>
@@ -265,7 +269,7 @@ namespace S1API.Entities
                         try { value(FromS1(t), notify); } catch { }
                     };
                     var combined = Delegate.Combine(existing as Delegate, wrapped);
-                    field.SetValue(Component, combined);
+                    SetNativeEventValue(member, Component, combined);
                     _relationshipUnlockedHandlers[value] = wrapped;
 #endif
                 }
@@ -282,22 +286,22 @@ namespace S1API.Entities
                 _relationshipUnlockedHandlers.Remove(value);
                 try
                 {
-                    FieldInfo? field = typeof(S1Relation.NPCRelationData).GetField("onUnlocked", BindingFlags.Public | BindingFlags.Instance);
-                    if (field == null)
+                    MemberInfo? member = RelationshipUnlockedMember;
+                    if (member == null)
                         return;
 
 #if IL2CPPMELON
-                    var existing = field.GetValue(Component);
+                    var existing = GetNativeEventValue(member, Component);
                     var remaining = existing != null
                         ? Il2CppSystem.Delegate.Remove(existing as Il2CppSystem.Delegate, (Il2CppSystem.Delegate)(object)wrapped)
                         : null;
-                    field.SetValue(Component, remaining);
+                    SetNativeEventValue(member, Component, remaining);
 #else
-                    var existing = field.GetValue(Component);
+                    var existing = GetNativeEventValue(member, Component);
                     var remaining = existing != null
                         ? Delegate.Remove(existing as Delegate, (Delegate)wrapped)
                         : null;
-                    field.SetValue(Component, remaining);
+                    SetNativeEventValue(member, Component, remaining);
 #endif
                 }
                 catch { }
@@ -316,6 +320,39 @@ namespace S1API.Entities
         #endregion
 
         #region Private Helpers
+
+        internal static MemberInfo? ResolveNativeEventMember(
+            string canonicalName,
+            string legacyName)
+        {
+            const BindingFlags flags =
+                BindingFlags.Public |
+                BindingFlags.NonPublic |
+                BindingFlags.Instance;
+            Type relationType = typeof(S1Relation.NPCRelationData);
+            return relationType.GetField(canonicalName, flags) ??
+                   relationType.GetField(legacyName, flags) ??
+                   (MemberInfo?)relationType.GetProperty(canonicalName, flags) ??
+                   relationType.GetProperty(legacyName, flags);
+        }
+
+        private static object? GetNativeEventValue(
+            MemberInfo member,
+            object target) =>
+            member is FieldInfo field
+                ? field.GetValue(target)
+                : ((PropertyInfo)member).GetValue(target);
+
+        private static void SetNativeEventValue(
+            MemberInfo member,
+            object target,
+            object? value)
+        {
+            if (member is FieldInfo field)
+                field.SetValue(target, value);
+            else
+                ((PropertyInfo)member).SetValue(target, value);
+        }
 
         private static UnlockType FromS1(S1Relation.NPCRelationData.EUnlockType t) =>
             t == S1Relation.NPCRelationData.EUnlockType.Recommendation ? UnlockType.Recommendation : UnlockType.DirectApproach;

@@ -249,7 +249,7 @@ namespace S1API.Internal.Patches
                     contactsApp.SelectionIndicator.position = cachedCircle.Rect.position;
                 };
 
-                EnableDealerIndicator(circle, npc);
+                ApplyRoleIndicators(circle, npc.GetType());
             }
 
             var regionCircles =
@@ -1075,19 +1075,36 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Enables the dealer indicator for dealer NPCs if a matching child exists on the relation circle.
+        /// Applies the dealer and supplier indicators when matching children exist on the relation circle.
         /// </summary>
-        private static void EnableDealerIndicator(S1Relations.RelationCircle circle, NPC npc)
+        private static void ApplyRoleIndicators(S1Relations.RelationCircle circle, System.Type npcType)
         {
-            if (circle == null || npc == null)
+            if (circle == null || npcType == null)
                 return;
 
-            var indicator = circle.transform?.Find("DealerIndicator");
+            var indicators = GetRoleIndicators(npcType);
+            SetRoleIndicator(circle, "DealerIndicator", indicators.IsDealer);
+            SetRoleIndicator(circle, "SupplierIndicator", indicators.IsSupplier);
+        }
+
+        internal static (bool IsDealer, bool IsSupplier) GetRoleIndicators(System.Type npcType)
+        {
+            if (npcType == null)
+                return (false, false);
+
+            return (NPC.IsDealerType(npcType), NPC.IsSupplierType(npcType));
+        }
+
+        private static void SetRoleIndicator(
+            S1Relations.RelationCircle circle,
+            string indicatorName,
+            bool isActive)
+        {
+            var indicator = circle.transform?.Find(indicatorName);
             if (indicator == null)
                 return;
 
-            var isDealer = NPC.IsDealerType(npc.GetType());
-            indicator.gameObject.SetActive(isDealer);
+            indicator.gameObject.SetActive(isActive);
         }
 
     }

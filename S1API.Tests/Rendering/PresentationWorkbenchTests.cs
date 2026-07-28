@@ -47,6 +47,19 @@ public sealed class PresentationWorkbenchTests
                 StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void InputBindingsUseDistinctDelegatesForSharedCallbacks()
+    {
+        Action<string> callback = _ => { };
+
+        Action<string> first =
+            PresentationWorkbenchView.CreateInputBindingAction(callback);
+        Action<string> second =
+            PresentationWorkbenchView.CreateInputBindingAction(callback);
+
+        Assert.NotEqual(first, second);
+    }
+
 #if MONOMELON
     [Fact]
     public void ExportUsesExistingApisAndInvariantCulture()
