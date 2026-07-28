@@ -18,11 +18,101 @@ public sealed class ContactsAppRoleTests
         Assert.False(ContactsAppPatches.IsContactRole(typeof(NonContact)));
     }
 
-    private sealed class CustomerContact;
+    [Fact]
+    public void GetRoleIndicators_DistinguishesDealerSupplierAndCustomer()
+    {
+        NPC.RegisterCustomerType(typeof(CustomerIndicatorContact));
+        NPC.RegisterDealerType(typeof(DealerIndicatorContact));
+        NPC.RegisterSupplierType(typeof(SupplierIndicatorContact));
 
-    private sealed class DealerContact;
+        Assert.Equal(
+            (IsDealer: false, IsSupplier: false),
+            ContactsAppPatches.GetRoleIndicators(typeof(CustomerIndicatorContact)));
+        Assert.Equal(
+            (IsDealer: true, IsSupplier: false),
+            ContactsAppPatches.GetRoleIndicators(typeof(DealerIndicatorContact)));
+        Assert.Equal(
+            (IsDealer: false, IsSupplier: true),
+            ContactsAppPatches.GetRoleIndicators(typeof(SupplierIndicatorContact)));
+    }
 
-    private sealed class SupplierContact;
+    [Fact]
+    public void ApplyRoleIndicators_ActivatesExpectedNamedIndicators()
+    {
+        NPC.RegisterCustomerType(typeof(CustomerActivationContact));
+        NPC.RegisterDealerType(typeof(DealerActivationContact));
+        NPC.RegisterSupplierType(typeof(SupplierActivationContact));
 
-    private sealed class NonContact;
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", false),
+                ("SupplierIndicator", false),
+            },
+            CaptureIndicatorStates(typeof(CustomerActivationContact)));
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", true),
+                ("SupplierIndicator", false),
+            },
+            CaptureIndicatorStates(typeof(DealerActivationContact)));
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", false),
+                ("SupplierIndicator", true),
+            },
+            CaptureIndicatorStates(typeof(SupplierActivationContact)));
+    }
+
+    private static (string Name, bool IsActive)[] CaptureIndicatorStates(
+        Type npcType)
+    {
+        var states = new List<(string Name, bool IsActive)>();
+        ContactsAppPatches.ApplyRoleIndicators(
+            npcType,
+            (name, isActive) => states.Add((name, isActive)));
+        return states.ToArray();
+    }
+
+    private sealed class CustomerContact
+    {
+    }
+
+    private sealed class DealerContact
+    {
+    }
+
+    private sealed class SupplierContact
+    {
+    }
+
+    private sealed class NonContact
+    {
+    }
+
+    private sealed class CustomerIndicatorContact
+    {
+    }
+
+    private sealed class DealerIndicatorContact
+    {
+    }
+
+    private sealed class SupplierIndicatorContact
+    {
+    }
+
+    private sealed class CustomerActivationContact
+    {
+    }
+
+    private sealed class DealerActivationContact
+    {
+    }
+
+    private sealed class SupplierActivationContact
+    {
+    }
 }

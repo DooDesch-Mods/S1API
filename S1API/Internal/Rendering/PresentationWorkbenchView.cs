@@ -191,11 +191,12 @@ namespace S1API.Internal.Rendering
                     {
                         updateCameraFill(parsed);
                     }
-                    else
+                    else if (!IsIncompleteNumericInput(value))
                     {
                         SetStatus("Camera fill must be a finite number.");
                     }
-                });
+                },
+                live: true);
 
             Button resetButton =
                 CreateButton("Reset", "Reset", controls.transform);
@@ -219,7 +220,7 @@ namespace S1API.Internal.Rendering
 
             _status = CreateText(
                 "Status",
-                "Edits are local and temporary.",
+                "Preview edits are temporary. Copy C# to persist them.",
                 controls.transform,
                 15,
                 TextAnchor.UpperLeft,
@@ -262,14 +263,14 @@ namespace S1API.Internal.Rendering
             _iconRow.SetActive(icon);
             _previewPanel.SetActive(mode != PresentationWorkbenchMode.FirstPerson);
             _fitLabel.text = fitToCamera ? "Fit: On" : "Fit: Off";
-            _cameraFillField.text = Format(cameraFill);
+            _cameraFillField.SetTextWithoutNotify(Format(cameraFill));
             SetVector(_positionFields, transform.LocalPosition);
             SetVector(_rotationFields, transform.LocalEulerAngles);
             SetVector(_scaleFields, transform.LocalScale);
             SetStatus(
                 mode == PresentationWorkbenchMode.Avatar
-                    ? "Drag the preview to orbit; use the mouse wheel to zoom."
-                    : "Edits are local and temporary.");
+                    ? "Drag to orbit and scroll to zoom. Preview edits are temporary."
+                    : "Preview edits update live. Copy C# to persist them.");
         }
 
         internal void SetPreview(Texture? texture)
@@ -296,7 +297,9 @@ namespace S1API.Internal.Rendering
             {
                 EventHelper.RemoveListener(
                     binding.Action,
-                    binding.Input.onEndEdit);
+                    binding.Live
+                        ? binding.Input.onValueChanged
+                        : binding.Input.onEndEdit);
             }
 
             _buttonBindings.Clear();
@@ -339,7 +342,9 @@ namespace S1API.Internal.Rendering
                 {
                     update(parsedPosition, parsedRotation, parsedScale);
                 }
-                else
+                else if (!HasIncompleteNumericInput(position) &&
+                         !HasIncompleteNumericInput(rotation) &&
+                         !HasIncompleteNumericInput(scale))
                 {
                     SetStatus("Enter finite numeric values for every axis.");
                 }
@@ -347,9 +352,9 @@ namespace S1API.Internal.Rendering
 
             for (int i = 0; i < 3; i++)
             {
-                Bind(position[i], Apply);
-                Bind(rotation[i], Apply);
-                Bind(scale[i], Apply);
+                Bind(position[i], Apply, live: true);
+                Bind(rotation[i], Apply, live: true);
+                Bind(scale[i], Apply, live: true);
             }
         }
 
@@ -359,11 +364,21 @@ namespace S1API.Internal.Rendering
             _buttonBindings.Add(new ButtonBinding(button, action));
         }
 
-        private void Bind(InputField input, Action<string> action)
+        private void Bind(
+            InputField input,
+            Action<string> action,
+            bool live = false)
         {
-            EventHelper.AddListener(action, input.onEndEdit);
-            _inputBindings.Add(new InputBinding(input, action));
+            Action<string> bindingAction = CreateInputBindingAction(action);
+            EventHelper.AddListener(
+                bindingAction,
+                live ? input.onValueChanged : input.onEndEdit);
+            _inputBindings.Add(new InputBinding(input, bindingAction, live));
         }
+
+        internal static Action<string> CreateInputBindingAction(
+            Action<string> action) =>
+            value => action(value);
 
         private static GameObject CreateVectorRow(
             string label,
@@ -508,9 +523,9 @@ namespace S1API.Internal.Rendering
 
         private static void SetVector(InputField[] fields, Vector3 value)
         {
-            fields[0].text = Format(value.x);
-            fields[1].text = Format(value.y);
-            fields[2].text = Format(value.z);
+            fields[0].SetTextWithoutNotify(Format(value.x));
+            fields[1].SetTextWithoutNotify(Format(value.y));
+            fields[2].SetTextWithoutNotify(Format(value.z));
         }
 
         private static bool TryRead(
@@ -538,6 +553,51 @@ namespace S1API.Internal.Rendering
             !float.IsNaN(result) &&
             !float.IsInfinity(result);
 
+        internal static bool IsIncompleteNumericInput(string value)
+        {
+            string text = value?.Trim() ?? string.Empty;
+            if (text.Length == 0 ||
+                text == "+" ||
+                text == "-" ||
+                text == "." ||
+                text == "+." ||
+                text == "-.")
+            {
+                return true;
+            }
+
+            int exponentIndex = text.IndexOf('e');
+            if (exponentIndex < 0)
+            {
+                exponentIndex = text.IndexOf('E');
+            }
+
+            if (exponentIndex < 0)
+            {
+                return false;
+            }
+
+            int exponentLength = text.Length - exponentIndex - 1;
+            return exponentLength == 0 ||
+                   (exponentLength == 1 &&
+                    (text[text.Length - 1] == '+' ||
+                     text[text.Length - 1] == '-'));
+        }
+
+        private static bool HasIncompleteNumericInput(
+            IReadOnlyList<InputField> fields)
+        {
+            for (int index = 0; index < fields.Count; index++)
+            {
+                if (IsIncompleteNumericInput(fields[index].text))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private static string Format(float value) =>
             value.ToString("0.######", CultureInfo.InvariantCulture);
 
@@ -556,15 +616,21 @@ namespace S1API.Internal.Rendering
 
         private sealed class InputBinding
         {
-            internal InputBinding(InputField input, Action<string> action)
+            internal InputBinding(
+                InputField input,
+                Action<string> action,
+                bool live)
             {
                 Input = input;
                 Action = action;
+                Live = live;
             }
 
             internal InputField Input { get; }
 
             internal Action<string> Action { get; }
+
+            internal bool Live { get; }
         }
     }
 }
