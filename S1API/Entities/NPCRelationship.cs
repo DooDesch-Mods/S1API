@@ -325,15 +325,25 @@ namespace S1API.Entities
             string canonicalName,
             string legacyName)
         {
+            return ResolveNativeEventMember(
+                typeof(S1Relation.NPCRelationData),
+                canonicalName,
+                legacyName);
+        }
+
+        internal static MemberInfo? ResolveNativeEventMember(
+            Type relationType,
+            string canonicalName,
+            string legacyName)
+        {
             const BindingFlags flags =
                 BindingFlags.Public |
                 BindingFlags.NonPublic |
                 BindingFlags.Instance;
-            Type relationType = typeof(S1Relation.NPCRelationData);
-            return relationType.GetField(canonicalName, flags) ??
-                   relationType.GetField(legacyName, flags) ??
+            return (MemberInfo?)relationType.GetField(canonicalName, flags) ??
                    (MemberInfo?)relationType.GetProperty(canonicalName, flags) ??
-                   relationType.GetProperty(legacyName, flags);
+                   (MemberInfo?)relationType.GetField(legacyName, flags) ??
+                   (MemberInfo?)relationType.GetProperty(legacyName, flags);
         }
 
         private static object? GetNativeEventValue(

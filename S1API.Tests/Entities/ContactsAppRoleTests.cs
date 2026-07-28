@@ -36,17 +36,83 @@ public sealed class ContactsAppRoleTests
             ContactsAppPatches.GetRoleIndicators(typeof(SupplierIndicatorContact)));
     }
 
-    private sealed class CustomerContact;
+    [Fact]
+    public void ApplyRoleIndicators_ActivatesExpectedNamedIndicators()
+    {
+        NPC.RegisterCustomerType(typeof(CustomerActivationContact));
+        NPC.RegisterDealerType(typeof(DealerActivationContact));
+        NPC.RegisterSupplierType(typeof(SupplierActivationContact));
 
-    private sealed class DealerContact;
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", false),
+                ("SupplierIndicator", false),
+            },
+            CaptureIndicatorStates(typeof(CustomerActivationContact)));
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", true),
+                ("SupplierIndicator", false),
+            },
+            CaptureIndicatorStates(typeof(DealerActivationContact)));
+        Assert.Equal(
+            new[]
+            {
+                ("DealerIndicator", false),
+                ("SupplierIndicator", true),
+            },
+            CaptureIndicatorStates(typeof(SupplierActivationContact)));
+    }
 
-    private sealed class SupplierContact;
+    private static (string Name, bool IsActive)[] CaptureIndicatorStates(
+        Type npcType)
+    {
+        var states = new List<(string Name, bool IsActive)>();
+        ContactsAppPatches.ApplyRoleIndicators(
+            npcType,
+            (name, isActive) => states.Add((name, isActive)));
+        return states.ToArray();
+    }
 
-    private sealed class NonContact;
+    private sealed class CustomerContact
+    {
+    }
 
-    private sealed class CustomerIndicatorContact;
+    private sealed class DealerContact
+    {
+    }
 
-    private sealed class DealerIndicatorContact;
+    private sealed class SupplierContact
+    {
+    }
 
-    private sealed class SupplierIndicatorContact;
+    private sealed class NonContact
+    {
+    }
+
+    private sealed class CustomerIndicatorContact
+    {
+    }
+
+    private sealed class DealerIndicatorContact
+    {
+    }
+
+    private sealed class SupplierIndicatorContact
+    {
+    }
+
+    private sealed class CustomerActivationContact
+    {
+    }
+
+    private sealed class DealerActivationContact
+    {
+    }
+
+    private sealed class SupplierActivationContact
+    {
+    }
 }

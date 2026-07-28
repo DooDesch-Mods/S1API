@@ -1082,9 +1082,22 @@ namespace S1API.Internal.Patches
             if (circle == null || npcType == null)
                 return;
 
+            ApplyRoleIndicators(
+                npcType,
+                (indicatorName, isActive) =>
+                    SetRoleIndicator(circle, indicatorName, isActive));
+        }
+
+        internal static void ApplyRoleIndicators(
+            System.Type npcType,
+            System.Action<string, bool> setRoleIndicator)
+        {
+            if (npcType == null || setRoleIndicator == null)
+                return;
+
             var indicators = GetRoleIndicators(npcType);
-            SetRoleIndicator(circle, "DealerIndicator", indicators.IsDealer);
-            SetRoleIndicator(circle, "SupplierIndicator", indicators.IsSupplier);
+            setRoleIndicator("DealerIndicator", indicators.IsDealer);
+            setRoleIndicator("SupplierIndicator", indicators.IsSupplier);
         }
 
         internal static (bool IsDealer, bool IsSupplier) GetRoleIndicators(System.Type npcType)
