@@ -60,6 +60,32 @@ public sealed class PresentationWorkbenchTests
         Assert.NotEqual(first, second);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("+")]
+    [InlineData("-")]
+    [InlineData(".")]
+    [InlineData("+.")]
+    [InlineData("-.")]
+    [InlineData("1e")]
+    [InlineData("1E+")]
+    [InlineData("1e-")]
+    public void IncompleteNumericInputIsTreatedAsTransient(string value)
+    {
+        Assert.True(PresentationWorkbenchView.IsIncompleteNumericInput(value));
+    }
+
+    [Theory]
+    [InlineData("abc")]
+    [InlineData("--1")]
+    [InlineData("1.5")]
+    [InlineData("1e2")]
+    public void CompleteOrInvalidNumericInputIsNotTransient(string value)
+    {
+        Assert.False(PresentationWorkbenchView.IsIncompleteNumericInput(value));
+    }
+
 #if MONOMELON
     [Fact]
     public void ExportUsesExistingApisAndInvariantCulture()

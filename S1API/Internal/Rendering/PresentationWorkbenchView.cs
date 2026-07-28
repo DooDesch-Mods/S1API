@@ -191,7 +191,7 @@ namespace S1API.Internal.Rendering
                     {
                         updateCameraFill(parsed);
                     }
-                    else
+                    else if (!IsIncompleteNumericInput(value))
                     {
                         SetStatus("Camera fill must be a finite number.");
                     }
@@ -342,7 +342,9 @@ namespace S1API.Internal.Rendering
                 {
                     update(parsedPosition, parsedRotation, parsedScale);
                 }
-                else
+                else if (!HasIncompleteNumericInput(position) &&
+                         !HasIncompleteNumericInput(rotation) &&
+                         !HasIncompleteNumericInput(scale))
                 {
                     SetStatus("Enter finite numeric values for every axis.");
                 }
@@ -550,6 +552,51 @@ namespace S1API.Internal.Rendering
                 out result) &&
             !float.IsNaN(result) &&
             !float.IsInfinity(result);
+
+        internal static bool IsIncompleteNumericInput(string value)
+        {
+            string text = value?.Trim() ?? string.Empty;
+            if (text.Length == 0 ||
+                text == "+" ||
+                text == "-" ||
+                text == "." ||
+                text == "+." ||
+                text == "-.")
+            {
+                return true;
+            }
+
+            int exponentIndex = text.IndexOf('e');
+            if (exponentIndex < 0)
+            {
+                exponentIndex = text.IndexOf('E');
+            }
+
+            if (exponentIndex < 0)
+            {
+                return false;
+            }
+
+            int exponentLength = text.Length - exponentIndex - 1;
+            return exponentLength == 0 ||
+                   (exponentLength == 1 &&
+                    (text[text.Length - 1] == '+' ||
+                     text[text.Length - 1] == '-'));
+        }
+
+        private static bool HasIncompleteNumericInput(
+            IReadOnlyList<InputField> fields)
+        {
+            for (int index = 0; index < fields.Count; index++)
+            {
+                if (IsIncompleteNumericInput(fields[index].text))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         private static string Format(float value) =>
             value.ToString("0.######", CultureInfo.InvariantCulture);
