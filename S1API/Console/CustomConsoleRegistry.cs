@@ -63,7 +63,7 @@ namespace S1API.Console
             }
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Tries to execute a routed command (Il2Cpp runtime).
         /// </summary>

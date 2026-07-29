@@ -273,20 +273,23 @@ namespace S1API.Entities
         /// <summary>
         /// The player's current avatar settings (appearance configuration).
         /// </summary>
-        public object CurrentAvatarSettings => S1Player.CurrentAvatarSettings;
+        [Obsolete("Use GetCurrentBasicAvatarSettings(). This compatibility property may be removed in a future S1API version.")]
+        public object CurrentAvatarSettings => S1Player.CurrentBasicAppearance;
 
         /// <summary>
         /// Retrieves the player's current avatar settings as an S1API <see cref="BasicAvatarSettings"/> wrapper.
-        /// Returns a new <see cref="BasicAvatarSettings"/> instance on each call when S1Player.CurrentAvatarSettings is available.
+        /// Returns a new <see cref="BasicAvatarSettings"/> instance on each call when the game exposes current appearance settings.
         /// </summary>
-        public BasicAvatarSettings? GetCurrentBasicAvatarSettings() =>
-            S1Player.CurrentAvatarSettings == null
-                ? null
-                : new BasicAvatarSettings(S1Player.CurrentAvatarSettings);
+        public BasicAvatarSettings? GetCurrentBasicAvatarSettings()
+        {
+            var settings = S1Player.CurrentBasicAppearance;
+            return settings == null ? null : new BasicAvatarSettings(settings);
+        }
 
         /// <summary>
         /// Inserts clothing into the matching player clothing slot.
         /// </summary>
+#pragma warning disable CS0618 // Compatibility overloads intentionally retain the legacy wrapper types.
         public void InsertClothing(ClothingItemInstance clothing)
         {
             if (clothing == null)
@@ -313,6 +316,7 @@ namespace S1API.Entities
             InsertClothing(clothing);
             return clothing;
         }
+#pragma warning restore CS0618
 
         /// <summary>
         /// Refreshes the player's avatar from the current clothing slots.
@@ -330,7 +334,7 @@ namespace S1API.Entities
                 throw new ArgumentNullException(nameof(settings));
             }
 
-            S1Player.SendAppearance(settings.S1BasicAvatarSettings);
+            S1Player.SetAppearance_Server(settings.S1BasicAvatarSettings);
         }
 
         /// <summary>
@@ -374,8 +378,8 @@ namespace S1API.Entities
         /// </summary>
         public event Action OnDeath
         {
-            add => EventHelper.AddListener(value, S1Player.Health.onDie);
-            remove => EventHelper.RemoveListener(value, S1Player.Health.onDie);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1Player.Health.onDie);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1Player.Health.onDie);
         }
 
         /// <summary>
@@ -383,8 +387,8 @@ namespace S1API.Entities
         /// </summary>
         public event Action OnRevive
         {
-            add => EventHelper.AddListener(value, S1Player.Health.onRevive);
-            remove => EventHelper.RemoveListener(value, S1Player.Health.onRevive);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1Player.Health.onRevive);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1Player.Health.onRevive);
         }
 
         private static readonly HashSet<S1PlayerScripts.Player> InvinciblePlayers = new HashSet<S1PlayerScripts.Player>();

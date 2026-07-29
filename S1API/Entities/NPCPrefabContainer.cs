@@ -11,7 +11,7 @@ namespace S1API.Entities
     internal static class NPCPrefabContainer
     {
         private const string RootName = "@S1API_PersistentPrefabs";
-        private static GameObject _persistentRoot;
+        private static GameObject? _persistentRoot;
 
         /// <summary>
         /// Gets or creates the persistent prefab root that survives scene loads.
@@ -49,7 +49,7 @@ namespace S1API.Entities
         /// This method ensures that each NPC type has its own container under the prefabs hierarchy.
         /// The hierarchy will be maintained as: "@Managers/@Prefabs/{npcTypeName}/".
         /// </remarks>
-        public static GameObject GetOrCreateNPCPrefabContainer(string npcTypeName)
+        public static GameObject? GetOrCreateNPCPrefabContainer(string npcTypeName)
         {
             if (string.IsNullOrEmpty(npcTypeName))
                 return null;
@@ -79,7 +79,7 @@ namespace S1API.Entities
         /// This method moves the prefab to the organized hierarchy under the NPC's container.
         /// The prefab will be inactive by default to keep it out of the main scene.
         /// </remarks>
-        public static GameObject OrganizePrefab(GameObject prefab, string npcTypeName)
+        public static GameObject? OrganizePrefab(GameObject prefab, string npcTypeName)
         {
             if (prefab == null || string.IsNullOrEmpty(npcTypeName))
                 return null;

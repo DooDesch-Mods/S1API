@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Customization = Il2CppScheduleOne.AvatarFramework.Customization;
 using Il2CppCollectionsGeneric = Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Customization = ScheduleOne.AvatarFramework.Customization;
 #endif
 
@@ -383,7 +383,7 @@ namespace S1API.Avatar
         /// <typeparam name="T">The type of the value.</typeparam>
         /// <param name="fieldName">The name of the field.</param>
         /// <returns>The field value, or default(T) if not found.</returns>
-        public T GetValue<T>(string fieldName)
+        public T? GetValue<T>(string fieldName)
         {
             if (S1BasicAvatarSettings == null || string.IsNullOrWhiteSpace(fieldName))
                 return default(T);

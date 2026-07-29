@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1CoreEquipping = Il2CppScheduleOne.Core.Equipping.Framework;
 using S1Other = Il2CppScheduleOne.NPCs.Other;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1CoreEquipping = ScheduleOne.Core.Equipping.Framework;
 using S1Other = ScheduleOne.NPCs.Other;
 #endif
@@ -35,7 +35,7 @@ namespace S1API.Entities.Actions
             NPC = npc;
         }
 
-        private S1Other.SmokeCigarette GetComponent()
+        private S1Other.SmokeCigarette? GetComponent()
         {
             return NPC?.S1NPC?.GetComponentInChildren<S1Other.SmokeCigarette>(true);
         }

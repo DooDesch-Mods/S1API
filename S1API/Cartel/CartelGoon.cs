@@ -2,7 +2,7 @@
 using S1Cartel = Il2CppScheduleOne.Cartel;
 using S1Player = Il2CppScheduleOne.PlayerScripts;
 using S1Combat = Il2CppScheduleOne.Combat;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 using S1Player = ScheduleOne.PlayerScripts;
 using S1Combat = ScheduleOne.Combat;
@@ -10,6 +10,7 @@ using S1Combat = ScheduleOne.Combat;
 
 using S1API.Entities;
 using S1API.Entities.Interfaces;
+using S1API.Internal.Utils;
 using UnityEngine;
 
 namespace S1API.Cartel
@@ -112,7 +113,7 @@ namespace S1API.Cartel
 
             if (string.IsNullOrEmpty(weaponAssetPath))
             {
-                combatBehaviour.DefaultWeapon = null;
+                SetCombatDefaultWeapon(combatBehaviour, null);
             }
             else
             {
@@ -124,8 +125,23 @@ namespace S1API.Cartel
 #else
                     var equippable = UnityEngine.Object.Instantiate(go).GetComponent<ScheduleOne.AvatarFramework.Equipping.AvatarWeapon>();
 #endif
-                    combatBehaviour.DefaultWeapon = equippable;
+                    SetCombatDefaultWeapon(combatBehaviour, equippable);
                 }
+            }
+        }
+
+        private static void SetCombatDefaultWeapon(object combatBehaviour, object? weapon)
+        {
+            var method = combatBehaviour.GetType().GetMethod("SetDefaultWeapon", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+            if (method != null)
+            {
+                method.Invoke(combatBehaviour, new[] { weapon });
+                return;
+            }
+
+            if (!ReflectionUtils.TrySetFieldOrProperty(combatBehaviour, "DefaultWeapon", weapon))
+            {
+                ReflectionUtils.TrySetFieldOrProperty(combatBehaviour, "_defaultWeapon", weapon);
             }
         }
     }

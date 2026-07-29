@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Quests = Il2CppScheduleOne.Quests;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 #endif
 
@@ -50,7 +50,7 @@ namespace S1API.Quests
             {
                 if (_isBaseGameQuest)
                 {
-                    EventHelper.AddListener(value, _baseGameQuest!.onComplete);
+                    global::S1API.Utils.EventHelper.AddListener(value, _baseGameQuest!.onComplete);
                 }
                 else
                 {
@@ -61,7 +61,7 @@ namespace S1API.Quests
             {
                 if (_isBaseGameQuest)
                 {
-                    EventHelper.RemoveListener(value, _baseGameQuest!.onComplete);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, _baseGameQuest!.onComplete);
                 }
                 else
                 {
@@ -92,7 +92,7 @@ namespace S1API.Quests
                     _failWrapperActions[value] = wrapper;
                     
                     // Subscribe to onQuestEnd
-                    EventHelper.AddListener(wrapper, _baseGameQuest!.onQuestEnd);
+                    global::S1API.Utils.EventHelper.AddListener(wrapper, _baseGameQuest!.onQuestEnd);
                 }
                 else
                 {
@@ -106,7 +106,7 @@ namespace S1API.Quests
                     // Retrieve and remove the wrapper action
                     if (_failWrapperActions.TryGetValue(value, out var wrapper))
                     {
-                        EventHelper.RemoveListener(wrapper, _baseGameQuest!.onQuestEnd);
+                        global::S1API.Utils.EventHelper.RemoveListener(wrapper, _baseGameQuest!.onQuestEnd);
                         _failWrapperActions.Remove(value);
                     }
                 }

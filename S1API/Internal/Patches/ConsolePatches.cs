@@ -3,10 +3,17 @@ using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using S1API.Console;
+using S1API.Internal.Console;
+using S1API.Items;
 using S1API.Internal.Utils;
 using UnityEngine;
 using Object = UnityEngine.Object;
-#if (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if MONOMELON
+using GiveCommandArguments = System.Collections.Generic.List<string>;
+#elif IL2CPPMELON
+using GiveCommandArguments = Il2CppSystem.Collections.Generic.List<string>;
+#endif
+#if MONOMELON
 using S1Console = ScheduleOne.Console;
 using S1CommandListScreen = ScheduleOne.CommandListScreen;
 using TMPro;
@@ -16,7 +23,7 @@ using S1CommandListScreen = Il2CppScheduleOne.CommandListScreen;
 using Il2CppTMPro;
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime.Injection;
 #endif
 
@@ -26,7 +33,27 @@ namespace S1API.Internal.Patches
     internal static class ConsolePatches
     {
         private static readonly Logging.Log Logger = new Logging.Log("Console");
-        
+
+        /// <summary>
+        /// Resolves a short item alias before the native give command performs
+        /// its ordinary registry lookup.
+        /// </summary>
+#if MONOMELON || IL2CPPMELON
+        [HarmonyPatch(
+            typeof(S1Console.AddItemToInventoryCommand),
+            nameof(S1Console.AddItemToInventoryCommand.Execute))]
+        [HarmonyPrefix]
+        private static void ResolveGiveItemAlias(
+            GiveCommandArguments args)
+        {
+            if (args == null || args.Count == 0 || args[0] == null)
+                return;
+
+            args[0] = ConsoleItemAliasRegistry.ResolveItemCodeForGive(
+                args[0],
+                ItemManager.IsItemRegistered);
+        }
+#endif
 
         /// <summary>
         /// Discover and register custom console commands derived from BaseConsoleCommand.
@@ -43,7 +70,7 @@ namespace S1API.Internal.Patches
             var commandTypes = ReflectionUtils.GetDerivedClasses<BaseConsoleCommand>();
             foreach (var type in commandTypes)
             {
-                Logger.Msg($"Found console command: {type.FullName}");
+                Logger.Debug($"Found console command: {type.FullName}");
 
                 if (type.GetConstructor(Type.EmptyTypes) == null)
                     continue;
@@ -61,7 +88,7 @@ namespace S1API.Internal.Patches
             }
         }
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static FieldInfo? _monoCommandsField;
 
         /// <summary>
@@ -102,7 +129,7 @@ namespace S1API.Internal.Patches
         }
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Routes unknown commands to our managed registry on Il2Cpp.
         /// </summary>
@@ -140,7 +167,7 @@ namespace S1API.Internal.Patches
         }
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
         private static FieldInfo? _commandEntriesField;
 #endif
 
@@ -158,17 +185,21 @@ namespace S1API.Internal.Patches
         {
             try
             {
-                if (__instance == null || __instance.CommandEntryPrefab == null ||
-                    __instance.CommandEntryContainer == null)
+                if (__instance is null)
+                    return;
+
+                var commandEntryPrefab = __instance.CommandEntryPrefab;
+                var commandEntryContainer = __instance.CommandEntryContainer;
+                if (commandEntryPrefab is null || commandEntryContainer is null)
                     return;
 
                 _addedCommandsToList.Clear();
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
                 _commandEntriesField ??= 
                     typeof(S1CommandListScreen)
                         .GetField("commandEntries", BindingFlags.NonPublic | BindingFlags.Instance);
                 var commandEntries = _commandEntriesField?.GetValue(__instance) as List<RectTransform>;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
                 var commandEntries = __instance?.commandEntries;
 #endif
 
@@ -182,12 +213,21 @@ namespace S1API.Internal.Patches
                         if (IsNativeCommand(commandKey))
                             continue;
 
-                        var rt = Object.Instantiate(__instance.CommandEntryPrefab, __instance.CommandEntryContainer);
-                        rt.Find("Command").GetComponent<TextMeshProUGUI>().text =
+                        var rt = Object.Instantiate(commandEntryPrefab, commandEntryContainer);
+                        if (rt is null)
+                            continue;
+
+                        var commandLabel = rt.Find("Command")?.GetComponent<TextMeshProUGUI>();
+                        var descriptionLabel = rt.Find("Description")?.GetComponent<TextMeshProUGUI>();
+                        var exampleLabel = rt.Find("Example")?.GetComponent<TextMeshProUGUI>();
+                        if (commandLabel == null || descriptionLabel == null || exampleLabel == null)
+                            continue;
+
+                        commandLabel.text =
                             command.Value.CommandWord;
-                        rt.Find("Description").GetComponent<TextMeshProUGUI>().text =
+                        descriptionLabel.text =
                             command.Value.CommandDescription;
-                        rt.Find("Example").GetComponent<TextMeshProUGUI>().text =
+                        exampleLabel.text =
                             command.Value.ExampleUsage;
 
                         commandEntries?.Add(rt);
@@ -210,11 +250,11 @@ namespace S1API.Internal.Patches
             if (string.IsNullOrWhiteSpace(commandKey))
                 return false;
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             _monoCommandsField ??= typeof(S1Console).GetField("commands", BindingFlags.NonPublic | BindingFlags.Static);
             var dict = _monoCommandsField?.GetValue(null) as IDictionary<string, S1Console.ConsoleCommand>;
             return dict != null && dict.ContainsKey(commandKey);
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
             var dict = S1Console.commands;
             return dict != null && dict.ContainsKey(commandKey);
 #else

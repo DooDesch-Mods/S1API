@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1NPCs = ScheduleOne.NPCs;
 #endif
@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Linq;
 using S1API.Entities.Impostors;
 using S1API.Logging;
+using S1API.Internal.Utils;
 using UnityEngine;
 
 namespace S1API.Internal.Entities
@@ -299,7 +300,9 @@ namespace S1API.Internal.Entities
 
                     S1AvatarFramework.AvatarSettings? settings =
                         npc.Avatar?.CurrentSettings ??
-                        npc.Avatar?.InitialAvatarSettings;
+                        (npc.Avatar != null
+                            ? ReflectionUtils.TryGetFieldOrProperty(npc.Avatar, "InitialAvatarSettings") as S1AvatarFramework.AvatarSettings
+                            : null);
                     if (settings == null || settings.ImpostorTexture == null)
                     {
                         continue;

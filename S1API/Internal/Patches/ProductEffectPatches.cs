@@ -3,7 +3,7 @@ using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Product = ScheduleOne.Product;
@@ -16,6 +16,7 @@ using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using S1API.Entities;
+using S1API.Internal.Products;
 using S1API.Logging;
 using S1API.Properties;
 using S1API.Products;
@@ -32,7 +33,7 @@ namespace S1API.Internal.Patches
         private static Dictionary<string, Type>? _npcWrapperTypeById;
 
         /// <summary>
-        /// Targets only the base ProductItemInstance ApplyEffectsToPlayer and ApplyEffectsToNPC implementations.
+        /// Targets only the base ProductItemInstance apply and clear implementations.
         /// Subclass overrides (e.g., WeedInstance) will run their custom logic and then call base,
         /// which is intercepted here to route through callbacks.
         /// </summary>
@@ -55,6 +56,18 @@ namespace S1API.Internal.Patches
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                     null,
                     new[] { npcType },
+                    null),
+                baseType.GetMethod(
+                    "ClearEffectsFromPlayer",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { playerType },
+                    null),
+                baseType.GetMethod(
+                    "ClearEffectsFromNPC",
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null,
+                    new[] { npcType },
                     null)
             }
             .Where(method => method != null)
@@ -62,24 +75,27 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Intercepts product effect application for players and NPCs and executes callbacks per effect ID.
-        /// Unhandled effects fall back to base game behavior (effect.ApplyToPlayer).
+        /// Intercepts product effect application and clearing for players and NPCs and executes callbacks per effect ID.
+        /// Unhandled effects fall back to their native apply or clear behavior.
         /// </summary>
         /// <param name="__instance">The product instance applying effects.</param>
         /// <param name="__0">The first argument (player or NPC receiving effects).</param>
+        /// <param name="__originalMethod">The native product lifecycle method being intercepted.</param>
         /// <returns><c>false</c> when handled here; <c>true</c> to run original method.</returns>
         [HarmonyPrefix]
-        private static bool ApplyEffects_Prefix(S1Product.ProductItemInstance __instance, object __0)
+        private static bool ProductEffects_Prefix(
+            S1Product.ProductItemInstance __instance,
+            object __0,
+            MethodBase __originalMethod)
         {
             var target = __0;
+            var isClear = __originalMethod?.Name == "ClearEffectsFromPlayer" ||
+                          __originalMethod?.Name == "ClearEffectsFromNPC";
 
             if (__instance == null || target == null)
                 return true;
 
             var effects = ResolveEffects(__instance);
-            if (effects == null)
-                return true;
-
             var localPlayer = Player.All.FirstOrDefault(p => p.IsLocal);
             var targetPlayer = target as S1PlayerScripts.Player;
             var targetNpc = target as S1NPCs.NPC;
@@ -90,9 +106,25 @@ namespace S1API.Internal.Patches
             if (targetPlayer != null && (localPlayer == null || targetPlayer != localPlayer.S1Player))
                 return true;
 
+            NPC? apiNpc = targetNpc != null
+                ? ResolveApiNpc(targetNpc)
+                : null;
+            ProductConsumptionContext? consumptionContext = null;
+            ProductConsumptionProfileRegistration? consumptionRegistration = null;
+            if (effects == null && !ProductConsumptionProfileDispatcher.TryResolveRegisteredContext(
+                    __instance,
+                    targetPlayer != null ? localPlayer : null,
+                    apiNpc,
+                    targetNpc?.ID ?? string.Empty,
+                    out consumptionContext,
+                    out consumptionRegistration))
+            {
+                return true;
+            }
+
             var invokedEffectIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            for (var i = 0; i < effects.Count; i++)
+            for (var i = 0; effects != null && i < effects.Count; i++)
             {
                 var effect = effects[i];
                 if (effect == null)
@@ -106,25 +138,61 @@ namespace S1API.Internal.Patches
                 {
                     if (targetPlayer != null)
                     {
-                        var handled = ProductManager.TryInvokeEffectCallback(effectId, localPlayer!, out var allowDefaultEffect);
+                        var handled = isClear
+                            ? ProductManager.TryInvokeEffectClearCallback(effectId, localPlayer!, out var allowDefaultEffect)
+                            : ProductManager.TryInvokeEffectCallback(effectId, localPlayer!, out allowDefaultEffect);
                         if (!handled || allowDefaultEffect)
-                            effect.ApplyToPlayer(targetPlayer);
+                        {
+                            if (isClear)
+                                effect.ClearFromPlayer(targetPlayer);
+                            else
+                                effect.ApplyToPlayer(targetPlayer);
+                        }
                     }
                     else
                     {
-                        var apiNpc = ResolveApiNpc(targetNpc);
-
                         var allowDefaultEffect = false;
-                        var handled = apiNpc != null && ProductManager.TryInvokeNpcEffectCallback(effectId, apiNpc, out allowDefaultEffect);
+                        var handled = apiNpc != null &&
+                                      (isClear
+                                          ? ProductManager.TryInvokeNpcEffectClearCallback(effectId, apiNpc, out allowDefaultEffect)
+                                          : ProductManager.TryInvokeNpcEffectCallback(effectId, apiNpc, out allowDefaultEffect));
                         if (!handled || allowDefaultEffect)
-                            effect.ApplyToNPC(targetNpc);
+                        {
+                            if (isClear)
+                                effect.ClearFromNPC(targetNpc);
+                            else
+                                effect.ApplyToNPC(targetNpc);
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.Error($"Exception while invoking effect callback for '{effectId}': {ex.Message}");
+                    var lifecycle = isClear ? "clear" : "apply";
+                    Logger.Error($"Exception while invoking effect {lifecycle} callback for '{effectId}': {ex.Message}");
                     Logger.Error(ex.StackTrace ?? string.Empty);
                 }
+            }
+
+            if (targetPlayer != null)
+            {
+                ProductConsumptionProfileDispatcher.DispatchPlayer(
+                    __instance,
+                    targetPlayer,
+                    localPlayer!,
+                    isClear,
+                    consumptionContext,
+                    consumptionRegistration);
+            }
+            else if (targetNpc != null)
+            {
+                ProductConsumptionProfileDispatcher.DispatchNpc(
+                    __instance,
+                    targetNpc,
+                    apiNpc,
+                    targetNpc.ID ?? string.Empty,
+                    isClear,
+                    consumptionContext,
+                    consumptionRegistration);
             }
 
             return false;

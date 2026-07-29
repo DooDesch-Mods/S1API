@@ -1,0 +1,350 @@
+using S1API.Products;
+using UnityEngine;
+
+namespace S1API.Tests.Products;
+
+public sealed class ProductPresentationProfileBuilderTests
+{
+    [Fact]
+    public void LooseVisualIsTheDeterministicRenderedContextFallback()
+    {
+        Func<GameObject?> loose = () => null;
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(loose)
+                .Build();
+
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.Loose,
+                out Func<GameObject?>? looseProvider));
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.Stored,
+                out Func<GameObject?>? storedProvider));
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.Held,
+                out Func<GameObject?>? heldProvider));
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.Station,
+                out Func<GameObject?>? stationProvider));
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.FunctionalProduct,
+                out Func<GameObject?>? functionalProvider));
+        Assert.Same(loose, looseProvider);
+        Assert.Same(loose, storedProvider);
+        Assert.Same(loose, heldProvider);
+        Assert.Same(loose, stationProvider);
+        Assert.Same(loose, functionalProvider);
+    }
+
+    [Fact]
+    public void ContextSpecificVisualOverridesLooseFallback()
+    {
+        Func<GameObject?> loose = () => null;
+        Func<GameObject?> held = () => null;
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(loose)
+                .WithHeldVisual(held)
+                .Build();
+
+        Assert.True(
+            profile.TryGetVisualProvider(
+                ProductPresentationContext.Held,
+                out Func<GameObject?>? resolved));
+        Assert.Same(held, resolved);
+    }
+
+    [Fact]
+    public void AvatarHeldPresentationFallsBackToLegacyHeldPresentation()
+    {
+        Func<GameObject?> held = () => null;
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithHeldVisual(held)
+                .Build();
+
+        Assert.True(
+            profile.TryGetAvatarHeldVisualProvider(
+                out Func<GameObject?>? avatarProvider));
+        Assert.Same(held, avatarProvider);
+        Assert.False(
+            profile.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? avatarTransform));
+        Assert.Null(avatarTransform);
+    }
+
+#if MONOMELON
+    [Fact]
+    public void AvatarHeldPresentationMayOverrideHeldPoseAndSource()
+    {
+        Func<GameObject?> held = () => null;
+        Func<GameObject?> avatar = () => null;
+        var heldTransform =
+            new ProductPresentationTransform(
+                Vector3.zero,
+                new Vector3(0f, 180f, 0f),
+                Vector3.one * 1.8f);
+        var avatarTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, -0.16f, 0f),
+                new Vector3(0f, 270f, 0f),
+                Vector3.one * 2.25f);
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithHeldVisual(held, heldTransform)
+                .WithAvatarHeldVisual(avatar, avatarTransform)
+                .Build();
+
+        Assert.True(
+            profile.TryGetAvatarHeldVisualProvider(
+                out Func<GameObject?>? resolvedProvider));
+        Assert.Same(avatar, resolvedProvider);
+        Assert.True(
+            profile.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? resolvedTransform));
+        Assert.Same(avatarTransform, resolvedTransform);
+    }
+
+    [Fact]
+    public void AvatarHeldSourceAndTransformAreOrderIndependent()
+    {
+        Func<GameObject?> avatar = () => null;
+        var avatarTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, -0.16f, 0f),
+                new Vector3(0f, 270f, 0f),
+                Vector3.one * 2.25f);
+
+        ProductPresentationProfile transformFirst =
+            new ProductPresentationProfileBuilder()
+                .WithAvatarHeldTransform(avatarTransform)
+                .WithAvatarHeldVisual(avatar)
+                .Build();
+        ProductPresentationProfile sourceFirst =
+            new ProductPresentationProfileBuilder()
+                .WithAvatarHeldVisual(avatar)
+                .WithAvatarHeldTransform(avatarTransform)
+                .Build();
+
+        Assert.True(
+            transformFirst.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? transformFirstResult));
+        Assert.True(
+            sourceFirst.TryGetAvatarHeldTransform(
+                out ProductPresentationTransform? sourceFirstResult));
+        Assert.Same(avatarTransform, transformFirstResult);
+        Assert.Same(avatarTransform, sourceFirstResult);
+    }
+#endif
+
+#if MONOMELON
+    [Fact]
+    public void LooseTransformFallsBackUntilAContextDefinesItsOwnProvider()
+    {
+        var looseTransform =
+            new ProductPresentationTransform(
+                new Vector3(1f, 2f, 3f),
+                new Vector3(10f, 20f, 30f),
+                new Vector3(0.1f, 0.2f, 0.3f));
+        var heldTransform =
+            new ProductPresentationTransform(
+                Vector3.zero,
+                new Vector3(0f, 90f, 0f),
+                Vector3.one);
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(() => null, looseTransform)
+                .WithHeldVisual(() => null, heldTransform)
+                .Build();
+
+        Assert.True(
+            profile.TryGetVisualTransform(
+                ProductPresentationContext.Stored,
+                out ProductPresentationTransform? stored));
+        Assert.Same(looseTransform, stored);
+        Assert.True(
+            profile.TryGetVisualTransform(
+                ProductPresentationContext.Held,
+                out ProductPresentationTransform? held));
+        Assert.Same(heldTransform, held);
+    }
+#endif
+
+    [Fact]
+    public void RequiredContextMustHaveAConfiguredProvider()
+    {
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(
+                () =>
+                    new ProductPresentationProfileBuilder()
+                        .Require(ProductPresentationContext.Consumption)
+                        .Build());
+
+        Assert.Contains("Consumption", exception.Message);
+        Assert.Contains("does not have a provider", exception.Message);
+    }
+
+    [Fact]
+    public void RequiredRenderedContextsMayUseLooseFallback()
+    {
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(() => null)
+                .Require(
+                    ProductPresentationContext.Stored,
+                    ProductPresentationContext.Held,
+                    ProductPresentationContext.Station,
+                    ProductPresentationContext.FunctionalProduct)
+                .Build();
+
+        Assert.True(profile.IsRequired(ProductPresentationContext.Stored));
+        Assert.True(profile.IsRequired(ProductPresentationContext.Held));
+        Assert.True(profile.IsRequired(ProductPresentationContext.Station));
+        Assert.True(
+            profile.IsRequired(ProductPresentationContext.FunctionalProduct));
+    }
+
+    [Theory]
+    [InlineData(31)]
+    [InlineData(2049)]
+    public void GeneratedIconSizeIsBounded(int size)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new ProductPresentationProfileBuilder()
+                    .WithGeneratedIconFromLooseVisual(size));
+    }
+
+    [Theory]
+    [InlineData(0f)]
+    [InlineData(-0.1f)]
+    [InlineData(2.01f)]
+    public void GeneratedIconCameraFillIsBounded(float cameraFill)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () =>
+                new ProductPresentationProfileBuilder()
+                    .WithGeneratedIconFromLooseVisual(
+                        512,
+                        fitToCamera: true,
+                        cameraFill: cameraFill));
+    }
+
+    [Fact]
+    public void GeneratedIconFramingControlsAreSnapshotted()
+    {
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(() => null)
+                .WithGeneratedIconFromLooseVisual(
+                    256,
+                    fitToCamera: false,
+                    cameraFill: 1.25f)
+                .Build();
+
+        Assert.Equal(256, profile.GeneratedIconSize);
+        Assert.False(profile.FitGeneratedIconToCamera);
+        Assert.Equal(1.25f, profile.GeneratedIconCameraFill);
+    }
+
+    [Fact]
+    public void FunctionalProductConvexMeshCollidersAreOptInAndSnapshotted()
+    {
+        var builder = new ProductPresentationProfileBuilder();
+        ProductPresentationProfile legacy = builder.Build();
+
+        ProductPresentationProfile optedIn =
+            builder
+                .WithLooseVisual(() => null)
+                .WithFunctionalProductConvexMeshColliders()
+                .Build();
+
+        Assert.False(legacy.UseFunctionalProductConvexMeshColliders);
+        Assert.True(optedIn.UseFunctionalProductConvexMeshColliders);
+    }
+
+    [Fact]
+    public void FunctionalProductConvexMeshCollidersRequireAVisualProvider()
+    {
+        InvalidOperationException exception =
+            Assert.Throws<InvalidOperationException>(
+                () => new ProductPresentationProfileBuilder()
+                    .WithFunctionalProductConvexMeshColliders()
+                    .Build());
+
+        Assert.Contains(
+            "functional-product visual or loose-visual fallback",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+#if MONOMELON
+    [Fact]
+    public void GeneratedIconTransformIsSnapshottedSeparatelyFromLoosePresentation()
+    {
+        var looseTransform =
+            new ProductPresentationTransform(
+                Vector3.zero,
+                Vector3.zero,
+                Vector3.one);
+        var iconTransform =
+            new ProductPresentationTransform(
+                new Vector3(0f, 0.1f, 0f),
+                new Vector3(45f, 0f, 0f),
+                Vector3.one * 0.8f);
+
+        ProductPresentationProfile profile =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(() => null, looseTransform)
+                .WithGeneratedIconTransform(iconTransform)
+                .WithGeneratedIconFromLooseVisual()
+                .Build();
+
+        Assert.Same(iconTransform, profile.GeneratedIconTransform);
+        Assert.True(
+            profile.TryGetVisualTransform(
+                ProductPresentationContext.Loose,
+                out ProductPresentationTransform? resolvedLooseTransform));
+        Assert.Same(looseTransform, resolvedLooseTransform);
+    }
+#endif
+
+    [Fact]
+    public void BuildSnapshotsProvidersAndRequiredContexts()
+    {
+        Func<GameObject?> loose = () => null;
+        var builder =
+            new ProductPresentationProfileBuilder()
+                .WithLooseVisual(loose)
+                .Require(ProductPresentationContext.Stored);
+        ProductPresentationProfile first = builder.Build();
+
+        Func<GameObject?> replacement = () => null;
+        builder
+            .WithLooseVisual(replacement)
+            .Require(ProductPresentationContext.Held);
+
+        Assert.True(
+            first.TryGetVisualProvider(
+                ProductPresentationContext.Stored,
+                out Func<GameObject?>? retained));
+        Assert.Same(loose, retained);
+        Assert.True(first.IsRequired(ProductPresentationContext.Stored));
+        Assert.False(first.IsRequired(ProductPresentationContext.Held));
+    }
+
+    [Theory]
+    [InlineData((ProductPresentationContext)(-1))]
+    [InlineData((ProductPresentationContext)99)]
+    public void UndefinedRequiredContextIsRejected(
+        ProductPresentationContext context)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => new ProductPresentationProfileBuilder().Require(context));
+    }
+}

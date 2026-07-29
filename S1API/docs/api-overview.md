@@ -23,10 +23,6 @@ S1API is currently maintained for MelonLoader. Users install the packaged framew
 | --- | --- |
 | `MonoMelon` | Supported MelonLoader build for the Mono runtime. |
 | `Il2CppMelon` | Supported MelonLoader build for the IL2CPP runtime. |
-| `MonoBepInEx` | Legacy source target from before the fork. It is not maintained or shipped as a supported path. |
-| `Il2CppBepInEx` | Legacy source target from before the fork. It is not maintained or shipped as a supported path. |
-
-The BepInEx targets remain in the repository so someone can pick them back up if they want to continue that work. The current fork does not plan around BepInEx support, and the docs, package, and examples assume MelonLoader unless a page explicitly says otherwise.
 
 As a mod author, the important rule is to depend on the S1API package and keep your public mod surface expressed in S1API types instead of game-runtime types.
 

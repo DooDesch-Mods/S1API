@@ -81,7 +81,8 @@ public ItemInstance? ItemInstance { get; }
 /// </summary>
 public void DestroyGameWorld() { ... }
 ```
-* This is now enforced and **will** produce build warnings. Please keep your code documented.
+* Normal builds suppress per-member missing-comment warnings. The documentation workflow instead requires at least 80% aggregate coverage across the generated public DocFX API.
+* Malformed XML, invalid references, and incomplete parameter documentation remain build warnings and should be fixed.
 * Include detailed parameter descriptions in XML documentation when methods have parameters.
 ```C#
 /// <summary>
@@ -93,12 +94,12 @@ public static ItemDefinition GetItemDefinition(string itemID) { ... }
 ```
 
 ## Conditional Build Compilation
-* Use `#if (MONOMELON || MONOBEPINEX)` and `#elif (IL2CPPBEPINEX || MONOBEPINEX)` for platform-specific logic.
+* Use `#if MONOMELON` and `#elif IL2CPPMELON` for platform-specific logic.
 * Wrap and alias `using` statements to provide platform-agnostic support.
 ```C#
 #if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 #endif
 ```

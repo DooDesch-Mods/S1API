@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 #endif
 
@@ -19,14 +19,6 @@ namespace S1API.Entities.Schedule
     /// Plan-time schedule builder used during prefab composition.
     /// Collects <see cref="IScheduleActionSpec"/> entries without requiring a live NPC instance.
     /// </summary>
-    /// <remarks>
-    /// <para><strong>IMPORTANT:</strong> Avoid scheduling multiple actions at start time 0 (midnight).
-    /// The game's action sorting comparator has a bug that can cause inconsistent sort results when
-    /// multiple non-signal actions share the same start time. This issue is most commonly encountered
-    /// at time 0 when using <see cref="EnsureDealSignal()"/> which creates a signal at time 0.</para>
-    ///
-    /// <para>To avoid this issue, schedule your first action at time 1 or later (e.g., 10 minutes = 0:10 AM).</para>
-    /// </remarks>
     public sealed class PrefabScheduleBuilder
     {
         private static readonly Log Logger = new Log("PrefabScheduleBuilder");
@@ -54,7 +46,7 @@ namespace S1API.Entities.Schedule
         /// If <paramref name="forward"/> is specified, it will be used to orient the destination marker.
         /// Otherwise, the direction will be automatically calculated from the NPC's current position to the destination.
         /// </remarks>
-        public PrefabScheduleBuilder WalkTo(UnityEngine.Vector3 destination, int startTime, bool faceDestinationDir = true, float within = 1f, bool warpIfSkipped = false, UnityEngine.Vector3? forward = null, string name = null)
+        public PrefabScheduleBuilder WalkTo(UnityEngine.Vector3 destination, int startTime, bool faceDestinationDir = true, float within = 1f, bool warpIfSkipped = false, UnityEngine.Vector3? forward = null, string? name = null)
         {
             _specs.Add(new WalkToSpec { Destination = destination, StartTime = startTime, FaceDestinationDirection = faceDestinationDir, Within = within, WarpIfSkipped = warpIfSkipped, Forward = forward, Name = name });
             return this;
@@ -84,7 +76,7 @@ namespace S1API.Entities.Schedule
         /// <para>If the seat set cannot be resolved at runtime, the action is disabled and a warning is logged.
         /// This prevents a NullReferenceException that would permanently break the NPC's schedule.</para>
         /// </remarks>
-        public PrefabScheduleBuilder SitAtSeatSet(string seatSetName, int startTime, int durationMinutes = 60, bool warpIfSkipped = false, string name = null, string seatSetPath = null)
+        public PrefabScheduleBuilder SitAtSeatSet(string? seatSetName, int startTime, int durationMinutes = 60, bool warpIfSkipped = false, string? name = null, string? seatSetPath = null)
         {
             if (!string.IsNullOrEmpty(seatSetName) || !string.IsNullOrEmpty(seatSetPath))
             {
@@ -103,14 +95,14 @@ namespace S1API.Entities.Schedule
         }
 
         /// <summary>
-        /// Ensures that a customer deal signal exists under the schedule for handling deal interactions.
+        /// Retained for source compatibility with game versions that used a customer deal signal.
         /// </summary>
         /// <returns>This builder instance for method chaining.</returns>
         /// <remarks>
-        /// This method creates an <see cref="EnsureDealSignalSpec"/> that will be applied when the prefab is configured.
-        /// The specification ensures that a <see cref="S1NPCsSchedules.NPCSignal_WaitForDelivery"/> component
-        /// exists on the NPC's schedule manager for proper customer deal handling.
+        /// Schedule I 0.4.6 removed the deal signal. The retained specification configures the
+        /// current customer deal-attendance behaviour during prefab creation and otherwise no-ops.
         /// </remarks>
+        [System.Obsolete("NPCSignal_WaitForDelivery was removed in game version 0.4.6. Use EnsureCustomer(); deal attendance is configured automatically.")]
         public PrefabScheduleBuilder EnsureDealSignal()
         {
             _specs.Add(new EnsureDealSignalSpec());
@@ -128,7 +120,7 @@ namespace S1API.Entities.Schedule
         /// 
         /// If the specification is <c>null</c>, this method does nothing and returns the builder unchanged.
         /// </remarks>
-        public PrefabScheduleBuilder Add(IScheduleActionSpec spec)
+        public PrefabScheduleBuilder Add(IScheduleActionSpec? spec)
         {
             if (spec != null)
                 _specs.Add(spec);
@@ -146,7 +138,7 @@ namespace S1API.Entities.Schedule
         /// Creates a <see cref="UseVendingMachineSpec"/> that, when applied, configures a
         /// <see cref="S1NPCsSchedules.NPCSignal_UseVendingMachine"/> under the NPC's schedule manager.
         /// </remarks>
-        public PrefabScheduleBuilder UseVendingMachine(int startTime, string machineGUID = null, string name = null)
+        public PrefabScheduleBuilder UseVendingMachine(int startTime, string? machineGUID = null, string? name = null)
         {
             _specs.Add(new UseVendingMachineSpec { StartTime = startTime, MachineGUID = machineGUID, Name = name });
             return this;
@@ -173,7 +165,7 @@ namespace S1API.Entities.Schedule
             int betAmount = 10, 
             GamblingSessionMode sessionMode = GamblingSessionMode.SingleSpin,
             float maxSearchDistance = 5f, 
-            string name = null)
+            string? name = null)
         {
             _specs.Add(new UseSlotMachineSpec 
             { 
@@ -209,7 +201,7 @@ namespace S1API.Entities.Schedule
             int betAmount = 10,
             float timeBetweenSpins = 10f,
             float maxSearchDistance = 5f, 
-            string name = null)
+            string? name = null)
         {
             _specs.Add(new UseSlotMachineSpec 
             { 
@@ -235,6 +227,7 @@ namespace S1API.Entities.Schedule
         /// <param name="timeBetweenSpins">Time to wait between spins in seconds (default: 10.0).</param>
         /// <param name="stopIfBroke">If true, stops gambling when out of cash; if false, only stops at end time (default: true).</param>
         /// <param name="maxSearchDistance">Maximum distance to search for a slot machine from the position (default: 5.0).</param>
+        /// <param name="building">Optional building containing the slot machine.</param>
         /// <param name="name">Optional custom name for this action; defaults to "UseSlotMachine".</param>
         /// <returns>This builder instance for method chaining.</returns>
         /// <remarks>
@@ -249,8 +242,8 @@ namespace S1API.Entities.Schedule
             float timeBetweenSpins = 10f,
             bool stopIfBroke = true,
             float maxSearchDistance = 5f,
-            Map.Building building = null,
-            string name = null)
+            Map.Building? building = null,
+            string? name = null)
         {
             _specs.Add(new UseSlotMachineSpec 
             { 
@@ -290,7 +283,7 @@ namespace S1API.Entities.Schedule
             int betAmount = 10,
             float timeBetweenSpins = 10f,
             float maxSearchDistance = 5f, 
-            string name = null)
+            string? name = null)
         {
             _specs.Add(new UseSlotMachineSpec 
             { 
@@ -316,7 +309,7 @@ namespace S1API.Entities.Schedule
         /// Creates a <see cref="UseATMSpec"/> that, when applied, configures a
         /// <see cref="S1NPCsSchedules.NPCSignal_UseATM"/> under the NPC's schedule manager.
         /// </remarks>
-        public PrefabScheduleBuilder UseATM(int startTime, string atmGUID = null, string name = null)
+        public PrefabScheduleBuilder UseATM(int startTime, string? atmGUID = null, string? name = null)
         {
             _specs.Add(new UseATMSpec { StartTime = startTime, ATMGUID = atmGUID, Name = name });
             return this;
@@ -339,7 +332,7 @@ namespace S1API.Entities.Schedule
         /// <see cref="S1NPCsSchedules.NPCEvent_LocationDialogue"/>. The NPC walks to the destination and
         /// then sets dialogue-related overrides for player interaction.
         /// </remarks>
-        public PrefabScheduleBuilder LocationDialogue(Vector3 destination, int startTime, bool faceDestinationDir = true, float within = 1f, bool warpIfSkipped = false, int greetingOverrideToEnable = -1, int choiceToEnable = -1, string name = null)
+        public PrefabScheduleBuilder LocationDialogue(Vector3 destination, int startTime, bool faceDestinationDir = true, float within = 1f, bool warpIfSkipped = false, int greetingOverrideToEnable = -1, int choiceToEnable = -1, string? name = null)
         {
             _specs.Add(new LocationDialogueSpec
             {
@@ -385,7 +378,7 @@ namespace S1API.Entities.Schedule
         /// EnsureDealer() will automatically handle deals when contracts are assigned.
         /// </remarks>
         [System.Obsolete("HandleDeal is no longer needed as of game version 0.4.2f4. Deal handling is now automatic through DealerAttendDealBehaviour.")]
-        public PrefabScheduleBuilder HandleDeal(int startTime, string name = null)
+        public PrefabScheduleBuilder HandleDeal(int startTime, string? name = null)
         {
             _specs.Add(new HandleDealSpec { StartTime = startTime, Name = name });
             return this;
@@ -408,7 +401,7 @@ namespace S1API.Entities.Schedule
         ///
         /// If the building is <c>null</c>, this method does nothing and returns the builder unchanged.
         /// </remarks>
-        public PrefabScheduleBuilder StayInBuilding(Map.Building building, int startTime, int durationMinutes = 60, int? doorIndex = null, string name = null)
+        public PrefabScheduleBuilder StayInBuilding(Map.Building? building, int startTime, int durationMinutes = 60, int? doorIndex = null, string? name = null)
         {
             if (building == null)
             {
@@ -452,7 +445,7 @@ namespace S1API.Entities.Schedule
         /// The specification will create a <see cref="S1NPCsSchedules.NPCSignal_DriveToCarPark"/> action
         /// that makes the NPC drive the specified vehicle to the designated parking lot and park it.
         /// </remarks>
-        public PrefabScheduleBuilder DriveToCarPark(ParkingLotWrapper lot, LandVehicle vehicle, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string name = null)
+        public PrefabScheduleBuilder DriveToCarPark(ParkingLotWrapper lot, LandVehicle vehicle, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string? name = null)
         {
             _specs.Add(new DriveToCarParkSpec
             {
@@ -482,7 +475,7 @@ namespace S1API.Entities.Schedule
         /// that makes the NPC drive the specified vehicle to the designated parking lot and park it.
         /// The GUIDs will be resolved to their corresponding objects at runtime.
         /// </remarks>
-        public PrefabScheduleBuilder DriveToCarPark(string parkingLotGUID, string vehicleGUID, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string name = null)
+        public PrefabScheduleBuilder DriveToCarPark(string parkingLotGUID, string vehicleGUID, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string? name = null)
         {
             _specs.Add(new DriveToCarParkSpec
             {
@@ -512,7 +505,7 @@ namespace S1API.Entities.Schedule
         /// The parking lot and vehicle will be found by GameObject name at runtime, which is more
         /// reliable than GUID-based lookup for mods that need to work across different players.
         /// </remarks>
-        public PrefabScheduleBuilder DriveToCarParkByName(string parkingLotName, string vehicleName, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string name = null)
+        public PrefabScheduleBuilder DriveToCarParkByName(string parkingLotName, string vehicleName, int startTime, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string? name = null)
         {
             _specs.Add(new DriveToCarParkSpec
             {
@@ -547,7 +540,7 @@ namespace S1API.Entities.Schedule
         /// The vehicle will be spawned at the specified <paramref name="vehicleSpawnPosition"/> and rotation
         /// when the schedule action executes.
         /// </remarks>
-        public PrefabScheduleBuilder DriveToCarParkWithCreateVehicle(string parkingLotName, string vehicleCode, int startTime, Vector3 vehicleSpawnPosition, Quaternion? vehicleSpawnRotation = null, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string name = null)
+        public PrefabScheduleBuilder DriveToCarParkWithCreateVehicle(string parkingLotName, string vehicleCode, int startTime, Vector3 vehicleSpawnPosition, Quaternion? vehicleSpawnRotation = null, ParkingAlignment? alignment = null, bool? overrideParkingType = null, string? name = null)
         {
             _specs.Add(new DriveToCarParkSpec
             {

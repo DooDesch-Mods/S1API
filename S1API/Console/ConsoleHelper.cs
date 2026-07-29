@@ -7,6 +7,7 @@ using System.Collections.Generic;
 #endif
 using System.Linq;
 using S1API.Entities;
+using S1API.Logging;
 using S1API.Products;
 using S1API.Quests.Constants;
 
@@ -18,6 +19,9 @@ namespace S1API.Console
     /// </summary>
     public static class ConsoleHelper
     {
+        private static readonly Log Logger = new Log("ConsoleHelper");
+        private static bool _setPlayerEnergyUnavailableWarningLogged;
+
         /// <summary>
         /// Submits a raw console command string (e.g. "settime 1530").
         /// Works across both IL2CPP and Mono builds.
@@ -25,7 +29,7 @@ namespace S1API.Console
         /// <param name="command">The full command line to execute.</param>
         public static void Submit(string command)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             Il2CppScheduleOne.Console.SubmitCommand(command);
 #else
             ScheduleOne.Console.SubmitCommand(command);
@@ -39,7 +43,7 @@ namespace S1API.Console
         /// <param name="arguments">Command word followed by its arguments.</param>
         public static void Submit(IEnumerable<string> arguments)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var args = new Il2CppSystem.Collections.Generic.List<string>();
             var enumerable = arguments as System.Collections.IEnumerable;
             if (enumerable != null)
@@ -67,7 +71,7 @@ namespace S1API.Console
         /// </summary>
         public static void RunCashCommand(int amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new ChangeCashCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -83,7 +87,7 @@ namespace S1API.Console
         /// </summary>
         public static void RunOnlineBalanceCommand(int amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new ChangeOnlineBalanceCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -99,7 +103,7 @@ namespace S1API.Console
         /// </summary>
         public static void AddItemToInventory(string itemCode, int? quantity = null)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new AddItemToInventoryCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -119,7 +123,7 @@ namespace S1API.Console
         /// </summary>
         public static void ClearInventory()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new ClearInventoryCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -134,7 +138,7 @@ namespace S1API.Console
         /// </summary>
         public static void ClearTrash()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new ClearTrash();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -149,7 +153,7 @@ namespace S1API.Console
         /// </summary>
         public static void ClearWanted()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new ClearWanted();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -164,7 +168,7 @@ namespace S1API.Console
         /// </summary>
         public static void GiveXp(int amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new GiveXP();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -180,7 +184,7 @@ namespace S1API.Console
         /// </summary>
         public static void GrowPlants()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new GrowPlants();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -195,7 +199,7 @@ namespace S1API.Console
         /// </summary>
         public static void LowerWanted()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new LowerWanted();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -210,7 +214,7 @@ namespace S1API.Console
         /// </summary>
         public static void RaiseWanted()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new RaisedWanted();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -225,7 +229,7 @@ namespace S1API.Console
         /// </summary>
         public static void SaveGame()
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new Save();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -240,7 +244,7 @@ namespace S1API.Console
         /// </summary>
         public static void DiscoverProduct(string productCode)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetDiscovered();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -254,17 +258,19 @@ namespace S1API.Console
         /// <summary>
         /// Sets the player's energy to a value between 0 and 100.
         /// </summary>
+        [System.Obsolete("Player energy was removed from newer game builds. This method is retained as a compatibility no-op where unavailable and may be removed in a future S1API version.")]
         public static void SetPlayerEnergyLevel(float amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-            var command = new SetEnergy();
-            var args = new Il2CppSystem.Collections.Generic.List<string>();
-#else
-            var command = new SetEnergy();
-            var args = new List<string>();
-#endif
-            args.Add(amount.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            command.Execute(args);
+            LogSetPlayerEnergyUnavailable();
+        }
+
+        private static void LogSetPlayerEnergyUnavailable()
+        {
+            if (_setPlayerEnergyUnavailableWarningLogged)
+                return;
+
+            _setPlayerEnergyUnavailableWarningLogged = true;
+            Logger.Warning("SetPlayerEnergyLevel is unavailable because player energy is not present in this game build.");
         }
 
         /// <summary>
@@ -272,7 +278,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetPlayerHealth(float amount)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetHealth();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -288,7 +294,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetPlayerJumpMultiplier(float multiplier)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetJumpMultiplier();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -304,7 +310,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetLawIntensity(float intensity)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetLawIntensity();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -320,7 +326,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetPlayerMoveSpeedMultiplier(float multiplier)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetMoveSpeedCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -337,7 +343,7 @@ namespace S1API.Console
         /// <param name="quality">API quality value to set.</param>
         public static void SetQuality(Quality quality)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetQuality();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -353,7 +359,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetQuestState(string questName, QuestState state)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetQuestState();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -370,7 +376,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetNpcRelationship(string npcId, float level)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetRelationship();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -395,7 +401,7 @@ namespace S1API.Console
         /// </summary>
         public static void UnlockNpc(NPC npc)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetUnlocked();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -411,7 +417,7 @@ namespace S1API.Console
         /// </summary>
         public static void SetTime(string hhmm)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SetTimeCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else
@@ -427,7 +433,7 @@ namespace S1API.Console
         /// </summary>
         public static void SpawnVehicle(string vehicleCode)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var command = new SpawnVehicleCommand();
             var args = new Il2CppSystem.Collections.Generic.List<string>();
 #else

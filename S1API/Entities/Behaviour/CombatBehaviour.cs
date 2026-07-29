@@ -2,7 +2,7 @@
 using S1Combat = Il2CppScheduleOne.Combat;
 using Il2CppScheduleOne.AvatarFramework.Equipping;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Combat = ScheduleOne.Combat;
 using ScheduleOne.AvatarFramework.Equipping;
 using FishNet.Object;
@@ -71,14 +71,16 @@ public class CombatBehaviour
     {
         get
         {
-            var defaultWeapon = NPC.S1NPC.Behaviour.CombatBehaviour.DefaultWeapon;
+            var defaultWeapon =
+                ReflectionUtils.TryGetFieldOrProperty(NPC.S1NPC.Behaviour.CombatBehaviour, "DefaultWeapon") as AvatarWeapon ??
+                ReflectionUtils.TryGetFieldOrProperty(NPC.S1NPC.Behaviour.CombatBehaviour, "_defaultWeapon") as AvatarWeapon;
             return defaultWeapon?.AssetPath ?? string.Empty;
         }
         set
         {
             if (string.IsNullOrEmpty(value))
             {
-                NPC.S1NPC.Behaviour.CombatBehaviour.DefaultWeapon = null;
+                SetDefaultWeaponInternal(null);
                 return;
             }
 
@@ -103,7 +105,23 @@ public class CombatBehaviour
                 return;
             }
 
-            NPC.S1NPC.Behaviour.CombatBehaviour.DefaultWeapon = avatarWeapon;
+            SetDefaultWeaponInternal(avatarWeapon);
+        }
+    }
+
+    private void SetDefaultWeaponInternal(AvatarWeapon? weapon)
+    {
+        var combatBehaviour = NPC.S1NPC.Behaviour.CombatBehaviour;
+        var method = combatBehaviour.GetType().GetMethod("SetDefaultWeapon", BindingFlags.Public | BindingFlags.Instance);
+        if (method != null)
+        {
+            method.Invoke(combatBehaviour, new object?[] { weapon });
+            return;
+        }
+
+        if (!ReflectionUtils.TrySetFieldOrProperty(combatBehaviour, "DefaultWeapon", weapon))
+        {
+            ReflectionUtils.TrySetFieldOrProperty(combatBehaviour, "_defaultWeapon", weapon);
         }
     }
 
@@ -235,7 +253,7 @@ public class CombatBehaviour
     /// </summary>
     /// <param name="equippable">The S1API Equippable wrapper.</param>
     /// <returns>The asset path if found, otherwise null or empty string.</returns>
-    private string GetAssetPathFromEquippable(Equippable equippable)
+    private string? GetAssetPathFromEquippable(Equippable equippable)
     {
         if (equippable?.S1Equippable == null)
         {

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Properties = ScheduleOne.Effects;
 #endif
 
@@ -55,7 +55,28 @@ namespace S1API.Internal.Properties
             return results;
         }
 
-        private static S1Properties.Effect FindByIdOrName(string id, string unityName)
+        internal static List<S1Properties.Effect> ResolveToGamePropertiesById(IEnumerable<string> ids)
+        {
+            var results = new List<S1Properties.Effect>();
+            if (ids == null)
+                return results;
+
+            foreach (string id in ids)
+            {
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                S1Properties.Effect? effect = null;
+                if (!CustomEffectRegistry.TryGetExisting(id, out effect))
+                    effect = FindByIdOrName(id, string.Empty);
+                if (effect != null && !results.Contains(effect))
+                    results.Add(effect);
+            }
+
+            return results;
+        }
+
+        private static S1Properties.Effect? FindByIdOrName(string id, string unityName)
         {
             var idNorm = (id ?? string.Empty).Trim();
             var nameNorm = (unityName ?? string.Empty).Trim();

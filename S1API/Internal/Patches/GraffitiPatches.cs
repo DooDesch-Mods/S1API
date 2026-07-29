@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Graffiti = Il2CppScheduleOne.Graffiti;
 using Il2CppGuid = Il2CppSystem.Guid;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Graffiti = ScheduleOne.Graffiti;
 #endif
 
@@ -38,7 +38,7 @@ namespace S1API.Internal.Patches
                 // Convert GUID to string for tracking
 #if (IL2CPPMELON)
                 string guidString = __instance.GUID.ToString();
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
                 string guidString = __instance.GUID.ToString();
 #endif
 

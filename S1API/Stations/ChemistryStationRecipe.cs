@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1StationFramework = ScheduleOne.StationFramework;
 #endif
@@ -12,7 +12,7 @@ using UnityEngine;
 namespace S1API.Stations
 {
     /// <summary>
-    /// Read-only wrapper for a Chemistry Station recipe (<c>StationRecipe</c>).
+    /// Wrapper for a Chemistry Station recipe (<c>StationRecipe</c>).
     /// </summary>
     public sealed class ChemistryStationRecipe
     {
@@ -27,7 +27,8 @@ namespace S1API.Stations
             Color finalLiquidColor,
             ChemistryStationRecipeProduct product,
             IReadOnlyList<ChemistryStationRecipeIngredient> ingredients,
-            QualityCalculationMethod qualityCalculationMethod)
+            QualityCalculationMethod qualityCalculationMethod,
+            bool hasExplicitRecipeId)
         {
             S1StationRecipe = stationRecipe;
             RecipeID = recipeId;
@@ -38,10 +39,14 @@ namespace S1API.Stations
             Product = product;
             Ingredients = ingredients;
             QualityCalculationMethod = qualityCalculationMethod;
+            HasExplicitRecipeId = hasExplicitRecipeId;
         }
 
+        internal bool HasExplicitRecipeId { get; }
+
         /// <summary>
-        /// Game-defined recipe identifier (<c>"{qty}x{productId}"</c>).
+        /// Stable recipe identifier. This is the explicit namespaced ID supplied by the
+        /// builder, or the legacy <c>"{quantity}x{productId}"</c> value when omitted.
         /// </summary>
         public string RecipeID { get; }
 
@@ -82,9 +87,34 @@ namespace S1API.Stations
         public QualityCalculationMethod QualityCalculationMethod { get; }
 
         /// <summary>
+        /// Whether the recipe is currently discovered and visible to the player.
+        /// </summary>
+        public bool IsDiscovered => S1StationRecipe.IsDiscovered;
+
+        /// <summary>
+        /// Whether the recipe is currently unlocked for use.
+        /// </summary>
+        public bool IsUnlocked => S1StationRecipe.Unlocked;
+
+        /// <summary>
+        /// Changes the local recipe discovery and unlock state.
+        /// </summary>
+        /// <param name="isDiscovered">Whether the recipe is visible to the player.</param>
+        /// <param name="isUnlocked">Whether the recipe can be selected and started.</param>
+        /// <remarks>
+        /// Custom recipes are registered independently on every peer. Mods should apply
+        /// progression-driven availability on each peer after its saved state has loaded.
+        /// </remarks>
+        public void SetAvailability(bool isDiscovered, bool isUnlocked)
+        {
+            S1StationRecipe.IsDiscovered = isDiscovered;
+            S1StationRecipe.Unlocked = isUnlocked;
+        }
+
+        /// <summary>
         /// Returns the native product item definition.
         /// </summary>
-        public S1ItemFramework.ItemDefinition S1ProductItem => S1StationRecipe.Product?.Item;
+        public S1ItemFramework.ItemDefinition? S1ProductItem => S1StationRecipe.Product?.Item;
     }
 
     /// <summary>

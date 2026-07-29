@@ -101,7 +101,7 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// For Graffiti: use a specific spray surface. Call before <see cref="OnArriveGraffiti"/>.
         /// </summary>
-        /// <param name="surface">The spray surface (e.g. from <see cref="GraffitiManager.FindNearestUntaggedSurface"/>).</param>
+        /// <param name="surface">The spray surface, for example from <c>GraffitiManager.FindNearestUntaggedSurface(...)</c>.</param>
         /// <returns>This sub-builder for chaining.</returns>
         public LocationBasedActionSpecBuilder WithSpraySurface(SpraySurface surface)
         {

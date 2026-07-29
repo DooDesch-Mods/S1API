@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1AvatarAnimation = Il2CppScheduleOne.AvatarFramework.Animation;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarAnimation = ScheduleOne.AvatarFramework.Animation;
 #endif
 
@@ -23,10 +23,10 @@ namespace S1API.Avatar
         internal static readonly List<Seat> All = new List<Seat>();
 
         private readonly WeakReference<S1AvatarAnimation.AvatarSeat> seatReference;
-        private readonly WeakReference<S1AvatarAnimation.AvatarSeatSet> seatSetReference;
-        private readonly Transform seatTransform;
-        private readonly Transform sittingPoint;
-        private readonly Transform accessPoint;
+        private readonly WeakReference<S1AvatarAnimation.AvatarSeatSet>? seatSetReference;
+        private readonly Transform? seatTransform;
+        private readonly Transform? sittingPoint;
+        private readonly Transform? accessPoint;
         private readonly string hierarchyPath;
         private readonly string seatSetName;
         private readonly int? seatIndex;
@@ -70,7 +70,6 @@ namespace S1API.Avatar
             }
             else
             {
-                seatSetReference = new WeakReference<S1AvatarAnimation.AvatarSeatSet>(null);
                 seatSetName = string.Empty;
             }
         }
@@ -166,7 +165,7 @@ namespace S1API.Avatar
         /// <summary>
         /// Attempts to retrieve the live game <c>AvatarSeat</c> component, if it still exists.
         /// </summary>
-        public S1AvatarAnimation.AvatarSeat ResolveGameSeat()
+        public S1AvatarAnimation.AvatarSeat? ResolveGameSeat()
         {
             seatReference.TryGetTarget(out var seat);
             return seat;
@@ -175,8 +174,11 @@ namespace S1API.Avatar
         /// <summary>
         /// Attempts to retrieve the live parent <c>AvatarSeatSet</c>, if any.
         /// </summary>
-        public S1AvatarAnimation.AvatarSeatSet ResolveSeatSet()
+        public S1AvatarAnimation.AvatarSeatSet? ResolveSeatSet()
         {
+            if (seatSetReference == null)
+                return null;
+
             seatSetReference.TryGetTarget(out var seatSet);
             return seatSet;
         }
@@ -184,7 +186,7 @@ namespace S1API.Avatar
         /// <summary>
         /// Returns the seat GameObject, if the component still exists.
         /// </summary>
-        public GameObject ResolveSeatGameObject()
+        public GameObject? ResolveSeatGameObject()
         {
             var seat = ResolveGameSeat();
             return seat != null ? seat.gameObject : null;
@@ -209,7 +211,7 @@ namespace S1API.Avatar
         /// Finds the first seat whose hierarchy path ends with the provided suffix (case-insensitive).
         /// Useful when only a partial path is known (e.g. "Cafe/Booth01/SeatA").
         /// </summary>
-        public static Seat FindByPathSuffix(string pathSuffix)
+        public static Seat? FindByPathSuffix(string pathSuffix)
         {
             if (string.IsNullOrEmpty(pathSuffix))
                 return null;
@@ -271,7 +273,7 @@ namespace S1API.Avatar
         /// </summary>
         public static int Count => All.Count;
 
-        private static string BuildTransformPath(Transform transform)
+        private static string BuildTransformPath(Transform? transform)
         {
             if (transform == null)
                 return string.Empty;

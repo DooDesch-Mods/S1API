@@ -5,7 +5,7 @@ using S1API.Quests.Identifiers;
 
 #if (IL2CPPMELON)
 using S1Quests = Il2CppScheduleOne.Quests;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 #endif
 
@@ -78,7 +78,7 @@ namespace S1API.Quests
         {
             try
             {
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
                 var gameQuests = S1Quests.Quest.Quests;
                 if (gameQuests != null)
                 {
@@ -90,7 +90,7 @@ namespace S1API.Quests
                         }
                     }
                 }
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
                 var gameQuests = S1Quests.Quest.Quests;
                 if (gameQuests != null)
                 {
@@ -146,7 +146,7 @@ namespace S1API.Quests
             return null;
         }
 
-        private static string TryGetNameFromIdentifier(Type t)
+        private static string? TryGetNameFromIdentifier(Type t)
         {
             try
             {

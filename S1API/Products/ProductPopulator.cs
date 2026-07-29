@@ -2,7 +2,7 @@
 using S1Product = Il2CppScheduleOne.Product;
 using S1ProductPackaging = Il2CppScheduleOne.Product.Packaging;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1ProductPackaging = ScheduleOne.Product.Packaging;
 using S1ItemFramework = ScheduleOne.ItemFramework;
@@ -30,7 +30,7 @@ namespace S1API.Products
         /// <returns>The packaging definition, or null if not found.</returns>
         public static PackagingDefinition? GetPackaging(string packagingId)
         {
-            var packaging = ItemManager.GetItemDefinition(packagingId);
+            var packaging = ItemManager.GetDefinition(packagingId);
 
             if (packaging is PackagingDefinition packagingDef)
             {
@@ -222,7 +222,7 @@ namespace S1API.Products
 
             foreach (var productId in productIds)
             {
-                var itemDef = ItemManager.GetItemDefinition(productId);
+                var itemDef = ItemManager.GetDefinition(productId);
 
                 if (itemDef is ProductDefinition productDef)
                 {
@@ -374,7 +374,7 @@ namespace S1API.Products
 
             foreach (var productId in productIds)
             {
-                var itemDef = ItemManager.GetItemDefinition(productId);
+                var itemDef = ItemManager.GetDefinition(productId);
 
                 if (itemDef is ProductDefinition productDef)
                 {
@@ -419,18 +419,19 @@ namespace S1API.Products
         {
             Debug.Log($"[ProductPopulator] PopulateFromGameObject called for '{gameObject?.name}' with packaging '{packagingId}'");
 
-            if (gameObject == null)
+            if (gameObject is null)
             {
                 Debug.LogWarning("[ProductPopulator] PopulateFromGameObject called with null GameObject");
                 return -1;
             }
 
-            var storage = StorageInstance.FromGameObject(gameObject);
+            GameObject target = gameObject;
+            var storage = StorageInstance.FromGameObject(target);
 
             if (storage == null)
             {
                 Debug.LogWarning($"[ProductPopulator] No StorageEntity found on GameObject '{gameObject?.name}', trying FromGameObjectInChildren...");
-                storage = StorageInstance.FromGameObjectInChildren(gameObject);
+                storage = StorageInstance.FromGameObjectInChildren(target);
             }
 
             if (storage == null)

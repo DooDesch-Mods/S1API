@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Persistence = Il2CppScheduleOne.Persistence;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Persistence = ScheduleOne.Persistence;
 #endif
 
@@ -37,7 +37,7 @@ namespace S1API.Lifecycle
         /// <remarks>
         /// Equivalent to LoadManager.onPreLoad but abstracted for cross-runtime compatibility.
         /// </remarks>
-        public static event Action OnPreLoad;
+        public static event Action? OnPreLoad;
 
         /// <summary>
         /// Fired when the game has finished loading all data and the player can interact with the world.
@@ -56,7 +56,7 @@ namespace S1API.Lifecycle
         /// };
         /// </code>
         /// </example>
-        public static event Action OnLoadComplete;
+        public static event Action? OnLoadComplete;
 
         /// <summary>
         /// Fired before the game transitions to a different scene (e.g., Menu to Main, or exiting to Menu).
@@ -75,7 +75,7 @@ namespace S1API.Lifecycle
         /// };
         /// </code>
         /// </example>
-        public static event Action OnPreSceneChange;
+        public static event Action? OnPreSceneChange;
 
         /// <summary>
         /// Fired when save game information has been loaded and refreshed.
@@ -94,7 +94,7 @@ namespace S1API.Lifecycle
         /// };
         /// </code>
         /// </example>
-        public static event Action OnSaveInfoLoaded;
+        public static event Action? OnSaveInfoLoaded;
 
         /// <summary>
         /// Fired when the game begins saving data.
@@ -113,7 +113,7 @@ namespace S1API.Lifecycle
         /// };
         /// </code>
         /// </example>
-        public static event Action OnSaveStart;
+        public static event Action? OnSaveStart;
 
         /// <summary>
         /// Fired when the game has finished saving all data.
@@ -132,7 +132,7 @@ namespace S1API.Lifecycle
         /// };
         /// </code>
         /// </example>
-        public static event Action OnSaveComplete;
+        public static event Action? OnSaveComplete;
 
         /// <summary>
         /// INTERNAL: Initializes the lifecycle system and hooks into game events.
@@ -149,14 +149,14 @@ namespace S1API.Lifecycle
             if (loadManager == null || saveManager == null)
                 return;
 
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
             loadManager.onPreLoad.AddListener((UnityAction)InvokeOnPreLoad);
             loadManager.onLoadComplete.AddListener((UnityAction)InvokeOnLoadComplete);
             loadManager.onPreSceneChange.AddListener((UnityAction)InvokeOnPreSceneChange);
             loadManager.onSaveInfoLoaded.AddListener((UnityAction)InvokeOnSaveInfoLoaded);
             saveManager.onSaveStart.AddListener((UnityAction)InvokeOnSaveStart);
             saveManager.onSaveComplete.AddListener((UnityAction)InvokeOnSaveComplete);
-#elif MONOMELON || MONOBEPINEX
+#elif MONOMELON
             loadManager.onPreLoad.AddListener(new UnityAction(InvokeOnPreLoad));
             loadManager.onLoadComplete.AddListener(new UnityAction(InvokeOnLoadComplete));
             loadManager.onPreSceneChange.AddListener(new UnityAction(InvokeOnPreSceneChange));

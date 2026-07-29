@@ -2,9 +2,15 @@ name: Build and Deploy Documentation
 
 on:
   push:
-    branches: [ master, main, stable, beta, npc-prefabs ]
+    branches-ignore:
+      - 'agent/**'
+      - 'automation/**'
+      - 'dependabot/**'
+      - 'feat/**'
+      - 'fix/**'
+      - 'hotfix/**'
+      - 'release/**'
   pull_request:
-    branches: [ master, main, stable, beta, npc-prefabs ]
   workflow_dispatch:
     inputs:
       assembly_branch:
@@ -22,11 +28,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.event.pull_request.number) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
+  documentation:
+    name: documentation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout S1API
@@ -38,7 +45,10 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
 
       # Determine which assembly branch to use (beta or main) - MUST run before cache
       - name: Determine Assembly Branch
@@ -66,7 +76,8 @@ jobs:
 
       # Try to restore assemblies from cache first (for external PRs)
       # Cache key includes assembly branch to separate beta from main
-      # v3 suffix allows cache invalidation by bumping version
+      # v4 includes Unity.Burst.dll, which the Mono test host needs while
+      # reflecting native test data.
       # Only use cache for PR events to avoid stale assemblies after merges
       - name: Restore Game Assemblies from Cache
         id: cache-assemblies
@@ -74,9 +85,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: S1API/ScheduleOneAssemblies
-          key: game-assemblies-v3-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
+          key: game-assemblies-v4-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
           restore-keys: |
-            game-assemblies-v3-${{ steps.assembly-branch.outputs.branch }}-
+            game-assemblies-v4-${{ steps.assembly-branch.outputs.branch }}-
 
       # Only checkout game assemblies if cache miss AND we have access to secrets
       - name: Checkout Game Assemblies
@@ -168,6 +179,15 @@ jobs:
             fi
           fi
           echo ""
+          echo "=== Burst Assembly Check ==="
+          if [ -f S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll ]; then
+            echo "✓ Found Unity.Burst.dll"
+            ls -l S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll
+          else
+            echo "✗ Missing Unity.Burst.dll"
+            exit 1
+          fi
+          echo ""
           echo "=== MelonLoader Assembly Check ==="
           if [ -f S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll ]; then
             echo "✓ Found 0Harmony.dll"
@@ -189,10 +209,10 @@ jobs:
       # Save only verified non-empty assembly caches.
       - name: Save Game Assemblies to Cache
         uses: actions/cache/save@v4
-        if: always() && steps.cache-assemblies.outputs.cache-hit != 'true' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != '' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs')))
+        if: always() && steps.cache-assemblies.outputs.cache-hit != 'true' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != '' && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/beta' || github.ref == 'refs/heads/npc-prefabs')))
         with:
           path: S1API/ScheduleOneAssemblies
-          key: game-assemblies-v3-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
+          key: game-assemblies-v4-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}
 
       - name: Create CI Build Properties
         run: |
@@ -242,10 +262,19 @@ jobs:
           fi
 
       - name: Restore dependencies
-        run: dotnet restore S1API.sln
+        run: dotnet restore S1API.sln -p:Configuration=MonoMelon
 
       - name: Build S1API
         run: dotnet build S1API/S1API.csproj --no-restore -c MonoMelon -v normal
+
+      - name: Run Mono contract and compatibility tests
+        run: >-
+          dotnet test
+          S1API.Tests/S1API.Tests.csproj
+          --no-restore
+          --configuration MonoMelon
+          --verbosity normal
+          --property:AutomateLocalDeployment=false
 
       - name: Upload S1API Mono Artifact
         uses: actions/upload-artifact@v4
@@ -261,6 +290,67 @@ jobs:
           cd S1API
           docfx docfx.json
 
+      - name: Check public API documentation coverage
+        run: >-
+          dotnet run
+          --project tools/S1APIDocumentationCoverage/S1APIDocumentationCoverage.csproj
+          --configuration Release
+          --
+          --api-directory S1API/api
+          --minimum 80
+
+      - name: Preserve pull request API assembly
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p "$RUNNER_TEMP/s1api-api-compat"
+          cp \
+            S1API/bin/MonoMelon/netstandard2.1/S1API.dll \
+            "$RUNNER_TEMP/s1api-api-compat/current.dll"
+
+      - name: Build target branch API baseline
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git checkout --detach --force "$BASE_SHA"
+          dotnet restore S1API/S1API.csproj -p:Configuration=MonoMelon
+          dotnet build \
+            S1API/S1API.csproj \
+            --no-restore \
+            --configuration MonoMelon \
+            --verbosity minimal \
+            --property:AutomateLocalDeployment=false
+          cp \
+            S1API/bin/MonoMelon/netstandard2.1/S1API.dll \
+            "$RUNNER_TEMP/s1api-api-compat/baseline.dll"
+          git checkout --detach --force "$GITHUB_SHA"
+
+      - name: Restore ApiCompat tool cache
+        if: github.event_name == 'pull_request'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/apicompat
+          key: apicompat-${{ runner.os }}-${{ runner.arch }}-10.0.302
+
+      - name: Install ApiCompat
+        if: github.event_name == 'pull_request'
+        run: |
+          if [ ! -x "$RUNNER_TEMP/apicompat/apicompat" ]; then
+            dotnet tool install \
+              Microsoft.DotNet.ApiCompat.Tool \
+              --tool-path "$RUNNER_TEMP/apicompat" \
+              --version 10.0.302
+          fi
+
+      - name: Check public API compatibility
+        if: github.event_name == 'pull_request'
+        run: |
+          "$RUNNER_TEMP/apicompat/apicompat" \
+            --left "$RUNNER_TEMP/s1api-api-compat/baseline.dll" \
+            --right "$RUNNER_TEMP/s1api-api-compat/current.dll" \
+            --enable-rule-cannot-change-parameter-name \
+            --enable-rule-attributes-must-match
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -272,7 +362,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
-    needs: build
+    needs: documentation
     if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable' || github.ref == 'refs/heads/npc-prefabs'
     steps:
       - name: Deploy to GitHub Pages

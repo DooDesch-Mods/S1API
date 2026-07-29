@@ -3,7 +3,7 @@ using Il2Cpp;
 using S1Cartel = Il2CppScheduleOne.Cartel;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 #endif
@@ -24,7 +24,7 @@ namespace S1API.Cartel
         private static Cartel? _cachedInstance;
         private static S1Cartel.Cartel? _lastS1Cartel;
 #if IL2CPPMELON
-        private static readonly Dictionary<Action<CartelStatus, CartelStatus>, Delegate> _eventDelegates = new Dictionary<Action<CartelStatus, CartelStatus>, Delegate>();
+        private static readonly Dictionary<Action<CartelStatus, CartelStatus>, object> _eventDelegates = new Dictionary<Action<CartelStatus, CartelStatus>, object>();
 #endif
 
         /// <summary>
@@ -145,20 +145,28 @@ namespace S1API.Cartel
                 // Create a wrapper instance to hold the value
                 var wrapper = new EventWrapper(value);
                 var wrapperMethod = typeof(EventWrapper).GetMethod(nameof(EventWrapper.Handle), BindingFlags.Public | BindingFlags.Instance);
+                if (wrapperMethod == null)
+                    return;
+
                 var managedDelegate = Delegate.CreateDelegate(handlerType, wrapper, wrapperMethod);
 
                 // Convert to Il2Cpp delegate
                 var il2cppActionType = typeof(Il2CppSystem.Action<,>).MakeGenericType(ecartelStatusType, ecartelStatusType);
                 var convertMethod = typeof(DelegateSupport).GetMethod("ConvertDelegate", BindingFlags.Public | BindingFlags.Static);
+                if (convertMethod == null)
+                    return;
+
                 var genericConvert = convertMethod.MakeGenericMethod(il2cppActionType);
                 var il2cppDelegate = genericConvert.Invoke(null, new object[] { managedDelegate });
+                if (il2cppDelegate == null)
+                    return;
 
                 // Use the add_ method to subscribe
                 var addMethod = eventInfo.GetAddMethod();
                 addMethod?.Invoke(S1Cartel, new object[] { il2cppDelegate });
 
                 // Track for removal
-                _eventDelegates[value] = il2cppDelegate as Delegate;
+                _eventDelegates[value] = il2cppDelegate;
 #else
                 // For Mono, use standard += operator
                 S1Cartel.OnStatusChange += (oldStatus, newStatus) =>

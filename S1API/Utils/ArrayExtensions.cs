@@ -1,4 +1,4 @@
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime.InteropTypes.Arrays;
 #endif
 
@@ -21,7 +21,7 @@ namespace S1API.Utils
         public static T[] AddItemToArray<T>(this T[]? array, T item) =>
             Internal.Utils.ArrayExtensions.AddItemToArray(array, item);
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Add's an item to an existing <see cref="Il2CppReferenceArray{T}"/> instance.
         /// </summary>

@@ -1,6 +1,6 @@
 ﻿#if (IL2CPPMELON)
 using S1Quests = Il2CppScheduleOne.Quests;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 #endif
 
@@ -46,8 +46,8 @@ namespace S1API.Quests
         /// </summary>
         public event Action OnComplete
         {
-            add => EventHelper.AddListener(value, S1QuestEntry.onComplete);
-            remove => EventHelper.RemoveListener(value, S1QuestEntry.onComplete);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1QuestEntry.onComplete);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1QuestEntry.onComplete);
         }
 
         /// <summary>

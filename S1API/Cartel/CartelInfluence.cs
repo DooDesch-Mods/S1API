@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Cartel = Il2CppScheduleOne.Cartel;
 using EMapRegion = Il2CppScheduleOne.Map.EMapRegion;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 using EMapRegion = ScheduleOne.Map.EMapRegion;
 #endif

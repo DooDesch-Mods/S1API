@@ -5,7 +5,7 @@ using S1Levelling = Il2CppScheduleOne.Levelling;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Levelling = ScheduleOne.Levelling;
@@ -34,7 +34,7 @@ namespace S1API.Items
         private static readonly object StationItemGate = new object();
         private static readonly Dictionary<int, S1StationFramework.StationItem> StationItemCache = new Dictionary<int, S1StationFramework.StationItem>();
         private static readonly HashSet<int> WarnedStationItemModuleMissing = new HashSet<int>();
-        private static GameObject _stationItemRoot;
+        private static GameObject? _stationItemRoot;
 
         private readonly S1ItemFramework.QualityItemDefinition _definition;
         private readonly GameObject _storedItemPlaceholder;

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 #endif
 

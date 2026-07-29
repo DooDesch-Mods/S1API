@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Graffiti = Il2CppScheduleOne.Graffiti;
 using Guid = Il2CppSystem.Guid;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Graffiti = ScheduleOne.Graffiti;
 using Guid = System.Guid;
 #endif
@@ -39,7 +39,7 @@ namespace S1API.Graffiti
 #if (IL2CPPMELON)
                 var il2cppGuid = S1SpraySurface.GUID;
                 return new System.Guid(il2cppGuid.ToString());
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
                 return S1SpraySurface.GUID;
 #endif
             }

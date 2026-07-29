@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1NPCBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCBehaviour = ScheduleOne.NPCs.Behaviour;
 #endif
 

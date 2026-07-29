@@ -39,6 +39,16 @@ Use standard semantic version tags.
 - First follow-up hotfix release for that line: `v2.9.10`
 - Second follow-up hotfix release for that line: `v2.9.11`
 
+Experimental builds use SemVer prerelease tags such as `v3.1.0-beta.1`. These tags:
+
+- are created from the `beta` branch;
+- build against the `beta` branches of both private game-assembly repositories;
+- publish as GitHub prereleases and do not become the latest stable release;
+- do not publish to Nexus Mods, Thunderstore, or NuGet.
+
+Increment the trailing prerelease number for each experimental refresh. Create the stable
+`vX.Y.Z` tag from the eventual release branch only after public-beta validation is complete.
+
 Patch numbers are ordinary integers, not single digits. That means `2.9.10` is the next patch after `2.9.9`, not `3.0.0`.
 
 ## Release Flow

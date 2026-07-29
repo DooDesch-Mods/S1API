@@ -7,7 +7,7 @@ using S1Building = Il2CppScheduleOne.Building;
 using S1EntityFramework = Il2CppScheduleOne.EntityFramework;
 using S1Tiles = Il2CppScheduleOne.Tiles;
 using Surface = Il2CppScheduleOne.Building.Surface;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Building = ScheduleOne.Building;
 using S1EntityFramework = ScheduleOne.EntityFramework;
 using S1Tiles = ScheduleOne.Tiles;
@@ -50,9 +50,9 @@ namespace S1API.Building
         /// <param name="item">The item to create.</param>
         /// <param name="grid">The target grid.</param>
         /// <param name="originCoordinate">The origin coordinate on the grid.</param>
-        /// <param name="rotation">The rotation (0, 90, 180, 270).</u003e
-        /// <param name="guid">Optional GUID.</u003e
-        /// <returns>The created grid item GameObject.</u003e
+        /// <param name="rotation">The rotation (0, 90, 180, 270).</param>
+        /// <param name="guid">Optional GUID.</param>
+        /// <returns>The created grid item GameObject.</returns>
         public static GameObject CreateGridItem(ItemInstance item, S1Tiles.Grid grid, Vector2 originCoordinate, 
             int rotation, string guid = "")
         {
@@ -63,12 +63,12 @@ namespace S1API.Building
         /// <summary>
         /// Creates a surface item from an item instance.
         /// </summary>
-        /// <param name="item">The item to create.</u003e
-        /// <param name="parentSurface">The parent surface.</u003e
-        /// <param name="relativePosition">Position relative to the surface.</u003e
-        /// <param name="relativeRotation">Rotation relative to the surface.</u003e
-        /// <param name="guid">Optional GUID.</u003e
-        /// <returns>The created surface item GameObject.</u003e
+        /// <param name="item">The item to create.</param>
+        /// <param name="parentSurface">The parent surface.</param>
+        /// <param name="relativePosition">Position relative to the surface.</param>
+        /// <param name="relativeRotation">Rotation relative to the surface.</param>
+        /// <param name="guid">Optional GUID.</param>
+        /// <returns>The created surface item GameObject.</returns>
         public static GameObject CreateSurfaceItem(ItemInstance item, Surface parentSurface, 
             Vector3 relativePosition, Quaternion relativeRotation, string guid = "")
         {

@@ -31,18 +31,18 @@ namespace S1API.Building
         /// Subscribers receive a BuildEventArgs containing the item and GameObject.
         /// The GameObject can be modified to change appearance or behavior.
         /// </remarks>
-        public static event Action<BuildEventArgs> OnGridItemCreated;
+        public static event Action<BuildEventArgs>? OnGridItemCreated;
 
         /// <summary>
         /// Event raised after a surface item (table-top item) is created.
         /// </summary>
-        public static event Action<BuildEventArgs> OnSurfaceItemCreated;
+        public static event Action<BuildEventArgs>? OnSurfaceItemCreated;
 
         /// <summary>
         /// Event raised after a buildable item component is initialized.
         /// This event fires for all buildable items and can be used for additional setup.
         /// </summary>
-        public static event Action<BuildEventArgs> OnBuildableItemInitialized;
+        public static event Action<BuildEventArgs>? OnBuildableItemInitialized;
 
         /// <summary>
         /// INTERNAL: Raises the OnGridItemCreated event.

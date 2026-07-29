@@ -2,7 +2,7 @@
 using S1 = Il2CppScheduleOne;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1 = ScheduleOne;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1StationFramework = ScheduleOne.StationFramework;
@@ -20,11 +20,15 @@ namespace S1API.Stations
     /// </summary>
     public sealed class ChemistryStationRecipeBuilder
     {
+        private string? _recipeId;
+        private bool _hasExplicitRecipeId;
         private string? _title;
         private int _cookTimeMinutes = 180;
         private float _cookTemperature = 250f;
         private float _cookTemperatureTolerance = 25f;
         private Color _finalLiquidColor = Color.white;
+        private bool _initiallyDiscovered = true;
+        private bool _initiallyUnlocked = true;
 
         private string? _productItemId;
         private int _productQuantity = 1;
@@ -32,6 +36,25 @@ namespace S1API.Stations
         private QualityCalculationMethod _method = QualityCalculationMethod.Additive;
 
         private readonly List<IngredientSpec> _ingredients = new List<IngredientSpec>();
+
+        /// <summary>
+        /// Sets the stable, mod-namespaced recipe identifier.
+        /// </summary>
+        /// <param name="recipeId">
+        /// A namespaced identifier such as <c>my-mod:alternate-route</c>. IDs are matched
+        /// case-insensitively, and the first registered recipe wins when IDs conflict.
+        /// </param>
+        /// <returns>This builder for method chaining.</returns>
+        /// <remarks>
+        /// Validation occurs during <see cref="Build"/>. When omitted, the legacy
+        /// <c>"{quantity}x{productId}"</c> identifier is preserved.
+        /// </remarks>
+        public ChemistryStationRecipeBuilder WithRecipeId(string recipeId)
+        {
+            _recipeId = recipeId;
+            _hasExplicitRecipeId = true;
+            return this;
+        }
 
         /// <summary>
         /// Sets the UI title for the recipe.
@@ -60,6 +83,26 @@ namespace S1API.Stations
         public ChemistryStationRecipeBuilder WithFinalLiquidColor(Color color)
         {
             _finalLiquidColor = color;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets whether the recipe is discovered and unlocked when it is first registered.
+        /// </summary>
+        /// <param name="isDiscovered">Whether the recipe is visible to the player.</param>
+        /// <param name="isUnlocked">Whether the recipe can be selected and started.</param>
+        /// <returns>This builder for method chaining.</returns>
+        /// <remarks>
+        /// Both values default to <see langword="true"/> to preserve the behavior of
+        /// recipes created before availability control was added. Use
+        /// <see cref="ChemistryStationRecipe.SetAvailability"/> to change the state later.
+        /// </remarks>
+        public ChemistryStationRecipeBuilder WithInitialAvailability(
+            bool isDiscovered,
+            bool isUnlocked)
+        {
+            _initiallyDiscovered = isDiscovered;
+            _initiallyUnlocked = isUnlocked;
             return this;
         }
 
@@ -166,7 +209,11 @@ namespace S1API.Stations
                 throw new InvalidOperationException("ChemistryStationRecipeBuilder requires at least one ingredient (WithIngredient...).");
 
             var title = string.IsNullOrWhiteSpace(_title) ? _productItemId! : _title!;
-            var recipeId = $"{_productQuantity}x{_productItemId}";
+            var recipeId = ChemistryStationRecipeId.Resolve(
+                _hasExplicitRecipeId,
+                _recipeId,
+                _productQuantity,
+                _productItemId!);
 
             var native = BuildInternal();
             var wrapper = new ChemistryStationRecipe(
@@ -178,7 +225,8 @@ namespace S1API.Stations
                 finalLiquidColor: _finalLiquidColor,
                 product: new ChemistryStationRecipeProduct(_productItemId!, _productQuantity),
                 ingredients: BuildIngredientWrappers(),
-                qualityCalculationMethod: _method);
+                qualityCalculationMethod: _method,
+                hasExplicitRecipeId: _hasExplicitRecipeId);
 
             return ChemistryStationRecipes.Register(wrapper);
         }
@@ -192,8 +240,8 @@ namespace S1API.Stations
                 throw new InvalidOperationException("WithProduct(...) must be called before BuildInternal().");
 
             var recipe = ScriptableObject.CreateInstance<S1StationFramework.StationRecipe>();
-            recipe.IsDiscovered = true;
-            recipe.Unlocked = true;
+            recipe.IsDiscovered = _initiallyDiscovered;
+            recipe.Unlocked = _initiallyUnlocked;
             recipe.RecipeTitle = string.IsNullOrWhiteSpace(_title) ? _productItemId! : _title!;
             recipe.CookTime_Mins = _cookTimeMinutes;
             recipe.CookTemperature = _cookTemperature;

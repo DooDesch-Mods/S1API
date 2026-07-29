@@ -22,7 +22,7 @@ namespace S1API.Internal.Lifecycle
     {
         private static readonly Log Logger = new Log("Lifecycle");
 
-        private static void TryRun(Action action, string warningMessage = null)
+        private static void TryRun(Action action, string? warningMessage = null)
         {
             try
             {
@@ -71,6 +71,7 @@ namespace S1API.Internal.Lifecycle
                         }
                     }
                     NPC.All.Clear();
+                    NPC.FinalizedCustomNpcTypes.Clear();
                     NPCPatches.CustomNpcsReady = false; // Reset flag for next scene load
                     
                     QuestManager.Quests.Clear();
@@ -88,6 +89,7 @@ namespace S1API.Internal.Lifecycle
                     DialogueChoiceListener.ResetState();
                     ContactsAppPatches.ResetState();
                     NPCPatches.ResetState();
+                    SupplierRuntimeCoordinator.CleanupForSceneChange();
                     NPCDealer.ClearStaticDelegates();
                     TimeManagerShim.Instance.ResetDelegates();
                 }

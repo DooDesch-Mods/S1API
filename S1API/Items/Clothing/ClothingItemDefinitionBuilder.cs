@@ -5,7 +5,7 @@ using S1CoreItemFramework = Il2CppScheduleOne.Core.Items.Framework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1UiItems = Il2CppScheduleOne.UI.Items;
 using Il2CppCollections = Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Clothing = ScheduleOne.Clothing;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;

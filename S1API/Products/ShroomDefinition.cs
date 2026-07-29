@@ -2,7 +2,7 @@
 using Il2CppScheduleOne.Product;
 using S1ShroomDefinition = Il2CppScheduleOne.Product.ShroomDefinition;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using ScheduleOne.Product;
 using S1ShroomDefinition = ScheduleOne.Product.ShroomDefinition;
 using S1Properties = ScheduleOne.Effects;

@@ -11,12 +11,12 @@ namespace S1API.Internal.Map
         /// <summary>
         /// The identifier type for typed lookups (e.g., typeof(ManorParking))
         /// </summary>
-        public Type IdentifierType { get; private set; }
+        public Type? IdentifierType { get; private set; }
 
         /// <summary>
         /// The name-based identifier for string lookups
         /// </summary>
-        public string IdentifierName { get; private set; }
+        public string? IdentifierName { get; private set; }
 
         /// <summary>
         /// Callback to invoke with the resolved object

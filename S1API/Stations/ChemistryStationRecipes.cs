@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1StationFramework = ScheduleOne.StationFramework;
 #endif
 
@@ -17,8 +17,11 @@ namespace S1API.Stations
     {
         private static readonly Log Logger = new Log("ChemistryStationRecipes");
         private static readonly object Gate = new object();
-        private static readonly Dictionary<string, ChemistryStationRecipe> ById = new Dictionary<string, ChemistryStationRecipe>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, ChemistryStationRecipe> ById =
+            new Dictionary<string, ChemistryStationRecipe>(ChemistryStationRecipeId.Comparer);
+        private static readonly Dictionary<int, string> NativeRecipeIds = new Dictionary<int, string>();
         private static readonly List<ChemistryStationRecipe> All = new List<ChemistryStationRecipe>();
+        private static volatile bool _hasExplicitRecipeIds;
 
         /// <summary>
         /// Registers a recipe with S1API (idempotent).
@@ -40,7 +43,16 @@ namespace S1API.Stations
                     return ById[recipe.RecipeID];
                 }
 
+                int nativeInstanceId = 0;
+                if (recipe.HasExplicitRecipeId)
+                    nativeInstanceId = recipe.S1StationRecipe.GetInstanceID();
+
                 ById[recipe.RecipeID] = recipe;
+                if (recipe.HasExplicitRecipeId)
+                {
+                    NativeRecipeIds[nativeInstanceId] = recipe.RecipeID;
+                    _hasExplicitRecipeIds = true;
+                }
                 All.Add(recipe);
                 return recipe;
             }
@@ -80,6 +92,33 @@ namespace S1API.Stations
                     arr[i] = All[i].S1StationRecipe;
                 }
                 return arr;
+            }
+        }
+
+        internal static bool TryGetRegisteredId(
+            S1StationFramework.StationRecipe? recipe,
+            out string recipeId)
+        {
+            recipeId = string.Empty;
+            if (ReferenceEquals(recipe, null))
+                return false;
+
+            if (!_hasExplicitRecipeIds)
+                return false;
+
+            int instanceId;
+            try
+            {
+                instanceId = recipe.GetInstanceID();
+            }
+            catch
+            {
+                return false;
+            }
+
+            lock (Gate)
+            {
+                return NativeRecipeIds.TryGetValue(instanceId, out recipeId!);
             }
         }
     }

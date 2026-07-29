@@ -2,7 +2,7 @@
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Map = Il2CppScheduleOne.Map;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1Map = ScheduleOne.Map;
 using S1NPCs = ScheduleOne.NPCs;
@@ -51,19 +51,20 @@ namespace S1API.Entities
         /// INTERNAL: Constructor used for assigning the NPC instance.
         /// </summary>
         /// <param name="npc"></param>
-        internal NPCAppearance(NPC npc, S1AvatarFramework.Avatar runtimeAvatar)
+        /// <param name="runtimeAvatar">The runtime avatar used to apply appearance changes.</param>
+        internal NPCAppearance(NPC npc, S1AvatarFramework.Avatar? runtimeAvatar)
         {
             NPC = npc;
             _runtimeAvatar = runtimeAvatar;
 
-            S1AvatarFramework.AvatarSettings sourceSettings = null;
+            S1AvatarFramework.AvatarSettings? sourceSettings = null;
 
             if (_runtimeAvatar != null)
             {
                 if (_runtimeAvatar.CurrentSettings != null)
                     sourceSettings = _runtimeAvatar.CurrentSettings;
-                else if (_runtimeAvatar.InitialAvatarSettings != null)
-                    sourceSettings = _runtimeAvatar.InitialAvatarSettings;
+                else
+                    sourceSettings = global::S1API.Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_runtimeAvatar, "InitialAvatarSettings") as S1AvatarFramework.AvatarSettings;
             }
 
             if (sourceSettings != null)
@@ -74,7 +75,7 @@ namespace S1API.Entities
                 ApplyDefaultSettings(_customAvatarSettings);
             }
 
-            S1AvatarFramework.AvatarSettings avatarSettings = Resources.Load<S1AvatarFramework.AvatarSettings>($"charactersettings/{NPC.S1NPC.FirstName}");
+            S1AvatarFramework.AvatarSettings avatarSettings = Resources.Load<S1AvatarFramework.AvatarSettings>($"charactersettings/{NPC.FirstName}");
             if (avatarSettings != null)
                 _customAvatarSettings = ScriptableObject.Instantiate(avatarSettings);
 
@@ -86,6 +87,9 @@ namespace S1API.Entities
         /// </summary>
         internal void GenerateMugshot()
         {
+            if (NPC.HasExplicitIcon)
+                return;
+
             // Enqueue serialized mugshot generation to avoid shared rig race conditions
             var generator = S1AvatarFramework.MugshotGenerator.Instance;
             if (generator == null || generator.MugshotRig == null)
@@ -108,6 +112,7 @@ namespace S1API.Entities
             var generator = S1AvatarFramework.MugshotGenerator.Instance;
             var mugshotRig = generator != null ? generator.MugshotRig : null;
             var iconGenerator = generator != null ? generator.Generator : null;
+            var defaultSettings = generator != null ? generator.DefaultSettings : null;
 
             // === Quick physical warmup ===
             // Toggle the rig active/inactive to force the GPU driver and Unity's internal
@@ -118,7 +123,7 @@ namespace S1API.Entities
             // renders produce black frames on cold start even when the rig is fully ready
             // for real NPC captures. Actual content validation happens per-capture in the
             // retry loop below.
-            if (mugshotRig != null && generator.DefaultSettings != null)
+            if (mugshotRig != null && defaultSettings != null)
             {
                 int iconLayer = LayerMask.NameToLayer("IconGeneration");
                 const int primeCycles = 5;
@@ -130,7 +135,7 @@ namespace S1API.Entities
                         warmupParent.gameObject.SetActive(true);
                     mugshotRig.gameObject.SetActive(true);
 
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                     SetLayerRecursively(mugshotRig.gameObject, iconLayer);
 
                     var warmupSMRs = mugshotRig.GetComponentsInChildren<SkinnedMeshRenderer>();
@@ -139,14 +144,14 @@ namespace S1API.Entities
 
                     yield return new WaitForEndOfFrame();
 
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                     mugshotRig.gameObject.SetActive(false);
                 }
             }
 
             while (true)
             {
-                NPCAppearance next = null;
+                NPCAppearance? next = null;
                 lock (_mugshotQueueLock)
                 {
                     if (_mugshotQueue.Count > 0)
@@ -164,11 +169,15 @@ namespace S1API.Entities
                     continue;
                 }
 
+                if (next.NPC.HasExplicitIcon)
+                    continue;
+
                 // Refresh references in case they became stale
                 generator = S1AvatarFramework.MugshotGenerator.Instance;
                 mugshotRig = generator != null ? generator.MugshotRig : null;
                 iconGenerator = generator != null ? generator.Generator : null;
-                if (mugshotRig == null)
+                defaultSettings = generator != null ? generator.DefaultSettings : null;
+                if (mugshotRig == null || iconGenerator == null)
                 {
                     lock (_mugshotQueueLock)
                         _mugshotQueue.Enqueue(next);
@@ -177,7 +186,7 @@ namespace S1API.Entities
                 }
 
                 S1AvatarFramework.Avatar previousAvatar = next.NPC.S1NPC.Avatar;
-                next.NPC.S1NPC.Avatar = mugshotRig;
+                global::S1API.Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(next.NPC.S1NPC, "Avatar", mugshotRig);
 
                 // Use a per-capture clone so subsequent appearance edits don't mutate the in-flight mugshot
                 var mugshotSettings = ScriptableObject.Instantiate(next._customAvatarSettings);
@@ -192,7 +201,7 @@ namespace S1API.Entities
                 // Do NOT reduce this — lower values will break cold start on some machines.
                 const int maxRetries = 30;
                 const float contentBrightnessFloor = 0.01f;
-                Texture2D generatedMugshot = null;
+                Texture2D? generatedMugshot = null;
                 bool hasContent = false;
 
                 for (int attempt = 0; attempt <= maxRetries; attempt++)
@@ -257,14 +266,14 @@ namespace S1API.Entities
                         break;
 
                     // No content — deactivate and retry
-                    if (generator.DefaultSettings != null)
-                        mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                    if (defaultSettings != null)
+                        mugshotRig.LoadAvatarSettings(defaultSettings);
                     if (mugshotRig.Animation != null)
                         mugshotRig.Animation.AllowCulling = previousAllowCulling;
                     mugshotRig.gameObject.SetActive(false);
 
                     if (attempt == maxRetries)
-                        _logger.Warning($"[Mugshot] {next.NPC.S1NPC.FirstName}: no content after {maxRetries + 1} attempts, using last capture");
+                        _logger.Warning($"[Mugshot] {next.NPC.FirstName}: no content after {maxRetries + 1} attempts, using last capture");
                 }
 
                 if (generatedMugshot != null)
@@ -274,8 +283,7 @@ namespace S1API.Entities
                         generatedMugshot.Apply();
                         Rect cropRect = new Rect(0, 0, generatedMugshot.width, generatedMugshot.height);
                         Sprite iconSprite = Sprite.Create(generatedMugshot, cropRect, Vector2.zero);
-                        next.NPC.Icon = iconSprite;
-                        next.NPC.RefreshMessagingIcons();
+                        next.NPC.ApplyGeneratedIcon(iconSprite);
 
                         // Update any map POI icons that reference this NPC
                         UpdatePoiIcons(next.NPC.S1NPC, iconSprite);
@@ -287,13 +295,13 @@ namespace S1API.Entities
                 }
 
                 // Restore avatar reference
-                next.NPC.S1NPC.Avatar = previousAvatar ?? next._runtimeAvatar;
+                global::S1API.Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(next.NPC.S1NPC, "Avatar", previousAvatar ?? next._runtimeAvatar);
                 next.ApplyToAvatar(next._runtimeAvatar);
 
                 // Reset rig and deactivate
                 bool finalAllowCulling = mugshotRig.Animation != null && mugshotRig.Animation.AllowCulling;
-                if (generator.DefaultSettings != null)
-                    mugshotRig.LoadAvatarSettings(generator.DefaultSettings);
+                if (defaultSettings != null)
+                    mugshotRig.LoadAvatarSettings(defaultSettings);
                 if (mugshotRig.Animation != null)
                     mugshotRig.Animation.AllowCulling = finalAllowCulling;
                 mugshotRig.gameObject.SetActive(false);
@@ -307,7 +315,7 @@ namespace S1API.Entities
         /// INTERNAL: Applies the currently configured avatar settings to a runtime avatar instance.
         /// </summary>
         /// <param name="avatar">The avatar to apply settings to.</param>
-        internal void ApplyToAvatar(S1AvatarFramework.Avatar avatar)
+        internal void ApplyToAvatar(S1AvatarFramework.Avatar? avatar)
         {
             if (avatar == null)
                 return;
@@ -326,6 +334,8 @@ namespace S1API.Entities
         /// <param name="appearanceValue">The value to set</param>
         public NPCAppearance Set<T>(object appearanceValue) where T : BaseAppearance
         {
+            InvalidateCombinedLayer();
+
             if (_setters.TryGetValue(typeof(T), out var setter))
             {
                 try
@@ -363,6 +373,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.FaceLayerSettings.Count > MaxFaceLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.FaceLayerSettings.Add(new S1AvatarFramework.AvatarSettings.LayerSetting
             {
                 layerPath = path,
@@ -392,6 +403,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.BodyLayerSettings.Count > MaxBodyLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.BodyLayerSettings.Add(new S1AvatarFramework.AvatarSettings.LayerSetting
             {
                 layerPath = path,
@@ -421,6 +433,7 @@ namespace S1API.Entities
             if (_customAvatarSettings.AccessorySettings.Count > MaxAccessoryLayers)
                 return this;
 
+            InvalidateCombinedLayer();
             _customAvatarSettings.AccessorySettings.Add(new S1AvatarFramework.AvatarSettings.AccessorySetting
             {
                 path = path,
@@ -513,7 +526,7 @@ namespace S1API.Entities
             foreach (var (type, apply) in bodyTypes.OrderBy(_ => Guid.NewGuid()).Take(UnityEngine.Random.Range(1, 3)))
             {
                 MethodInfo method = AccessTools.Method(typeof(BaseBodyAppearance), "GetConstPaths").MakeGenericMethod(type);
-                List<string> paths = (List<string>)method.Invoke(null, null);
+                List<string>? paths = (List<string>?)method.Invoke(null, null);
                 if (paths?.Count > 0)
                     apply(RandomFromList(paths), RandomColor());
             }
@@ -535,7 +548,7 @@ namespace S1API.Entities
             foreach (var (type, apply) in accessoryLayers.OrderBy(_ => Guid.NewGuid()).Take(UnityEngine.Random.Range(2, 6)))
             {
                 MethodInfo method = AccessTools.Method(typeof(BaseAccessoryAppearance), "GetConstPaths").MakeGenericMethod(type);
-                List<string> paths = (List<string>)method.Invoke(null, null);
+                List<string>? paths = (List<string>?)method.Invoke(null, null);
                 if (paths?.Count > 0)
                     apply(RandomFromList(paths), RandomColor());
             }
@@ -579,9 +592,22 @@ namespace S1API.Entities
             avatarSettings.PupilDilation = 1f;
             avatarSettings.HairPath = string.Empty;
             avatarSettings.HairColor = Color.black;
+            avatarSettings.UseCombinedLayer = false;
+            avatarSettings.CombinedLayer = null;
         }
 
-        private S1AvatarFramework.Avatar _runtimeAvatar;
+        internal S1AvatarFramework.AvatarSettings CreateSettingsSnapshot()
+        {
+            return ScriptableObject.Instantiate(_customAvatarSettings);
+        }
+
+        private void InvalidateCombinedLayer()
+        {
+            _customAvatarSettings.UseCombinedLayer = false;
+            _customAvatarSettings.CombinedLayer = null;
+        }
+
+        private S1AvatarFramework.Avatar? _runtimeAvatar;
 
         /// <summary>
         /// INTERNAL: The custom <see cref="S1AvatarFramework.AvatarSettings"/> instance used for modders
@@ -712,7 +738,7 @@ namespace S1API.Entities
         {
             if (obj == null) return;
             obj.layer = layer;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             // Il2Cpp: foreach iteration returns Il2CppSystem.Object, use index-based access
             for (int i = 0; i < obj.transform.childCount; i++)
             {

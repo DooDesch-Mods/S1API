@@ -19,9 +19,9 @@ namespace S1API.Map
         public static readonly System.Collections.Generic.List<Building> All = new System.Collections.Generic.List<Building>();
 
         private string _name;
-        internal object _gameBuilding;
+        internal object? _gameBuilding;
         private bool _isDeferred;
-        private Type _deferredIdentifierType;
+        private Type? _deferredIdentifierType;
 
         internal Building(string name, object gameBuilding)
         {
@@ -49,7 +49,7 @@ namespace S1API.Map
         /// <summary>
         /// INTERNAL: Gets the deferred identifier type if this building is deferred, otherwise null.
         /// </summary>
-        internal Type DeferredIdentifierType => _isDeferred ? _deferredIdentifierType : null;
+        internal Type? DeferredIdentifierType => _isDeferred ? _deferredIdentifierType : null;
 
         /// <summary>
         /// INTERNAL: Whether this building wrapper is deferred and not yet resolved.
@@ -59,7 +59,7 @@ namespace S1API.Map
         /// <summary>
         /// Returns the underlying game building object, resolving if needed.
         /// </summary>
-        internal object ResolveGameBuilding()
+        internal object? ResolveGameBuilding()
         {
             if (_gameBuilding != null)
                 return _gameBuilding;
@@ -93,9 +93,9 @@ namespace S1API.Map
             try
             {
                 // Fallback: try to find by name in-scene
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<Il2CppScheduleOne.Map.NPCEnterableBuilding>(includeInactive: true);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<ScheduleOne.Map.NPCEnterableBuilding>(true);
 #else
                 var arr = Array.Empty<UnityEngine.Object>();
@@ -106,7 +106,7 @@ namespace S1API.Map
                     if (b == null) continue;
                     var type = b.GetType();
                     var nameField = type.GetField("BuildingName", BindingFlags.Public | BindingFlags.Instance);
-                    string name = nameField?.GetValue(b) as string;
+                    string? name = nameField?.GetValue(b) as string;
                     if (!string.IsNullOrEmpty(name) && string.Equals(name, _name, StringComparison.OrdinalIgnoreCase))
                     {
                         _gameBuilding = b;
@@ -119,7 +119,7 @@ namespace S1API.Map
             return _gameBuilding;
         }
 
-        private static Building TryResolveDeferred(Type identifierType)
+        private static Building? TryResolveDeferred(Type identifierType)
         {
             try
             {
@@ -151,7 +151,7 @@ namespace S1API.Map
                 var type = gameBuilding.GetType();
                 var nameField = type.GetField("BuildingName", BindingFlags.Public | BindingFlags.Instance);
                 var nameProp = type.GetProperty("BuildingName", BindingFlags.Public | BindingFlags.Instance);
-                string name = nameField?.GetValue(gameBuilding) as string;
+                string? name = nameField?.GetValue(gameBuilding) as string;
                 if (string.IsNullOrEmpty(name))
                     name = nameProp?.GetValue(gameBuilding) as string;
                 if (string.IsNullOrEmpty(name))
@@ -208,7 +208,7 @@ namespace S1API.Map
         /// <summary>
         /// Returns the first building with the provided display name, or null.
         /// </summary>
-        public static Building GetByName(string name)
+        public static Building? GetByName(string name)
         {
             if (string.IsNullOrEmpty(name)) return null;
             
@@ -239,10 +239,10 @@ namespace S1API.Map
         /// Resolves a building using a typed identifier T.
         /// Declare an identifier class annotated with [Buildings.BuildingName("...")].
         /// </summary>
-        public static Building Get<T>() where T : Buildings.IBuildingIdentifier
+        public static Building? Get<T>() where T : Buildings.IBuildingIdentifier
         {
             var t = typeof(T);
-            string name = TryGetNameFromIdentifier(t);
+            string? name = TryGetNameFromIdentifier(t);
             if (!string.IsNullOrEmpty(name))
             {
                 var found = GetByName(name);
@@ -275,7 +275,7 @@ namespace S1API.Map
             return null;
         }
 
-        private static string TryGetNameFromIdentifier(Type t)
+        private static string? TryGetNameFromIdentifier(Type t)
         {
             try
             {

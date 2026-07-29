@@ -3,7 +3,7 @@ using S1API.Internal.Abstraction;
 using UnityEngine;
 using UnityEngine.Events;
 
-#if (IL2CPPMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using S1Doors = Il2CppScheduleOne.Doors;
 #else
 using S1Doors = ScheduleOne.Doors;
@@ -60,7 +60,7 @@ namespace S1API.Doors
         /// </summary>
         public bool OpenableByNPCs
         {
-            get => (bool)Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_controller, "OpenableByNPCs");
+            get => Internal.Utils.ReflectionUtils.TryGetFieldOrProperty(_controller, "OpenableByNPCs") is bool value && value;
             set => Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(_controller, "OpenableByNPCs", value);
         }
 
@@ -71,17 +71,17 @@ namespace S1API.Doors
         /// <summary>
         /// Event fired when the door is opened from a specific side.
         /// </summary>
-        public event Action<DoorSide> OnDoorOpened;
+        public event Action<DoorSide>? OnDoorOpened;
 
         /// <summary>
         /// Event fired when the door is opened (any side).
         /// </summary>
-        public event Action OnDoorOpenedAny;
+        public event Action? OnDoorOpenedAny;
 
         /// <summary>
         /// Event fired when the door is closed.
         /// </summary>
-        public event Action OnDoorClosed;
+        public event Action? OnDoorClosed;
 
         #endregion
 
@@ -108,8 +108,8 @@ namespace S1API.Doors
 
         private void SubscribeToEvents()
         {
-            EventHelper.AddListener(HandleDoorOpened, _controller.onDoorOpened);
-            EventHelper.AddListener(HandleDoorClosed, _controller.onDoorClosed);
+            global::S1API.Utils.EventHelper.AddListener(HandleDoorOpened, _controller.onDoorOpened);
+            global::S1API.Utils.EventHelper.AddListener(HandleDoorClosed, _controller.onDoorClosed);
         }
 
         private void HandleDoorOpened(S1Doors.EDoorSide side)

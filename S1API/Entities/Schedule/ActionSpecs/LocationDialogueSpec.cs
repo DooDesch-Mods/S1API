@@ -6,7 +6,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1VehiclesAI = Il2CppScheduleOne.Vehicles.AI;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1Map = ScheduleOne.Map;
@@ -105,7 +105,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "LocationDialogue".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {

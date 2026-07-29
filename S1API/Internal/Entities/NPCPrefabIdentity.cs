@@ -3,7 +3,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Economy = Il2CppScheduleOne.Economy;
 using Il2CppInterop.Runtime.Attributes;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;
@@ -24,7 +24,7 @@ using S1API.Logging;
 namespace S1API.Internal.Entities
 {
     /// <summary>
-    /// INTERNAL: Stores identity and appearance defaults on the prefab so clients receive
+    /// INTERNAL: Stores identity, appearance, and voice defaults on the prefab so clients receive
     /// the same configuration on network spawn without relying on RPCs/SyncVars.
     /// On Il2Cpp, stores data in a static registry keyed by prefab name to work around
     /// field serialization issues with RegisterTypeInIl2Cpp components.
@@ -47,6 +47,9 @@ namespace S1API.Internal.Entities
         private string? _dealerHomeBuildingName;
         private string? _prefabName;
         private List<string>? _connectionIds;
+        private string? _voiceId;
+        private bool _hasVoicePitch;
+        private float _voicePitch;
 #else
         [SerializeField] private string? _id;
         [SerializeField] private string? _firstName;
@@ -57,6 +60,9 @@ namespace S1API.Internal.Entities
         [SerializeField] private string? _dealerHomeBuildingName;
         [SerializeField] private string? _prefabName;
         [SerializeField] private List<string>? _connectionIds;
+        [SerializeField] private string? _voiceId;
+        [SerializeField] private bool _hasVoicePitch;
+        [SerializeField] private float _voicePitch;
 #endif
 
         private float? _relationDelta;
@@ -66,7 +72,7 @@ namespace S1API.Internal.Entities
         // Static registry to preserve data across network instantiation on Il2Cpp
         private static readonly Dictionary<string, IdentityData> _registry = new Dictionary<string, IdentityData>();
         private bool _applied;
-        private AvatarSettingsData _cachedAppearanceDefaults;
+        private AvatarSettingsData? _cachedAppearanceDefaults;
 
         internal string? Id
         {
@@ -122,6 +128,22 @@ namespace S1API.Internal.Entities
             set => _prefabName = value;
         }
 
+        internal string? VoiceId
+        {
+            get => _voiceId;
+            set => _voiceId = value;
+        }
+
+        internal float? VoicePitch
+        {
+            get => _hasVoicePitch ? _voicePitch : (float?)null;
+            set
+            {
+                _hasVoicePitch = value.HasValue;
+                _voicePitch = value.GetValueOrDefault();
+            }
+        }
+
         private float? RelationDelta
         {
             get => _relationDelta;
@@ -142,18 +164,21 @@ namespace S1API.Internal.Entities
 
         private struct IdentityData
         {
-            internal string Id;
-            internal string FirstName;
-            internal string LastName;
-            internal Sprite Icon;
-            internal AvatarSettingsData AppearanceDefaults;
-            internal AvatarImpostorSelection AppearanceImpostorSelection;
-            internal string DealerHomeBuildingName;
+            internal string? Id;
+            internal string? FirstName;
+            internal string? LastName;
+            internal Sprite? Icon;
+            internal AvatarSettingsData? AppearanceDefaults;
+            internal AvatarImpostorSelection? AppearanceImpostorSelection;
+            internal string? DealerHomeBuildingName;
             internal float? RelationDelta;
             internal bool? Unlocked;
             internal int? UnlockType; // Stored as int (0=Recommendation, 1=DirectApproach) to avoid enum dependency
-            internal List<string> ConnectionIDs;
-            internal string PrefabName;
+            internal List<string>? ConnectionIDs;
+            internal string? PrefabName;
+            internal string? VoiceId;
+            internal bool HasVoicePitch;
+            internal float VoicePitch;
         }
 
         private void Awake()
@@ -202,7 +227,7 @@ namespace S1API.Internal.Entities
                 float? relationDelta = snapshot?.RelationDelta;
                 bool? unlocked = snapshot?.Unlocked;
                 NPCRelationship.UnlockType? unlockType = snapshot?.UnlockType;
-                List<string> connectionIDs = snapshot?.ConnectionIDs != null && snapshot.ConnectionIDs.Count > 0
+                List<string>? connectionIDs = snapshot?.ConnectionIDs != null && snapshot.ConnectionIDs.Count > 0
                     ? new List<string>(snapshot.ConnectionIDs)
                     : null;
 
@@ -244,12 +269,6 @@ namespace S1API.Internal.Entities
             if (string.IsNullOrEmpty(prefabName))
                 return;
 
-            // Only register prefab data during Menu scene configuration; runtime instances in Main should not alter the registry.
-            if (!DeferredMapResolver.IsMenuScene())
-            {
-                return;
-            }
-
             // Normalize prefab name (remove "(Clone)" suffix) - only register prefabs, not spawned instances
             string normalizedName = prefabName;
             if (normalizedName.EndsWith("(Clone)"))
@@ -258,7 +277,7 @@ namespace S1API.Internal.Entities
             // Don't register spawned instances - they should only read from registry
             // Check if this is a spawned instance by checking if gameObject name has "(Clone)"
             bool isSpawnedInstance = gameObject.name.EndsWith("(Clone)");
-            if (isSpawnedInstance)
+            if (isSpawnedInstance || !normalizedName.StartsWith("S1API_", StringComparison.OrdinalIgnoreCase))
             {
                 // Spawned instances should not create registry entries
                 // They should only read from existing prefab entries
@@ -279,8 +298,8 @@ namespace S1API.Internal.Entities
             // CRITICAL: Always check registry FIRST for connection IDs since they're set via RegisterRelationshipDataToStaticCache
             // Component field (_connectionIds) is never set during prefab configuration in Menu scene
             // Connection IDs are only stored via RegisterRelationshipDataToStaticCache, so we must preserve them from registry
-            List<string> connectionIDs = null;
-            string dealerHomeBuildingName = this.DealerHomeBuildingName;
+            List<string>? connectionIDs = null;
+            string? dealerHomeBuildingName = this.DealerHomeBuildingName;
             
             if (_registry.TryGetValue(normalizedName, out var existingData))
             {
@@ -325,7 +344,10 @@ namespace S1API.Internal.Entities
                 Unlocked = unlocked,
                 UnlockType = unlockType,
                 ConnectionIDs = connectionIDs,
-                PrefabName = normalizedName
+                PrefabName = normalizedName,
+                VoiceId = VoiceId,
+                HasVoicePitch = VoicePitch.HasValue,
+                VoicePitch = VoicePitch.GetValueOrDefault()
             };
 
             _registry[normalizedName] = identityData;
@@ -375,13 +397,16 @@ namespace S1API.Internal.Entities
                     try
                     {
                         var npc = GetComponent<S1NPCs.NPC>();
-                        if (npc != null && !string.IsNullOrEmpty(npc.ID))
+                        string? npcId = npc != null
+                            ? ReflectionUtils.TryGetFieldOrProperty(npc, "ID") as string
+                            : null;
+                        if (!string.IsNullOrEmpty(npcId))
                         {
                             foreach (var kvp in _registry)
                             {
                                 var entry = kvp.Value;
                                 // Match by ID - registry entry should have the same ID as the NPC
-                                if (!string.IsNullOrEmpty(entry.Id) && string.Equals(entry.Id, npc.ID, StringComparison.OrdinalIgnoreCase))
+                                if (!string.IsNullOrEmpty(entry.Id) && string.Equals(entry.Id, npcId, StringComparison.OrdinalIgnoreCase))
                                 {
                                     resolved = entry;
                                     PrefabName = entry.PrefabName ?? kvp.Key; // Use PrefabName from entry or fallback to registry key
@@ -430,6 +455,10 @@ namespace S1API.Internal.Entities
                 this.UnlockType = dataRef.UnlockType.HasValue ? (NPCRelationship.UnlockType?)dataRef.UnlockType.Value : null;
                 _connectionIds = dataRef.ConnectionIDs != null ? new List<string>(dataRef.ConnectionIDs) : null;
                 PrefabName = dataRef.PrefabName ?? PrefabName;
+                if (string.IsNullOrEmpty(VoiceId) && !string.IsNullOrEmpty(dataRef.VoiceId))
+                    VoiceId = dataRef.VoiceId;
+                if (!VoicePitch.HasValue && dataRef.HasVoicePitch)
+                    VoicePitch = dataRef.VoicePitch;
                 if (AppearanceImpostorSelection == null)
                     AppearanceImpostorSelection = dataRef.AppearanceImpostorSelection ?? dataRef.AppearanceDefaults?.ImpostorSelection;
                 
@@ -609,29 +638,10 @@ namespace S1API.Internal.Entities
             EnsureRelationshipDataFromRegistry();
             EnsureDealerHomeBuildingNameFromRegistry();
 
-            try {
-                if (!string.IsNullOrEmpty(FirstName))
-                    npc.FirstName = FirstName;
-            }
-            catch { }
-            try
-            {
-                if (!string.IsNullOrEmpty(LastName))
-                    npc.LastName = LastName;
-            }
-            catch { }
-            try
-            {
-                if (!string.IsNullOrEmpty(Id))
-                    npc.ID = Id;
-            }
-            catch { }
-            try
-            {
-                if (Icon != null)
-                    npc.MugshotSprite = Icon;
-            }
-            catch { }
+            NPCDataAccess.ApplyIdentity(npc, Id, FirstName, LastName);
+            if (Icon != null)
+                NPCDataAccess.ApplyIcon(npc, Icon);
+            ApplyConfiguredVoice(npc, updateEmitter: true);
 
             try
             {
@@ -648,7 +658,7 @@ namespace S1API.Internal.Entities
             // Always check registry in case component field is null on Il2Cpp
             try
             {
-                string buildingName = DealerHomeBuildingName;
+                string? buildingName = DealerHomeBuildingName;
                 
                 // If component field is empty, try to get from registry using multiple fallback strategies
                 if (string.IsNullOrEmpty(buildingName))
@@ -697,16 +707,52 @@ namespace S1API.Internal.Entities
                 
                 if (!string.IsNullOrEmpty(buildingName))
                 {
-                    ApplyDealerHomeBuilding(npc, buildingName);
+                    ApplyDealerHomeBuilding(npc!, buildingName);
                 }
             }
             catch { }
         }
 
+        /// <summary>
+        /// Applies only the identity fields that beta IL2CPP NPC.Awake requires before Start runs.
+        /// </summary>
+        internal void ApplyCriticalIdentityBeforeAwake(S1NPCs.NPC npc)
+        {
+            if (npc == null)
+                return;
+
+            if (string.IsNullOrEmpty(Id) && string.IsNullOrEmpty(FirstName))
+                TryRestoreFromRegistry();
+
+            try
+            {
+                if (!string.IsNullOrEmpty(FirstName))
+                    TrySetNpcMember(npc, "FirstName", FirstName);
+            }
+            catch { }
+
+            try
+            {
+                if (!string.IsNullOrEmpty(LastName))
+                    TrySetNpcMember(npc, "LastName", LastName);
+            }
+            catch { }
+
+            try
+            {
+                if (!string.IsNullOrEmpty(Id))
+                    TrySetNpcMember(npc, "ID", Id);
+            }
+            catch { }
+
+            EnsureFrameworkNpcDataIdentity(npc);
+            ApplyConfiguredVoice(npc, updateEmitter: false);
+        }
+
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private void ApplyDealerHomeBuilding(S1NPCs.NPC npc, string buildingName = null)
+        private void ApplyDealerHomeBuilding(S1NPCs.NPC npc, string? buildingName = null)
         {
             // Use provided building name or fall back to component field
             if (string.IsNullOrEmpty(buildingName))
@@ -822,6 +868,95 @@ namespace S1API.Internal.Entities
             }
         }
 
+        private static bool TrySetNpcMember(S1NPCs.NPC npc, string memberName, object value)
+        {
+            return ReflectionUtils.TrySetFieldOrProperty(npc, memberName, value)
+                   || ReflectionUtils.TrySetFieldOrProperty(npc, $"_{memberName}_k__BackingField", value)
+                   || ReflectionUtils.TrySetFieldOrProperty(npc, $"<{memberName}>k__BackingField", value);
+        }
+
+        private void EnsureFrameworkNpcDataIdentity(S1NPCs.NPC npc)
+        {
+            if (npc == null)
+                return;
+
+            if (string.IsNullOrWhiteSpace(Id) && string.IsNullOrWhiteSpace(FirstName))
+                return;
+
+            try
+            {
+                NPCDataAccess.ApplyIdentity(npc, Id, FirstName, LastName);
+                NPCDataAccess.ApplyIcon(npc, Icon);
+                NPCDataAccess.ApplyAppearance(npc, AppearanceDefaults);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"[NPCPrefabIdentity] Failed to initialize framework NPCData identity before Awake for '{Id ?? FirstName ?? "<unknown>"}': {ex.Message}");
+            }
+        }
+
+        private void ApplyConfiguredVoice(S1NPCs.NPC npc, bool updateEmitter)
+        {
+            if (npc == null || string.IsNullOrWhiteSpace(VoiceId))
+                return;
+
+            var definition = global::S1API.Entities.Voices.NPCVoiceCatalog.Get(VoiceId);
+            var database = NPCVoiceResolver.Resolve(definition);
+            if (!NPCDataAccess.ApplyVoice(npc, database, VoicePitch))
+            {
+                throw new InvalidOperationException(
+                    $"Could not apply S1API voice '{definition.Id}' because the custom NPC has no framework data.");
+            }
+
+            if (!updateEmitter || npc.VoiceOverEmitter == null)
+                return;
+
+            npc.VoiceOverEmitter.SetDatabase(database);
+            if (VoicePitch.HasValue)
+                npc.VoiceOverEmitter.SetDefaultPitch(VoicePitch.Value);
+        }
+
+        /// <summary>
+        /// Rebuilds the prefab-defined relationship graph without overwriting mutable
+        /// relationship state received by a joining client.
+        /// </summary>
+        internal void ApplyRelationshipConnectionsTo(S1NPCs.NPC npc)
+        {
+            if (npc?.RelationData == null)
+                return;
+
+            EnsureRelationshipDataFromRegistry();
+            if (_connectionIds == null || _connectionIds.Count == 0)
+                return;
+
+            try
+            {
+                var builder = new NPCRelationshipDataBuilder();
+                builder.WithConnectionsById(_connectionIds);
+                builder.ApplyTo(npc.RelationData, npc, preserveUnlockState: true);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error($"[Relationship Data] ApplyRelationshipConnectionsTo: Exception applying connections to NPC '{npc.ID ?? "<null>"}': {ex.Message}");
+            }
+        }
+
+        internal bool ApplyAppearanceTo(S1NPCs.NPC npc, S1AvatarFramework.Avatar avatar)
+        {
+            if (npc == null || avatar == null)
+                return false;
+
+            TryRestoreFromRegistry();
+            EnsureAppearanceDefaults();
+            if (AppearanceDefaults == null)
+                return false;
+
+            EnsureAppearanceImpostorTexture(npc.ID ?? PrefabName ?? gameObject.name);
+            NPCDataAccess.ApplyAppearance(npc, AppearanceDefaults);
+            avatar.LoadAvatarSettings(AppearanceDefaults);
+            return true;
+        }
+
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
@@ -869,12 +1004,15 @@ namespace S1API.Internal.Entities
             try
             {
                 var npc = GetComponent<S1NPCs.NPC>();
-                if (npc != null && !string.IsNullOrEmpty(npc.ID))
+                string? npcId = npc != null
+                    ? ReflectionUtils.TryGetFieldOrProperty(npc, "ID") as string
+                    : null;
+                if (!string.IsNullOrEmpty(npcId))
                 {
                     foreach (var kvp in _registry)
                     {
                         var entry = kvp.Value;
-                        if (!string.IsNullOrEmpty(entry.Id) && string.Equals(entry.Id, npc.ID, StringComparison.OrdinalIgnoreCase))
+                        if (!string.IsNullOrEmpty(entry.Id) && string.Equals(entry.Id, npcId, StringComparison.OrdinalIgnoreCase))
                         {
                             data = entry;
                             PrefabName = entry.PrefabName ?? kvp.Key;
@@ -899,7 +1037,12 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        internal static bool TryGetIdentityFromRegistry(string prefabName, out string id, out string firstName, out string lastName, out Sprite icon)
+        internal static bool TryGetIdentityFromRegistry(
+            string prefabName,
+            out string? id,
+            out string? firstName,
+            out string? lastName,
+            out Sprite? icon)
         {
             id = null;
             firstName = null;
@@ -932,7 +1075,12 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        internal static bool TryGetRelationshipDataFromRegistry(string prefabName, out float? relationDelta, out bool? unlocked, out NPCRelationship.UnlockType? unlockType, out List<string> connectionIDs)
+        internal static bool TryGetRelationshipDataFromRegistry(
+            string prefabName,
+            out float? relationDelta,
+            out bool? unlocked,
+            out NPCRelationship.UnlockType? unlockType,
+            out List<string>? connectionIDs)
         {
             relationDelta = null;
             unlocked = null;
@@ -961,7 +1109,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static AvatarSettingsData CaptureAvatarSettings(S1AvatarFramework.AvatarSettings settings)
+        private static AvatarSettingsData? CaptureAvatarSettings(S1AvatarFramework.AvatarSettings? settings)
         {
             if (settings == null)
                 return null;
@@ -1041,7 +1189,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static AvatarSettingsData CloneAvatarSettingsData(AvatarSettingsData source)
+        private static AvatarSettingsData? CloneAvatarSettingsData(AvatarSettingsData? source)
         {
             if (source == null)
                 return null;
@@ -1101,7 +1249,7 @@ namespace S1API.Internal.Entities
 #if IL2CPPMELON
         [HideFromIl2Cpp]
 #endif
-        private static S1AvatarFramework.AvatarSettings CreateAvatarSettings(AvatarSettingsData data)
+        private static S1AvatarFramework.AvatarSettings? CreateAvatarSettings(AvatarSettingsData? data)
         {
             if (data == null)
                 return null;
@@ -1125,6 +1273,8 @@ namespace S1API.Internal.Entities
             settings.HairPath = data.HairPath ?? string.Empty;
             settings.HairColor = data.HairColor;
             settings.ImpostorTexture = data.ImpostorTexture;
+            settings.UseCombinedLayer = false;
+            settings.CombinedLayer = null;
             settings.LeftEyeRestingState = new S1AvatarFramework.Eye.EyeLidConfiguration
             {
                 topLidOpen = data.LeftEye.TopLidOpen,
@@ -1206,13 +1356,13 @@ namespace S1API.Internal.Entities
             internal float EyebrowThickness;
             internal float EyebrowRestingHeight;
             internal float EyebrowRestingAngle;
-            internal string HairPath;
+            internal string? HairPath;
             internal Color HairColor;
-            internal Texture2D ImpostorTexture;
-            internal AvatarImpostorSelection ImpostorSelection;
+            internal Texture2D? ImpostorTexture;
+            internal AvatarImpostorSelection? ImpostorSelection;
             internal Color LeftEyeLidColor;
             internal Color RightEyeLidColor;
-            internal string EyeballMaterialIdentifier;
+            internal string? EyeballMaterialIdentifier;
             internal EyeStateData LeftEye = new EyeStateData();
             internal EyeStateData RightEye = new EyeStateData();
             internal List<LayerSettingData> FaceLayers = new List<LayerSettingData>();
@@ -1228,13 +1378,13 @@ namespace S1API.Internal.Entities
 
         private sealed class LayerSettingData
         {
-            internal string Path;
+            internal string? Path;
             internal Color Color;
         }
 
         private sealed class AccessorySettingData
         {
-            internal string Path;
+            internal string? Path;
             internal Color Color;
         }
     }

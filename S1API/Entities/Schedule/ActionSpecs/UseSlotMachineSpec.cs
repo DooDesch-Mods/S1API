@@ -4,7 +4,7 @@ using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using MelonLoader;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1DevUtilities = ScheduleOne.DevUtilities;
@@ -107,7 +107,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "UseSlotMachine".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
         
         /// <summary>
         /// Gets or sets the optional building that contains the slot machine.
@@ -118,7 +118,7 @@ namespace S1API.Entities.Schedule
         /// This is useful when the slot machine is inside a building and the NPC needs to enter first.
         /// If not specified, the system will attempt to pathfind directly to the slot machine position.
         /// </remarks>
-        public Map.Building Building { get; set; }
+        public Map.Building? Building { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {
@@ -197,9 +197,9 @@ namespace S1API.Entities.Schedule
                         
                         stayAction.Duration = Mathf.Max(1, durationMinutes);
                         
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         var endTime = Il2CppScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(buildingStartTime, stayAction.Duration);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                         var endTime = ScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(buildingStartTime, stayAction.Duration);
 #endif
                         ReflectionUtils.TrySetFieldOrProperty(stayAction, "EndTime", endTime);
@@ -401,11 +401,14 @@ namespace S1API.Entities.Schedule
                 var inventory = npc.S1NPC.Inventory;
                 
                 // Check if random cash is configured but NPC has no cash
-                if (currentCash == 0 && inventory.RandomCash && inventory.RandomCashMax > 0)
+                bool randomCash = ReflectionUtils.TryGetFieldOrProperty(inventory, "RandomCash") is bool enabled && enabled;
+                int randomCashMin = ReflectionUtils.TryGetFieldOrProperty(inventory, "RandomCashMin") is int min ? min : 0;
+                int randomCashMax = ReflectionUtils.TryGetFieldOrProperty(inventory, "RandomCashMax") is int max ? max : 0;
+                if (currentCash == 0 && randomCash && randomCashMax > 0)
                 {
                     int cashToAdd = UnityEngine.Random.Range(
-                        Mathf.Max(inventory.RandomCashMin, bet), // At least enough for one bet
-                        inventory.RandomCashMax + 1);
+                        Mathf.Max(randomCashMin, bet), // At least enough for one bet
+                        randomCashMax + 1);
                     
                     SlotMachineHelper.AddNPCCash(npc, cashToAdd);
                     

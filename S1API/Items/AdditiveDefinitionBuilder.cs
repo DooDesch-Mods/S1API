@@ -3,7 +3,7 @@ using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1CoreItemFramework = Il2CppScheduleOne.Core.Items.Framework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Registry = ScheduleOne.Registry;

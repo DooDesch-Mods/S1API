@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1DealerManagementApp = Il2CppScheduleOne.UI.Phone.Messages.DealerManagementApp;
 using S1Economy = Il2CppScheduleOne.Economy;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1DealerManagementApp = ScheduleOne.UI.Phone.Messages.DealerManagementApp;
 using S1Economy = ScheduleOne.Economy;
 #endif
@@ -36,7 +36,7 @@ namespace S1API.Internal.Patches
             var method = typeof(S1DealerManagementApp).GetMethod("RefreshDropdown",
                 BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
             method?.Invoke(instance, null);
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
             var method = typeof(S1DealerManagementApp).GetMethod("RefreshDropdown",
                 BindingFlags.NonPublic | BindingFlags.Instance);
             if (method == null)
@@ -64,7 +64,7 @@ namespace S1API.Internal.Patches
 
             if (index >= 0)
                 instance._dropdown?.SetValueWithoutNotify(index);
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
             var dealersObj = ReflectionUtils.TryGetFieldOrProperty(instance, "dealers");
             var dealers = dealersObj as System.Collections.Generic.List<S1Economy.Dealer>;
             if (dealers == null)

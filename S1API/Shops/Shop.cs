@@ -2,7 +2,7 @@
 using S1UIShop = Il2CppScheduleOne.UI.Shop;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1CoreItemFramework = Il2CppScheduleOne.Core.Items.Framework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1UIShop = ScheduleOne.UI.Shop;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;

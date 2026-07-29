@@ -1,13 +1,17 @@
 using System;
 using MelonLoader;
+using S1API.Cutscenes;
 using S1API.Internal;
 using S1API.Internal.Diagnostics;
 using S1API.Internal.Entities;
 using S1API.Internal.Lifecycle;
+using S1API.Internal.NPCWorkbench;
+using S1API.Internal.Products;
+using S1API.Internal.Rendering;
 using S1API.Lifecycle;
 using S1API.Map;
 
-[assembly: MelonInfo(typeof(S1API.S1API), "S1API (Forked by Bars)", "3.0.6", "KaBooMa")]
+[assembly: MelonInfo(typeof(S1API.S1API), "S1API (Forked by Bars)", "3.1.0-beta.9", "KaBooMa")]
 [assembly: MelonPriority(Int32.MinValue)]
 #pragma warning disable CS1591 // Missing XML comment for publicly visible type or member
 namespace S1API
@@ -21,15 +25,35 @@ namespace S1API
         {
             S1APIPreferences.Initialize();
 
-            if (S1APIPreferences.EnableUnityNullReferenceTraceLogging.Value)
+            if (S1APIPreferences.EnableUnityNullReferenceTraceLogging?.Value == true)
             {
+                MelonLogger.Warning(
+                    "Exception trace logging is enabled. If you are " +
+                    "not a mod developer, you probably do not need this enabled.");
                 UnityExceptionTraceHook.Install();
             }
         }
 
         public override void OnDeinitializeMelon()
         {
+            NPCWorkbenchRuntime.Close();
+            PresentationWorkbenchRuntime.Close();
+            ProductPackagingContentRuntime.ResetForSceneChange();
+            CutsceneManager.Deinitialize();
+            MapPOIManager.RemoveAll();
             UnityExceptionTraceHook.Remove();
+        }
+
+        public override void OnUpdate()
+        {
+            PresentationWorkbenchRuntime.Tick();
+            CutsceneManager.Tick(UnityEngine.Time.unscaledDeltaTime);
+            NPCWorkbenchRuntime.Tick();
+        }
+
+        public override void OnGUI()
+        {
+            CutsceneManager.DrawPresentation();
         }
 
         public override void OnSceneWasLoaded(int buildIndex, string sceneName)
@@ -42,7 +66,16 @@ namespace S1API
 
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
+            NPCWorkbenchRuntime.Close();
+            PresentationWorkbenchRuntime.Close();
+            CutsceneManager.CleanupForSceneChange();
             SceneStateCleaner.ResetForSceneChange(sceneName, afterUnload: true);
+
+            if (sceneName == "Main" || sceneName == "Tutorial")
+            {
+                ProductPackagingContentRuntime.ResetForSceneChange();
+                MapPOIManager.ResetForSceneChange();
+            }
 
             if (sceneName == "Main")
             {

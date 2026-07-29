@@ -10,7 +10,7 @@ using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1UIPhoneMessages = Il2CppScheduleOne.UI.Phone.Messages;
 using S1Money = Il2CppScheduleOne.Money;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;
@@ -39,7 +39,7 @@ using Il2CppFishNet;
 using Il2CppFishNet.Managing;
 using Il2CppFishNet.Managing.Object;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using FishNet;
 using FishNet.Managing;
 using FishNet.Managing.Object;
@@ -62,10 +62,10 @@ namespace S1API.Entities
     {
         internal readonly NPC NPC;
         private static readonly Logging.Log Logger = new Logging.Log("NPCDealer");
-        private static readonly FieldInfo DealerRecruitedField = typeof(S1Economy.Dealer).GetField("onDealerRecruited", BindingFlags.Public | BindingFlags.Static);
+        private static readonly FieldInfo? DealerRecruitedField = typeof(S1Economy.Dealer).GetField("onDealerRecruited", BindingFlags.Public | BindingFlags.Static);
 
         private readonly Dictionary<Action, Action<S1Economy.Dealer>> _dealerRecruitedHandlers = new Dictionary<Action, Action<S1Economy.Dealer>>();
-        private Action _contractAcceptedHandlers;
+        private Action? _contractAcceptedHandlers;
         private bool _contractAcceptedHooked;
 
         internal NPCDealer(NPC npc)
@@ -135,108 +135,12 @@ namespace S1API.Entities
         {
             try
             {
-                var categoriesObj = Utils.ReflectionUtils.TryGetFieldOrProperty(NPC.S1NPC, "ConversationCategories");
-                
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                var categories = categoriesObj as Il2CppSystem.Collections.Generic.List<S1Messaging.EConversationCategory>;
-                if (categories == null)
+                NPC.SetConversationCategory(S1Messaging.EConversationCategory.Dealer);
+                if (NPC.S1NPC.MSGConversation != null)
                 {
-                    categories = new Il2CppSystem.Collections.Generic.List<S1Messaging.EConversationCategory>();
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(NPC.S1NPC, "ConversationCategories", categories);
-                }
-                
-                bool changed = false;
-                
-                // Log current contents
-                try
-                {
-                    string before = string.Join(",", Enumerable.Range(0, categories.Count).Select(i => categories[i].ToString()))
-                        + $" | first={ (categories.Count>0? categories[0].ToString():"<none>") }";
-                }
-                catch { }
-                
-                // Remove Customer category if present (dealers should only be dealers)
-                for (int i = categories.Count - 1; i >= 0; i--)
-                {
-                    if (categories[i] == S1Messaging.EConversationCategory.Customer)
-                    {
-                        categories.RemoveAt(i);
-                        changed = true;
-                    }
-                }
-                
-                // Check if Dealer category is already present
-                bool hasDealer = false;
-                for (int i = 0; i < categories.Count; i++)
-                {
-                    if (categories[i] == S1Messaging.EConversationCategory.Dealer)
-                    {
-                        hasDealer = true;
-                        break;
-                    }
-                }
-                
-                if (!hasDealer)
-                {
-                    categories.Add(S1Messaging.EConversationCategory.Dealer);
-                    changed = true;
-                }
-                
-                // Log after contents
-                try
-                {
-                    string after = string.Join(",", Enumerable.Range(0, categories.Count).Select(i => categories[i].ToString()))
-                        + $" | first={ (categories.Count>0? categories[0].ToString():"<none>") }";
-                }
-                catch { }
-                
-                // Update the MSGConversation if it already exists and we made changes
-                if (changed && NPC.S1NPC.MSGConversation != null)
-                {
-                    NPC.S1NPC.MSGConversation.SetCategories(categories);
-                    
-                    // Force UI creation if not already created, so badge exists to refresh
-                    NPC.S1NPC.MSGConversation.EnsureUIExists();
-                    
                     TryHookConversationUIRefresh(NPC.S1NPC.MSGConversation);
                     RefreshDealerCategoryBadge();
                 }
- #else
-                var categories = categoriesObj as System.Collections.Generic.List<S1Messaging.EConversationCategory>;
-                if (categories == null)
-                {
-                    categories = new System.Collections.Generic.List<S1Messaging.EConversationCategory>();
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(NPC.S1NPC, "ConversationCategories", categories);
-                }
-                
-                bool changed = false;
-                
-                
-                // Remove Customer category if present (dealers should only be dealers)
-                if (categories.Remove(S1Messaging.EConversationCategory.Customer))
-                {
-                    changed = true;
-                }
-                
-                if (!categories.Contains(S1Messaging.EConversationCategory.Dealer))
-                {
-                    categories.Add(S1Messaging.EConversationCategory.Dealer);
-                    changed = true;
-                }
-                
-                
-                // Update the MSGConversation if it already exists and we made changes
-                if (changed && NPC.S1NPC.MSGConversation != null)
-                {
-                    NPC.S1NPC.MSGConversation.SetCategories(categories);
-                    
-                    // Force UI creation if not already created, so badge exists to refresh
-                    NPC.S1NPC.MSGConversation.EnsureUIExists();
-                    
-                    TryHookConversationUIRefresh(NPC.S1NPC.MSGConversation);
-                    RefreshDealerCategoryBadge();
-                }
- #endif
             }
             catch (Exception ex)
             {
@@ -659,7 +563,7 @@ namespace S1API.Entities
 
                 try
                 {
-                    object homeBuilding = null;
+                    object? homeBuilding = null;
                     if (value != null)
                     {
                         // Resolve the underlying game building object
@@ -702,7 +606,7 @@ namespace S1API.Entities
         /// INTERNAL: Direct access to underlying dealer instance.
         /// Since Dealer inherits from NPC, we check if the wrapped NPC is a Dealer instance.
         /// </summary>
-        internal S1Economy.Dealer Component
+        internal S1Economy.Dealer? Component
         {
             get
             {
@@ -775,7 +679,7 @@ namespace S1API.Entities
                     if (assignedCustomersObj == null)
                     {
                         Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "AssignedCustomers",
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                             new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>()
 #else
                             new System.Collections.Generic.List<S1Economy.Customer>()
@@ -787,7 +691,7 @@ namespace S1API.Entities
                     if (activeContractsObj == null)
                     {
                         Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "ActiveContracts",
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                             new Il2CppSystem.Collections.Generic.List<S1Quests.Contract>()
 #else
                             new System.Collections.Generic.List<S1Quests.Contract>()
@@ -979,7 +883,7 @@ namespace S1API.Entities
                     if (existingValue == null)
                         return;
 
-                    var remaining = (Action<S1Economy.Dealer>)Delegate.Remove(existingValue, wrapper);
+                    var remaining = (Action<S1Economy.Dealer>?)Delegate.Remove(existingValue, wrapper);
                     DealerRecruitedField.SetValue(null, remaining);
                 }
                 catch (Exception ex)
@@ -1072,7 +976,7 @@ namespace S1API.Entities
                 {
                     var evt = GetRecommendedUnityEvent(true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -1086,7 +990,7 @@ namespace S1API.Entities
                 {
                     var evt = GetRecommendedUnityEvent(false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -1095,7 +999,7 @@ namespace S1API.Entities
             }
         }
 
-        private UnityEvent GetRecommendedUnityEvent(bool createIfMissing)
+        private UnityEvent? GetRecommendedUnityEvent(bool createIfMissing)
         {
             if (Component == null)
                 return null;
@@ -1145,7 +1049,7 @@ namespace S1API.Entities
             {
                 if (target == null || string.IsNullOrEmpty(fieldName)) return;
                 var type = target.GetType();
-                FieldInfo field = null;
+                FieldInfo? field = null;
                 while (type != null && field == null)
                 {
                     field = type.GetField(fieldName, BindingFlags.Instance | System.Reflection.BindingFlags.Public | BindingFlags.NonPublic);

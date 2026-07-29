@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;
 #endif
@@ -13,7 +13,7 @@ namespace S1API.Items
     /// <summary>
     /// Provides convenient static methods for creating custom quality items.
     /// Use <see cref="CreateBuilder"/> for flexible configuration
-    /// or <see cref="CloneFrom"/> for quick variants based on existing items.
+    /// or <c>CloneFrom(...)</c> for quick variants based on existing items.
     /// </summary>
     [Obsolete("Use S1API.Items.Quality.QualityItemCreator instead")]
     public class QualityItemCreator

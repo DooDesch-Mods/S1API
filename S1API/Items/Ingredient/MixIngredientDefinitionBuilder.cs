@@ -5,7 +5,7 @@ using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Product = ScheduleOne.Product;
@@ -129,7 +129,7 @@ namespace S1API.Items.Ingredient
             // Building the same ID again (e.g. from a per-load setup hook) reuses the first registration
             // instead of adding a duplicate mixing ingredient.
             var id = Definition.ID;
-            if (CustomIngredientRegistry.TryGetExisting(id, out var existing))
+            if (CustomIngredientRegistry.TryGetExisting(id, out var existing) && existing != null)
             {
                 Logger.Warning($"Mixing ingredient '{id}' is already registered; returning the existing one.");
                 return new MixIngredientDefinition(existing);
@@ -176,7 +176,7 @@ namespace S1API.Items.Ingredient
             ReflectionUtils.TrySetFieldOrProperty(storedItem, "footprintY", 1);
         }
 
-        private static S1Storage.StoredItem FindMixerStoredItem()
+        private static S1Storage.StoredItem? FindMixerStoredItem()
         {
             foreach (var id in MixerTemplateIds)
             {
@@ -208,7 +208,7 @@ namespace S1API.Items.Ingredient
             return new MixIngredientDefinition(CrossType.As<S1Product.PropertyItemDefinition>(definition));
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static Il2CppSystem.Collections.Generic.List<T> ToIl2CppList<T>(List<T> source)
         {
             var list = new Il2CppSystem.Collections.Generic.List<T>();

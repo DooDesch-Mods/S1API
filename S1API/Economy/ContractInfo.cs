@@ -2,7 +2,7 @@
 using S1Quests = Il2CppScheduleOne.Quests;
 using S1Product = Il2CppScheduleOne.Product;
 using S1Map = Il2CppScheduleOne.Map;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1Product = ScheduleOne.Product;
 using S1Map = ScheduleOne.Map;
@@ -28,7 +28,7 @@ namespace S1API.Economy
             /// <summary>
             /// Product registry ID.
             /// </summary>
-            public string ProductId { get; set; }
+            public string ProductId { get; set; } = string.Empty;
 
             /// <summary>
             /// Quantity of this product to deliver.
@@ -54,7 +54,7 @@ namespace S1API.Economy
         /// <summary>
         /// Delivery location GUID (optional). If null or invalid, a reasonable location will be chosen.
         /// </summary>
-        public string DeliveryLocationGuid { get; set; }
+        public string DeliveryLocationGuid { get; set; } = string.Empty;
 
         /// <summary>
         /// Optional delivery window. If not set, game defaults are used.

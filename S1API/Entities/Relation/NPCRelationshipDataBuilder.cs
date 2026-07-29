@@ -2,7 +2,7 @@
 using S1Relation = Il2CppScheduleOne.NPCs.Relation;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using Il2CppInterop.Runtime.Attributes;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Relation = ScheduleOne.NPCs.Relation;
 using S1NPCs = ScheduleOne.NPCs;
 #endif
@@ -115,7 +115,7 @@ namespace S1API.Entities.Relation
         /// Prefer <see cref="WithConnections(System.Type[])"/> or the generic overloads when you only have types available.
         /// </summary>
         [Obsolete("Use WithConnections<T1, T2, ...>() or WithConnectionsById instead. NPC instances are not available during prefab configuration.")]
-        public NPCRelationshipDataBuilder WithConnections(IEnumerable<NPC> npcs)
+        public NPCRelationshipDataBuilder WithConnections(IEnumerable<NPC?>? npcs)
         {
             Logger.Warning("[Relationship Data] WithConnections(NPC[]) is obsolete. Use WithConnections<T1, T2, ...>() or WithConnectionsById instead to resolve IDs in Menu scene.");
             // Preserve behavior by forwarding to type-based resolution, which pulls IDs from static NPCId/registry.
@@ -126,8 +126,8 @@ namespace S1API.Entities.Relation
         /// Replaces the connections list using API NPC wrappers. Nulls are ignored.
         /// </summary>
         [Obsolete("Use WithConnections<T1, T2, ...>() or WithConnectionsById instead. NPC instances are not available during prefab configuration.")]
-        public NPCRelationshipDataBuilder WithConnections(params NPC[] npcs) =>
-            WithConnections((IEnumerable<NPC>)npcs);
+        public NPCRelationshipDataBuilder WithConnections(params NPC?[]? npcs) =>
+            WithConnections((IEnumerable<NPC?>?)npcs);
 
         /// <summary>
         /// Replaces the connections list using NPC types. This overload works during prefab configuration
@@ -152,7 +152,7 @@ namespace S1API.Entities.Relation
         /// Replaces the connections list using NPC types. This overload works during prefab configuration
         /// when NPC instances are not yet available. IDs are resolved from the static NPCId property.
         /// </summary>
-        public NPCRelationshipDataBuilder WithConnections(params System.Type[] npcTypes)
+        public NPCRelationshipDataBuilder WithConnections(params System.Type?[]? npcTypes)
         {
             _connectionIDs.Clear();
             if (npcTypes == null || npcTypes.Length == 0)
@@ -181,7 +181,7 @@ namespace S1API.Entities.Relation
                 }
 
                 // Try to get ID from static NPCId property
-                string id = NPCTypeUtils.TryGetStaticNPCId(npcType);
+                string? id = NPCTypeUtils.TryGetStaticNPCId(npcType);
 
                 // Try to resolve from base game registry if needed
                 if (string.IsNullOrEmpty(id) && npcType.Assembly == typeof(NPCRelationshipDataBuilder).Assembly)
@@ -228,6 +228,8 @@ namespace S1API.Entities.Relation
         /// <summary>
         /// INTERNAL: Applies the configured values to a relation data instance.
         /// </summary>
+        /// <param name="relationData">The native relationship data to update.</param>
+        /// <param name="owner">The NPC that owns the relationship data.</param>
         /// <param name="preserveUnlockState">If true, will not modify unlock state if the NPC is already unlocked (preserves save data).</param>
         public void ApplyTo(S1Relation.NPCRelationData relationData, S1NPCs.NPC owner, bool preserveUnlockState = false)
         {
@@ -249,6 +251,14 @@ namespace S1API.Entities.Relation
                     var targetList = relationData.Connections;
                     if (targetList != null)
                     {
+                        foreach (var previousConnection in targetList)
+                        {
+                            var reverseConnections =
+                                previousConnection?.RelationData?.Connections;
+                            if (reverseConnections != null)
+                                reverseConnections.Remove(owner);
+                        }
+
                         int previousCount = targetList.Count;
                         targetList.Clear();
                         int foundCount = 0;
@@ -257,7 +267,7 @@ namespace S1API.Entities.Relation
                         for (int i = 0; i < _connectionIDs.Count; i++)
                         {
                             var id = _connectionIDs[i];
-                            S1NPCs.NPC other = null;
+                            S1NPCs.NPC? other = null;
                             
                             // Manual search instead of FirstOrDefault
                             foreach (var n in registry)
@@ -279,6 +289,14 @@ namespace S1API.Entities.Relation
                                 else
                                 {
                                     foundCount++;
+                                }
+
+                                var reverseConnections =
+                                    other.RelationData?.Connections;
+                                if (reverseConnections != null &&
+                                    !reverseConnections.Contains(owner))
+                                {
+                                    reverseConnections.Add(owner);
                                 }
                             }
                             else
@@ -338,7 +356,7 @@ namespace S1API.Entities.Relation
             public float? RelationDelta;
             public bool? Unlocked;
             public NPCRelationship.UnlockType? UnlockType;
-            public List<string> ConnectionIDs;
+            public List<string>? ConnectionIDs;
         }
     }
 }

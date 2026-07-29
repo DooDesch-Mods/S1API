@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Equipping = Il2CppScheduleOne.Equipping;
 using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Equipping = ScheduleOne.Equipping;
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
 #endif
@@ -21,8 +21,8 @@ namespace S1API.Items
     /// </summary>
     public sealed class EquippableBuilder
     {
-        private GameObject _gameObject;
-        private S1Equipping.Equippable _equippable;
+        private GameObject? _gameObject;
+        private S1Equipping.Equippable? _equippable;
         private bool _canInteract = true;
         private bool _canPickup = true;
         
@@ -30,9 +30,9 @@ namespace S1API.Items
         private Vector3? _viewmodelPosition;
         private Vector3? _viewmodelRotation;
         private Vector3? _viewmodelScale;
-        private string _avatarEquippableAssetPath;
+        private string? _avatarEquippableAssetPath;
         private S1AvatarEquipping.AvatarEquippable.EHand _avatarHand = S1AvatarEquipping.AvatarEquippable.EHand.Right;
-        private string _avatarAnimationTrigger;
+        private string? _avatarAnimationTrigger;
         private readonly System.Collections.Generic.List<Action<ItemInstance>> _useCallbacks = new System.Collections.Generic.List<Action<ItemInstance>>();
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace S1API.Items
         /// <typeparam name="T">The type of equippable component to create. Must inherit from the game's Equippable class.</typeparam>
         /// <param name="name">Optional name for the GameObject. If not provided, uses the type name.</param>
         /// <returns>The builder instance for fluent chaining.</returns>
-        public EquippableBuilder CreateEquippable<T>(string name = null) where T : S1Equipping.Equippable
+        public EquippableBuilder CreateEquippable<T>(string? name = null) where T : S1Equipping.Equippable
         {
             string gameObjectName = string.IsNullOrEmpty(name) ? $"Equippable_{typeof(T).Name}" : name;
             _gameObject = new GameObject(gameObjectName);
@@ -54,7 +54,7 @@ namespace S1API.Items
         /// </summary>
         /// <param name="name">Optional name for the GameObject.</param>
         /// <returns>The builder instance for fluent chaining.</returns>
-        public EquippableBuilder CreateBasicEquippable(string name = null)
+        public EquippableBuilder CreateBasicEquippable(string? name = null)
         {
             string gameObjectName = string.IsNullOrEmpty(name) ? "Equippable_Basic" : name;
             _gameObject = new GameObject(gameObjectName);
@@ -68,7 +68,7 @@ namespace S1API.Items
         /// </summary>
         /// <param name="name">Optional name for the GameObject.</param>
         /// <returns>The builder instance for fluent chaining.</returns>
-        public EquippableBuilder CreateViewmodelEquippable(string name = null)
+        public EquippableBuilder CreateViewmodelEquippable(string? name = null)
         {
             string gameObjectName = string.IsNullOrEmpty(name) ? "Equippable_Viewmodel" : name;
             _gameObject = new GameObject(gameObjectName);
@@ -110,7 +110,8 @@ namespace S1API.Items
 
         /// <summary>
         /// Configures the third-person avatar equippable animation.
-        /// Only applies to viewmodel equippables created with <see cref="CreateViewmodelEquippable"/>.
+        /// Viewmodel equippables use the native viewmodel lifecycle. Other
+        /// equippable types use S1API's shared avatar synchronization runtime.
         /// </summary>
         /// <param name="assetPath">Resources path to the AvatarEquippable prefab (e.g., "Equippables/MyItem").</param>
         /// <param name="hand">Which hand holds the item in third-person (Left or Right).</param>
@@ -149,7 +150,7 @@ namespace S1API.Items
         /// <returns>A wrapper around the created equippable component.</returns>
         public Equippable Build()
         {
-            if (_equippable == null)
+            if (_equippable == null || _gameObject == null)
             {
                 throw new System.InvalidOperationException("Cannot build equippable: No equippable component created. Call CreateEquippable<T>(), CreateBasicEquippable(), or CreateViewmodelEquippable() first.");
             }
@@ -204,39 +205,13 @@ namespace S1API.Items
                     viewmodelEquippable.localScale = _viewmodelScale.Value;
                 }
 
-                // Configure AvatarEquippable if provided
-                if (!string.IsNullOrEmpty(_avatarEquippableAssetPath))
-                {
-                    // Create a child GameObject for the AvatarEquippable
-                    var avatarEquippableGO = new GameObject("AvatarEquippable");
-                    avatarEquippableGO.transform.SetParent(_gameObject.transform);
-                    
-                    var avatarEquippable = avatarEquippableGO.AddComponent<S1AvatarEquipping.AvatarEquippable>();
-                    avatarEquippable.AssetPath = _avatarEquippableAssetPath;
-                    avatarEquippable.Hand = _avatarHand;
-                    avatarEquippable.AnimationTrigger = _avatarAnimationTrigger;
-                    
-                    // Create an alignment point if it doesn't exist
-                    if (avatarEquippable.AlignmentPoint == null)
-                    {
-                        var alignmentPoint = new GameObject("AlignmentPoint");
-                        alignmentPoint.transform.SetParent(avatarEquippableGO.transform);
-                        alignmentPoint.transform.localPosition = Vector3.zero;
-                        alignmentPoint.transform.localRotation = Quaternion.identity;
-                        avatarEquippable.AlignmentPoint = alignmentPoint.transform;
-                    }
-                    
-                    viewmodelEquippable.AvatarEquippable = avatarEquippable;
-                }
             }
+
+            ApplyAvatarPresentation();
 
             ApplyInteractionSettings(_equippable);
 
-            // Make it persistent across scene loads
-            Object.DontDestroyOnLoad(_gameObject);
-
-            // Set inactive (prefab-like state)
-            _gameObject.SetActive(false);
+            RuntimePrefabCache.Store(_gameObject);
 
             return new Equippable(_equippable);
         }
@@ -247,20 +222,56 @@ namespace S1API.Items
         /// </summary>
         internal S1Equipping.Equippable BuildInternal()
         {
-            if (_equippable == null)
+            if (_equippable == null || _gameObject == null)
             {
                 throw new System.InvalidOperationException("Cannot build equippable: No equippable component created. Call CreateEquippable<T>() or CreateBasicEquippable() first.");
             }
 
+            ApplyAvatarPresentation();
             ApplyInteractionSettings(_equippable);
 
-            // Make it persistent across scene loads
-            Object.DontDestroyOnLoad(_gameObject);
-
-            // Set inactive (prefab-like state)
-            _gameObject.SetActive(false);
+            RuntimePrefabCache.Store(_gameObject);
 
             return _equippable;
+        }
+
+        private void ApplyAvatarPresentation()
+        {
+            if (_gameObject == null ||
+                _equippable == null ||
+                string.IsNullOrEmpty(_avatarEquippableAssetPath))
+            {
+                return;
+            }
+
+            var avatarEquippable =
+                _gameObject.GetComponentInChildren<
+                    S1AvatarEquipping.AvatarEquippable>(true);
+            if (avatarEquippable == null)
+            {
+                var avatarEquippableObject =
+                    new GameObject("AvatarEquippable");
+                avatarEquippableObject.transform.SetParent(
+                    _gameObject.transform,
+                    false);
+                avatarEquippable =
+                    avatarEquippableObject
+                        .AddComponent<
+                            S1AvatarEquipping.AvatarEquippable>();
+
+                var alignmentPoint = new GameObject("AlignmentPoint");
+                alignmentPoint.transform.SetParent(
+                    avatarEquippableObject.transform,
+                    false);
+                avatarEquippable.AlignmentPoint =
+                    alignmentPoint.transform;
+            }
+
+            avatarEquippable.AssetPath = _avatarEquippableAssetPath;
+            avatarEquippable.Hand = _avatarHand;
+            avatarEquippable.AnimationTrigger = _avatarAnimationTrigger;
+            if (_equippable is S1Equipping.Equippable_Viewmodel viewmodel)
+                viewmodel.AvatarEquippable = avatarEquippable;
         }
 
         /// <summary>

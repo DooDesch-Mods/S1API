@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Levelling = Il2CppScheduleOne.Levelling;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Levelling = ScheduleOne.Levelling;
 #endif
 

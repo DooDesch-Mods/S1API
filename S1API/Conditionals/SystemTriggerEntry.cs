@@ -2,7 +2,7 @@
 using S1Quests = Il2CppScheduleOne.Quests;
 using S1Variables = Il2CppScheduleOne.Variables;
 using static Il2CppScheduleOne.Quests.QuestManager;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1Variables = ScheduleOne.Variables;
 using static ScheduleOne.Quests.QuestManager;
@@ -34,8 +34,8 @@ namespace S1API.Conditions
         /// </summary>
         public event Action OnEvaluateTrue
         {
-            add => EventHelper.AddListener(value, S1SystemTrigger.onEvaluateTrue);
-            remove => EventHelper.RemoveListener(value, S1SystemTrigger.onEvaluateTrue);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1SystemTrigger.onEvaluateTrue);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1SystemTrigger.onEvaluateTrue);
         }
 
         /// <summary>
@@ -43,8 +43,8 @@ namespace S1API.Conditions
         /// </summary>
         public event Action OnEvaluateFalse
         {
-            add => EventHelper.AddListener(value, S1SystemTrigger.onEvaluateFalse);
-            remove => EventHelper.RemoveListener(value, S1SystemTrigger.onEvaluateFalse);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1SystemTrigger.onEvaluateFalse);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1SystemTrigger.onEvaluateFalse);
         }
 
         /// <summary>

@@ -1,96 +1,68 @@
-﻿#if (MONOMELON || IL2CPPMELON)
 using MelonLoader;
-#else
-using BepInEx.Logging;
-#endif
+using S1API.Internal;
 
 namespace S1API.Logging
 {
     /// <summary>
-    /// Centralized Logging class that handles both BepInEx and MelonLoader logging.
+    /// Centralized logging wrapper for MelonLoader.
     /// </summary>
     public class Log
     {
-#if (MONOMELON || IL2CPPMELON)
         private readonly MelonLogger.Instance _loggerInstance;
-#else
-        private readonly ManualLogSource _loggerInstance;
-#endif
 
         /// <summary>
-        /// Default constructor for <see cref="Log"/> instance
+        /// Creates a logger with the supplied source name.
         /// </summary>
-        /// <param name="sourceName">The source name to use for logging</param>
+        /// <param name="sourceName">The source name to use for logging.</param>
         public Log(string sourceName)
         {
-#if (MONOMELON || IL2CPPMELON)
             _loggerInstance = new MelonLogger.Instance(sourceName);
-#else
-            _loggerInstance = Logger.CreateLogSource(sourceName);
-#endif
         }
 
-#if (MONOBEPINEX || IL2CPPBEPINEX)
         /// <summary>
-        /// Default constructor for <see cref="Log"/> instance when BepInEx is enabled
+        /// Logs an informational message.
         /// </summary>
-        /// <param name="loggerInstance">Existing <see cref="ManualLogSource"/> instance to use</param>
-        public Log(ManualLogSource loggerInstance)
-        {
-            _loggerInstance = loggerInstance;
-        }
-#endif
-
-        /// <summary>
-        /// Logs a message with Info level
-        /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">Message to log.</param>
         public void Msg(string message)
         {
-#if (MONOMELON || IL2CPPMELON)
             _loggerInstance.Msg(message);
-#else
-            _loggerInstance.LogInfo(message);
-#endif
         }
 
         /// <summary>
-        /// Logs a message with Warning level
+        /// Logs an internal diagnostic message when verbose S1API logging is enabled.
         /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">Diagnostic message to log.</param>
+        internal void Debug(string message)
+        {
+            if (S1APIPreferences.EnableVerboseLogging?.Value == true)
+                _loggerInstance.Msg(message);
+        }
+
+        /// <summary>
+        /// Logs a warning message.
+        /// </summary>
+        /// <param name="message">Message to log.</param>
         public void Warning(string message)
         {
-#if (MONOMELON || IL2CPPMELON)
             _loggerInstance.Warning(message);
-#else
-            _loggerInstance.LogWarning(message);
-#endif
         }
 
         /// <summary>
-        /// Logs a message with Error level
+        /// Logs an error message.
         /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">Message to log.</param>
         public void Error(string message)
         {
-#if (MONOMELON || IL2CPPMELON)
             _loggerInstance.Error(message);
-#else
-            _loggerInstance.LogError(message);
-#endif
         }
 
         /// <summary>
-        /// Logs a message with Fatal level
+        /// Logs a fatal error message.
         /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">Message to log.</param>
         public void BigError(string message)
         {
-#if (MONOMELON || IL2CPPMELON)
             _loggerInstance.BigError(message);
-#else
-            _loggerInstance.LogFatal(message);
-#endif
         }
     }
 }

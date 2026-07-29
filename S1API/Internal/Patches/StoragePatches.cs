@@ -7,7 +7,7 @@ using S1Persistence = Il2CppScheduleOne.Persistence.Datas;
 using S1UI = Il2CppScheduleOne.UI;
 using Il2CppInterop.Runtime;
 using Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Storage = ScheduleOne.Storage;
 using S1EntityFramework = ScheduleOne.EntityFramework;
 using S1ItemFramework = ScheduleOne.ItemFramework;
@@ -21,10 +21,11 @@ using S1API.Storage;
 using S1API.Logging;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 #if (IL2CPPMELON)
 using S1PersistenceLoaders = Il2CppScheduleOne.Persistence.Loaders;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1PersistenceLoaders = ScheduleOne.Persistence.Loaders;
 #endif
 
@@ -46,14 +47,14 @@ namespace S1API.Internal.Patches
         {
             public int SlotCount;
             public int DisplayRowCount;
-            public string ItemId;
+            public string? ItemId;
         }
 
         /// <summary>
         /// Manually parse the custom name from RenamableConfigurationData JSON.
         /// Handles both compact and pretty-printed formats.
         /// </summary>
-        private static string ParseConfigurationName(string json)
+        private static string? ParseConfigurationName(string? json)
         {
             if (string.IsNullOrEmpty(json))
                 return null;
@@ -87,7 +88,7 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Manually parse StorageSlotMeta from JSON to avoid IL2CPP generic method issues.
         /// </summary>
-        private static StorageSlotMeta ParseStorageSlotMeta(string json)
+        private static StorageSlotMeta? ParseStorageSlotMeta(string? json)
         {
             if (string.IsNullOrEmpty(json))
                 return null;
@@ -248,9 +249,9 @@ namespace S1API.Internal.Patches
                 if (owner == null)
                     return;
 
-                S1Storage.StorageEntity storageEntity = null;
+                S1Storage.StorageEntity? storageEntity = null;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 storageEntity = owner.TryCast<S1Storage.StorageEntity>();
 #else
                 storageEntity = owner as S1Storage.StorageEntity;
@@ -335,14 +336,19 @@ namespace S1API.Internal.Patches
                     return false;
 
                 var placeableStorage = gridItem as S1ObjectScripts.PlaceableStorageEntity;
-                if (placeableStorage == null)
+                if (placeableStorage?.StorageEntity == null)
                     return false;
 
                 S1Persistence.PlaceableStorageData storageData;
                 if (!data.TryExtractBaseData<S1Persistence.PlaceableStorageData>(out storageData) || storageData == null)
                     return false;
 
-                int targetSlots = storageData.Contents?.Items?.Length ?? placeableStorage.StorageEntity.ItemSlots.Count;
+                var storageEntity = placeableStorage.StorageEntity;
+                var contents = storageData.Contents;
+                if (contents == null)
+                    return false;
+
+                int targetSlots = contents.Items?.Length ?? storageEntity.ItemSlots.Count;
 
                 // Use non-generic TryGetData to avoid IL2CPP reflection issues
                 if (data.TryGetData(ExtraSlotMetaKey, out string metaJson) && !string.IsNullOrEmpty(metaJson))
@@ -354,9 +360,9 @@ namespace S1API.Internal.Patches
                         if (meta != null)
                         {
                             targetSlots = Math.Max(targetSlots, meta.SlotCount);
-                            if (meta.DisplayRowCount > placeableStorage.StorageEntity.DisplayRowCount)
+                            if (meta.DisplayRowCount > storageEntity.DisplayRowCount)
                             {
-                                placeableStorage.StorageEntity.DisplayRowCount = meta.DisplayRowCount;
+                                storageEntity.DisplayRowCount = meta.DisplayRowCount;
                             }
                         }
                     }
@@ -374,10 +380,10 @@ namespace S1API.Internal.Patches
                 }
 
                 // Expand slots before hydrating contents
-                var wrapper = new StorageEntity(placeableStorage.StorageEntity, placeableStorage);
+                var wrapper = new StorageEntity(storageEntity, placeableStorage!);
                 wrapper.SetSlotCount(targetSlots);
 
-                storageData.Contents.LoadTo(placeableStorage.StorageEntity.ItemSlots);
+                contents.LoadTo(storageEntity.ItemSlots);
 
                 // Load the Configuration (custom name) from save data.
                 // The original loader does this deferred via onLoadComplete, but we apply it
@@ -387,9 +393,10 @@ namespace S1API.Internal.Patches
                     try
                     {
                         var configName = ParseConfigurationName(configJson);
-                        if (!string.IsNullOrEmpty(configName) && placeableStorage.Configuration?.Name != null)
+                        var configurationName = placeableStorage!.Configuration?.Name;
+                        if (!string.IsNullOrEmpty(configName) && configurationName != null)
                         {
-                            placeableStorage.Configuration.Name.SetValue(configName, true);
+                            configurationName.SetValue(configName, true);
                         }
                     }
                     catch (Exception configEx)
@@ -411,26 +418,42 @@ namespace S1API.Internal.Patches
         /// Patch for StorageMenu.Open(StorageEntity) - raises OnStorageOpening event.
         /// This allows mods to sync custom names before the menu displays.
         /// </summary>
-        [HarmonyPatch(typeof(S1UI.StorageMenu), nameof(S1UI.StorageMenu.Open), new Type[] { typeof(S1Storage.StorageEntity) })]
-        [HarmonyPrefix]
-        private static void StorageMenu_Open_Prefix(S1Storage.StorageEntity entity)
+        [HarmonyPatch]
+        private static class StorageMenuOpenPatch
         {
-            if (entity == null)
-                return;
-
-            try
+            private static MethodBase? TargetMethod()
             {
-                // Get the placeable storage entity (if this is placeable storage)
-                var placeableStorage = entity.GetComponentInParent<S1ObjectScripts.PlaceableStorageEntity>();
+                return AccessTools.GetDeclaredMethods(typeof(S1UI.StorageMenu))
+                    .Find(method =>
+                    {
+                        if (method.Name != nameof(S1UI.StorageMenu.Open))
+                            return false;
 
-                // Wrap and raise event
-                var storageWrapper = new StorageEntity(entity, placeableStorage);
-                var args = new StorageEventArgs(storageWrapper);
-                StorageEvents.RaiseStorageOpening(args);
+                        var parameters = method.GetParameters();
+                        return parameters.Length > 0 && parameters[0].ParameterType == typeof(S1Storage.StorageEntity);
+                    });
             }
-            catch (Exception ex)
+
+            [HarmonyPrefix]
+            private static void StorageMenu_Open_Prefix(S1Storage.StorageEntity entity)
             {
-                Logger.Error($"Error in StorageMenu_Open_Prefix: {ex.Message}");
+                if (entity == null)
+                    return;
+
+                try
+                {
+                    // Get the placeable storage entity (if this is placeable storage)
+                    var placeableStorage = entity.GetComponentInParent<S1ObjectScripts.PlaceableStorageEntity>();
+
+                    // Wrap and raise event
+                    var storageWrapper = new StorageEntity(entity, placeableStorage);
+                    var args = new StorageEventArgs(storageWrapper);
+                    StorageEvents.RaiseStorageOpening(args);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Error($"Error in StorageMenu_Open_Prefix: {ex.Message}");
+                }
             }
         }
     }

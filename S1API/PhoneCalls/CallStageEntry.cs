@@ -2,15 +2,15 @@
 using S1ScriptableObjects = Il2CppScheduleOne.ScriptableObjects;
 using S1Quests = Il2CppScheduleOne.Quests;
 using S1Variables = Il2CppScheduleOne.Variables;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ScriptableObjects = ScheduleOne.ScriptableObjects;
 using S1Quests = ScheduleOne.Quests;
 using S1Variables = ScheduleOne.Variables;
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using System.Collections.Generic;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
 using Il2CppSystem.Collections.Generic;
 #endif
 

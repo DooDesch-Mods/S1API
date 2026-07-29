@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;
 #endif
@@ -15,7 +15,7 @@ namespace S1API.Items.Buildable
     /// </summary>
     /// <remarks>
     /// Use <see cref="CreateBuilder"/> for creating items from scratch,
-    /// or <see cref="CloneFrom"/> for creating variants of existing buildable items.
+    /// or <c>CloneFrom(...)</c> for creating variants of existing buildable items.
     /// </remarks>
     public static class BuildableItemCreator
     {

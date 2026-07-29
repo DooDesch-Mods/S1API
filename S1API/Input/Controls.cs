@@ -6,7 +6,7 @@ using UnityEngine;
 using S1GameInput = Il2CppScheduleOne.GameInput;
 using S1ButtonCode = Il2CppScheduleOne.GameInput.ButtonCode;
 using S1InputDeviceType = Il2CppScheduleOne.GameInput.InputDeviceType;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1GameInput = ScheduleOne.GameInput;
 using S1ButtonCode = ScheduleOne.GameInput.ButtonCode;
 using S1InputDeviceType = ScheduleOne.GameInput.InputDeviceType;
@@ -71,7 +71,7 @@ namespace S1API.Input
     /// </summary>
     internal static class ControlsState
     {
-        internal static InputDeviceType LastKnownDevice;
+        internal static InputDeviceType LastKnownDevice = InputDeviceType.KeyboardMouse;
         internal static readonly Dictionary<Action<InputDeviceType>, Action<S1InputDeviceType>> TrackedListeners 
             = new Dictionary<Action<InputDeviceType>, Action<S1InputDeviceType>>();
     }
@@ -119,7 +119,7 @@ namespace S1API.Input
         /// Gets the current mouse scroll wheel delta.
         /// Positive values indicate scrolling up, negative values indicate scrolling down.
         /// </summary>
-        public static float MouseScrollDelta => S1GameInput.MouseWheelAxis;
+        public static float MouseScrollDelta => S1GameInput.MouseScrollDelta;
 
         /// <summary>
         /// Gets the currently active input device type (Keyboard/Mouse or Gamepad).

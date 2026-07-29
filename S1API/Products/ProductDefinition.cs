@@ -3,7 +3,7 @@ using Il2CppInterop.Runtime.InteropTypes;
 using S1Product = Il2CppScheduleOne.Product;
 using ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using ItemFramework = ScheduleOne.ItemFramework;
 using S1Properties = ScheduleOne.Effects;
@@ -22,7 +22,7 @@ namespace S1API.Products
     /// <summary>
     /// Represents a product definition in the game.
     /// </summary>
-    public class ProductDefinition : ItemDefinition
+    public class ProductDefinition : Items.Storable.StorableItemDefinition
     {
         /// <summary>
         /// INTERNAL: Stored reference to the game product definition.
@@ -34,11 +34,10 @@ namespace S1API.Products
         /// INTERNAL: Creates a product definition from the in-game product definition.
         /// </summary>
         /// <param name="productDefinition"></param>
-#if  IL2CPPMELON
-        internal ProductDefinition(ItemFramework.ItemDefinition productDefinition) : base(productDefinition) { }
-#else
-        internal ProductDefinition(ItemFramework.ItemDefinition productDefinition) : base(productDefinition) { }
-#endif
+        internal ProductDefinition(S1Product.ProductDefinition productDefinition)
+            : base(productDefinition)
+        {
+        }
         /// <summary>
         /// The price associated with this product.
         /// </summary>
@@ -68,7 +67,7 @@ namespace S1API.Products
         /// <summary>
         /// Gets the in-game icon associated with the product.
         /// </summary>
-        public Sprite Icon
+        public new Sprite Icon
         {
             get { return S1ProductDefinition.Icon; }
         }
@@ -94,10 +93,46 @@ namespace S1API.Products
         }
 
         /// <summary>
-        /// The list of drug types associated with this product definition.
-        /// Returns a C# list for IL2CPP builds to avoid type mismatches.
+        /// Gets all drug types associated with this product definition without exposing runtime-specific game types.
         /// </summary>
+        public IReadOnlyList<DrugType> DrugTypeValues
+        {
+            get
+            {
+                var source = S1ProductDefinition.DrugTypes;
+                var converted = new List<DrugType>(source != null ? source.Count : 0);
+
+                if (source != null)
+                {
+                    for (int i = 0; i < source.Count; i++)
+                    {
+                        var container = source[i];
+                        if (container != null)
+                            converted.Add(container.DrugType.ToAPI());
+                    }
+                }
+
+                return converted.AsReadOnly();
+            }
+        }
+
+        /// <summary>
+        /// Gets the primary drug type for this product without exposing runtime-specific game types.
+        /// </summary>
+        public DrugType PrimaryDrugType =>
+            S1ProductDefinition.DrugType.ToAPI();
+
+        /// <summary>
+        /// The list of native drug type containers associated with this product definition.
+        /// Returns a C# list for IL2CPP builds to avoid collection type mismatches.
+        /// </summary>
+        /// <remarks>
+        /// This compatibility member exposes native game types whose concrete definitions differ between
+        /// Mono and IL2CPP. It is not cross-runtime compatible and is retained only for existing consumers.
+        /// Prefer <see cref="DrugTypeValues"/> in cross-runtime mods.
+        /// </remarks>
 #if (IL2CPPMELON)
+        [System.Obsolete("Use DrugTypeValues instead.", false)]
         public System.Collections.Generic.IReadOnlyList<S1Product.DrugTypeContainer> DrugTypes
         {
             get
@@ -113,13 +148,20 @@ namespace S1API.Products
             }
         }
 #else
+        [System.Obsolete("Use DrugTypeValues instead.", false)]
         public System.Collections.Generic.List<S1Product.DrugTypeContainer> DrugTypes =>
             S1ProductDefinition.DrugTypes;
 #endif
 
         /// <summary>
-        /// The primary drug type for this product (convenience property).
+        /// The native primary drug type for this product.
         /// </summary>
+        /// <remarks>
+        /// This compatibility member exposes a native game enum whose concrete type differs between
+        /// Mono and IL2CPP. It is not cross-runtime compatible and is retained only for existing consumers.
+        /// Prefer <see cref="PrimaryDrugType"/> in cross-runtime mods.
+        /// </remarks>
+        [System.Obsolete("Use PrimaryDrugType instead.", false)]
         public S1Product.EDrugType DrugType =>
             S1ProductDefinition.DrugType;
 
@@ -135,7 +177,7 @@ namespace S1API.Products
             {
 #if (IL2CPPMELON)
                 var s1Packaging = CrossType.As<Il2CppScheduleOne.Product.Packaging.PackagingDefinition>(packaging.S1ItemDefinition);
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
                 var s1Packaging = CrossType.As<ScheduleOne.Product.Packaging.PackagingDefinition>(packaging.S1ItemDefinition);
 #endif
 

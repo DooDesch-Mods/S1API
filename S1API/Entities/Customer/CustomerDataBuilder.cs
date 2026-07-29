@@ -3,7 +3,7 @@ using S1Economy = Il2CppScheduleOne.Economy;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1Props = Il2CppScheduleOne.Effects;
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Economy = ScheduleOne.Economy;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Props = ScheduleOne.Effects;
@@ -74,8 +74,8 @@ namespace S1API.Entities.Customer
         /// <returns>The current builder for chaining.</returns>
         public CustomerDataBuilder WithPreferredOrderDay(string day)
         {
-            if (!string.IsNullOrEmpty(day) && Enum.TryParse(typeof(S1GameTime.EDay), day, true, out var parsed))
-                _data.PreferredOrderDay = (S1GameTime.EDay)parsed;
+            if (!string.IsNullOrEmpty(day) && Enum.TryParse(day, true, out S1GameTime.EDay parsed))
+                _data.PreferredOrderDay = parsed;
             return this;
         }
 
@@ -109,8 +109,8 @@ namespace S1API.Entities.Customer
         /// <returns>The current builder for chaining.</returns>
         public CustomerDataBuilder WithStandards(string standards)
         {
-            if (!string.IsNullOrEmpty(standards) && Enum.TryParse(typeof(S1Economy.ECustomerStandard), standards, true, out var parsed))
-                _data.Standards = (S1Economy.ECustomerStandard)parsed;
+            if (!string.IsNullOrEmpty(standards) && Enum.TryParse(standards, true, out S1Economy.ECustomerStandard parsed))
+                _data.Standards = parsed;
             return this;
         }
 
@@ -218,11 +218,10 @@ namespace S1API.Entities.Customer
                 {
                     if (string.IsNullOrEmpty(name))
                         continue;
-                    if (Enum.TryParse(typeof(S1Product.EDrugType), name, true, out var parsed))
+                    if (Enum.TryParse(name, true, out S1Product.EDrugType drugType))
                     {
-                        var drugType = (S1Product.EDrugType)parsed;
                         // Find and update existing entry
-                        S1Economy.ProductTypeAffinity existing = null;
+                        S1Economy.ProductTypeAffinity? existing = null;
                         foreach (var item in _data.DefaultAffinityData.ProductAffinities)
                         {
                             if (item != null && item.DrugType == drugType)
@@ -270,7 +269,7 @@ namespace S1API.Entities.Customer
                 {
                     var drugType = (S1Product.EDrugType)(int)type;
                     // Find and update existing entry
-                    S1Economy.ProductTypeAffinity existing = null;
+                    S1Economy.ProductTypeAffinity? existing = null;
                     foreach (var item in _data.DefaultAffinityData.ProductAffinities)
                     {
                         if (item != null && item.DrugType == drugType)
@@ -298,7 +297,7 @@ namespace S1API.Entities.Customer
         {
             if (_data.DefaultAffinityData == null)
                 _data.DefaultAffinityData = new S1Economy.CustomerAffinityData();
-            S1Economy.ProductTypeAffinity existing = null;
+            S1Economy.ProductTypeAffinity? existing = null;
             foreach (var a in _data.DefaultAffinityData.ProductAffinities)
             {
                 if (a != null && (int)a.DrugType == (int)drugType)
@@ -344,7 +343,7 @@ namespace S1API.Entities.Customer
                 {
                     if (string.IsNullOrEmpty(name))
                         continue;
-                    S1Props.Effect found = null;
+                    S1Props.Effect? found = null;
                     foreach (var p in props)
                     {
                         if (p != null && string.Equals(p.name, name, StringComparison.OrdinalIgnoreCase))
@@ -383,7 +382,7 @@ namespace S1API.Entities.Customer
                 {
                     if (string.IsNullOrEmpty(id))
                         continue;
-                    S1Props.Effect found = null;
+                    S1Props.Effect? found = null;
                     foreach (var p in props)
                     {
                         if (p != null && string.Equals(p.ID, id, StringComparison.OrdinalIgnoreCase))

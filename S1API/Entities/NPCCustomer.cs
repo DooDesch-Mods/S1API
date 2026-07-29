@@ -13,7 +13,7 @@ using S1Dialogue = Il2CppScheduleOne.Dialogue;
 using S1UI = Il2CppScheduleOne.UI;
 using S1VoiceOver = Il2CppScheduleOne.VoiceOver;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1Economy = ScheduleOne.Economy;
 using S1Player = ScheduleOne.PlayerScripts.Player;
@@ -40,12 +40,13 @@ using UnityEngine.Events;
 using MelonLoader;
 using S1API.Economy;
 using S1API.Internal.Abstraction;
+using S1API.Internal.Utils;
 #if (IL2CPPMELON)
 using Il2CppFishNet;
 using Il2CppFishNet.Managing;
 using Il2CppFishNet.Managing.Object;
 using Il2CppFishNet.Object;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using FishNet;
 using FishNet.Managing;
 using FishNet.Managing.Object;
@@ -95,12 +96,6 @@ namespace S1API.Entities
             {
                 EnsureCustomerData(Component);
                 
-                S1Economy.CustomerData verifyData = null;
-#if MONOMELON
-                verifyData = (S1Economy.CustomerData)customerDataField?.GetValue(Component);
-#else
-                verifyData = Component.CustomerData;
-#endif
                 WireCoreReferences(Component);
                 InitializeRuntimeState(Component);
                 EnsureUnityEvents(Component);
@@ -219,7 +214,7 @@ namespace S1API.Entities
         /// <summary>
         /// Requests a product from the specified player (or local player if null).
         /// </summary>
-        public void RequestProduct(Player player = null)
+        public void RequestProduct(Player? player = null)
         {
             if (Component == null)
                 return;
@@ -310,7 +305,7 @@ namespace S1API.Entities
             {
                 var dataViaProperty = customer.CustomerData;
                 
-                S1Economy.CustomerData data = null;
+                S1Economy.CustomerData? data = null;
 #if MONOMELON
                 
                 if (customerDataField == null)
@@ -320,7 +315,7 @@ namespace S1API.Entities
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
                 }
                 
-                data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                 data = customer.CustomerData;
 #endif
@@ -365,8 +360,7 @@ namespace S1API.Entities
                     }
                     else
                     {
-                        Logger.Warning($"Attempting manual field setting");
-                        customerDataField.SetValue(customer, data);
+                        Logger.Warning("Unable to assign customer data because the backing field was not found.");
                     }
                     
                     // Initialize currentAffinityData immediately when creating CustomerData
@@ -384,6 +378,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated
                     if (newAffinity.ProductAffinities == null || newAffinity.ProductAffinities.Count == 0)
                     {
+                        newAffinity.ProductAffinities ??= new();
                         Array drugTypesForAffinity = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypesForAffinity)
                         {
@@ -408,6 +403,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated
                     if (newAffinity.ProductAffinities == null || newAffinity.ProductAffinities.Count == 0)
                     {
+                        newAffinity.ProductAffinities ??= new();
                         Array drugTypesForAffinity = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypesForAffinity)
                         {
@@ -433,9 +429,9 @@ namespace S1API.Entities
         {
             try
             {
-                S1Economy.CustomerData data;
+                S1Economy.CustomerData? data;
 #if MONOMELON
-                data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                 data = customer.CustomerData;
 #endif
@@ -443,7 +439,7 @@ namespace S1API.Entities
                 {
                     EnsureCustomerData(customer);
 #if MONOMELON
-                    data = (S1Economy.CustomerData)customerDataField?.GetValue(customer);
+                    data = customerDataField?.GetValue(customer) as S1Economy.CustomerData;
 #else
                     data = customer.CustomerData;
 #endif
@@ -462,7 +458,7 @@ namespace S1API.Entities
                 // Ensure static customer registries exist to mirror base Awake
                 try
                 {
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
                     S1Economy.Customer.UnlockedCustomers ??= new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>();
                     S1Economy.Customer.LockedCustomers ??= new Il2CppSystem.Collections.Generic.List<S1Economy.Customer>();
 #else
@@ -493,6 +489,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated even if CopyTo didn't work
                     if (currentAffinity.ProductAffinities == null || currentAffinity.ProductAffinities.Count == 0)
                     {
+                        currentAffinity.ProductAffinities ??= new();
                         // Initialize with all drug types at neutral affinity
                         Array drugTypes = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypes)
@@ -519,6 +516,7 @@ namespace S1API.Entities
                     // Ensure ProductAffinities list is populated even if CopyTo didn't work
                     if (currentAffinity.ProductAffinities == null || currentAffinity.ProductAffinities.Count == 0)
                     {
+                        currentAffinity.ProductAffinities ??= new();
                         // Initialize with all drug types at neutral affinity
                         Array drugTypes = Enum.GetValues(typeof(S1Product.EDrugType));
                         foreach (var dt in drugTypes)
@@ -563,51 +561,27 @@ namespace S1API.Entities
                 // Ensure a valid default delivery location to avoid nulls during contract creation
                 try
                 {
-                    if (customer.DefaultDeliveryLocation == null)
+                    if (ReflectionUtils.TryGetFieldOrProperty(customer, "DefaultDeliveryLocation") == null)
                     {
                         var map = S1DevUtilities.Singleton<S1Map.Map>.Instance;
-                        if (map != null)
+                        var runtimeNpc = NPC?.S1NPC;
+                        if (map is not null && runtimeNpc is not null)
                         {
-                            var regionData = map.GetRegionData(NPC.S1NPC.Region);
-                            var loc = (regionData != null) ? regionData.GetRandomUnscheduledDeliveryLocation() : null;
+                            var regionData = map.GetRegionData(runtimeNpc.Region);
+                            var loc = regionData is not null ? regionData.GetRandomUnscheduledDeliveryLocation() : null;
                             if (loc != null)
                             {
-                                customer.DefaultDeliveryLocation = loc;
+                                ReflectionUtils.TrySetFieldOrProperty(customer, "DefaultDeliveryLocation", loc);
                             }
                         }
                     }
                 }
                 catch { /* ignore */ }
 
-                // Ensure DealSignal exists and is wired to the customer's schedule manager
+                // Ensure the deal-attendance implementation used by this game version is present.
                 try
                 {
-#if MONOMELON
-                    var dealSignalField = typeof(S1Economy.Customer).GetField("DealSignal", BindingFlags.Public | BindingFlags.Instance);
-#else
-                    var dealSignalField = typeof(S1Economy.Customer).GetProperty("DealSignal", BindingFlags.Public | BindingFlags.Instance);
-#endif
-                    var existingSignal = dealSignalField?.GetValue(customer) as S1Schedules.NPCSignal_WaitForDelivery;
-                    if (existingSignal == null)
-                    {
-                        var sched = NPC.gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
-                        if (sched == null)
-                        {
-                            var schedGo = new GameObject("NPCScheduleManager");
-                            schedGo.transform.SetParent(NPC.gameObject.transform, false);
-                            sched = schedGo.AddComponent<S1NPCs.NPCScheduleManager>();
-                        }
-
-                        var signal = NPC.gameObject.GetComponentInChildren<S1Schedules.NPCSignal_WaitForDelivery>(true);
-                        if (signal == null)
-                        {
-                            var go = new GameObject("DealSignal");
-                            go.transform.SetParent(sched.transform, false);
-                            signal = go.AddComponent<S1Schedules.NPCSignal_WaitForDelivery>();
-                            go.SetActive(false);
-                        }
-                        dealSignalField?.SetValue(customer, signal);
-                    }
+                    EnsureDealAttendanceSupport(NPC?.gameObject, NPC?.GetType());
                 }
                 catch { /* ignore */ }
             }
@@ -615,6 +589,33 @@ namespace S1API.Entities
             {
                 // ignore; best-effort runtime init
             }
+        }
+
+        internal static bool EnsureDealAttendanceSupport(GameObject? prefabRoot, Type? ownerType = null)
+        {
+            if (prefabRoot == null)
+                return false;
+
+            var behaviourManager = prefabRoot.GetComponentInChildren<S1NPCs.Behaviour.NPCBehaviour>(true);
+            if (behaviourManager == null)
+            {
+                Logger.Warning($"Cannot add CustomerAttendDealBehaviour for NPC type {ownerType?.Name ?? "Unknown"}: NPCBehaviour is missing.");
+                return false;
+            }
+
+            var component = prefabRoot.GetComponentInChildren<S1NPCs.Behaviour.CustomerAttendDealBehaviour>(true);
+            if (component == null)
+            {
+                var behaviourObject = new GameObject("Customer attend deal");
+                behaviourObject.transform.SetParent(behaviourManager.transform, false);
+                component = behaviourObject.AddComponent<S1NPCs.Behaviour.CustomerAttendDealBehaviour>();
+            }
+
+            component.EnabledOnAwake = false;
+            component.Name = "Customer attend deal";
+            component.Priority = 4;
+            component.SetCanUseUmbrellaDuringBehaviour(true);
+            return true;
         }
 
         /// <summary>
@@ -665,7 +666,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onUnlocked", true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception) { }
             }
@@ -677,7 +678,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onUnlocked", false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception) { }
             }
@@ -697,7 +698,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onDealCompleted", true);
                     if (evt == null) return;
-                    EventHelper.AddListener(value, evt);
+                    global::S1API.Utils.EventHelper.AddListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -713,7 +714,7 @@ namespace S1API.Entities
                 {
                     var evt = GetCustomerUnityEvent("onDealCompleted", false);
                     if (evt == null) return;
-                    EventHelper.RemoveListener(value, evt);
+                    global::S1API.Utils.EventHelper.RemoveListener(value, evt);
                 }
                 catch (Exception ex)
                 {
@@ -747,7 +748,7 @@ namespace S1API.Entities
             }
         }
 
-        private UnityEvent GetCustomerUnityEvent(string memberName, bool createIfMissing)
+        private UnityEvent? GetCustomerUnityEvent(string memberName, bool createIfMissing)
         {
             if (Component == null)
                 return null;
@@ -777,6 +778,9 @@ namespace S1API.Entities
                 var contractType = typeof(S1Quests.Contract);
                 var unityActionType = typeof(UnityAction<>).MakeGenericType(contractType);
                 var method = GetType().GetMethod(nameof(HandleContractAssigned), BindingFlags.NonPublic | BindingFlags.Instance);
+                if (method == null)
+                    return false;
+
                 var del = Delegate.CreateDelegate(unityActionType, this, method);
                 var addListener = evt.GetType().GetMethod("AddListener", new[] { unityActionType });
                 addListener?.Invoke(evt, new object[] { del });
@@ -813,9 +817,9 @@ namespace S1API.Entities
             }
         }
 
-        private Action<float, int, int, int> _onContractAssigned;
-        private Delegate _contractAssignedBridge;
-        private object _contractAssignedUnityEvent;
+        private Action<float, int, int, int>? _onContractAssigned;
+        private Delegate? _contractAssignedBridge;
+        private object? _contractAssignedUnityEvent;
 
         // Maps Contract to safe primitives for modders
         private void HandleContractAssigned(object contract)
@@ -892,7 +896,7 @@ namespace S1API.Entities
 #else
         // In IL2CPP, currentAffinityData is a property, not a field
 #endif
-        private MethodInfo setupDialogueMethod = typeof(S1Economy.Customer).GetMethod("SetUpDialogue",
+        private MethodInfo? setupDialogueMethod = typeof(S1Economy.Customer).GetMethod("SetUpDialogue",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
 
         /// <summary>
@@ -927,7 +931,7 @@ namespace S1API.Entities
                     foreach (var dt in allDrugTypes)
                     {
                         var drugType = (S1Product.EDrugType)dt;
-                        S1Economy.ProductTypeAffinity existing = null;
+                        S1Economy.ProductTypeAffinity? existing = null;
                         foreach (var item in currentAffinity.ProductAffinities)
                         {
                             if (item != null && item.DrugType == drugType)
@@ -961,7 +965,7 @@ namespace S1API.Entities
                     foreach (var dt in allDrugTypes)
                     {
                         var drugType = (S1Product.EDrugType)dt;
-                        S1Economy.ProductTypeAffinity existing = null;
+                        S1Economy.ProductTypeAffinity? existing = null;
                         foreach (var item in customer.currentAffinityData.ProductAffinities)
                         {
                             if (item != null && item.DrugType == drugType)
@@ -1023,7 +1027,7 @@ namespace S1API.Entities
                 }
                 
                 // Show dialogue if player is nearby
-                var closestPlayer = S1PlayerScripts.Player.GetClosestPlayer(NPC.gameObject.transform.position, out var distance);
+                var closestPlayer = GetClosestPlayer(NPC.gameObject.transform.position, out var distance);
                 if (closestPlayer == S1PlayerScripts.Player.Local && distance < 6f)
                 {
                     // Get dialogue database from the NPC's dialogue handler
@@ -1079,17 +1083,41 @@ namespace S1API.Entities
             yield return new WaitForSeconds(0.1f);
             if (handler != null && container != null)
             {
-                handler.InitializeDialogue(container);
+                handler.StartDialogue(container);
             }
         }
 
-        private static void SetNonPublicInstanceField(object target, string fieldName, object value)
+        private static S1PlayerScripts.Player? GetClosestPlayer(Vector3 position, out float distance)
+        {
+            S1PlayerScripts.Player? closestPlayer = null;
+            distance = float.MaxValue;
+
+            var players = S1PlayerScripts.Player.PlayerList;
+            if (players == null)
+                return null;
+
+            foreach (S1PlayerScripts.Player player in players)
+            {
+                if (player == null)
+                    continue;
+
+                var playerDistance = Vector3.Distance(position, player.transform.position);
+                if (playerDistance < distance)
+                {
+                    closestPlayer = player;
+                    distance = playerDistance;
+                }
+            }
+            return closestPlayer;
+        }
+
+        private static void SetNonPublicInstanceField(object target, string fieldName, object? value)
         {
             try
             {
                 if (target == null || string.IsNullOrEmpty(fieldName)) return;
                 var type = target.GetType();
-                FieldInfo field = null;
+                FieldInfo? field = null;
                 while (type != null && field == null)
                 {
                     field = type.GetField(fieldName, BindingFlags.Instance | System.Reflection.BindingFlags.Public | BindingFlags.NonPublic);

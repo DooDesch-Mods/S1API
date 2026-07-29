@@ -7,7 +7,7 @@ using S1API.Internal.Utils;
 #if IL2CPPMELON
 using Il2CppTMPro;
 using Il2CppScheduleOne.Money;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using TMPro;
 using ScheduleOne.Money;
 #endif
@@ -174,7 +174,7 @@ namespace S1API.Property
         public int BuildableItemCount =>
             GetCollectionCount(ReflectionUtils.TryGetFieldOrProperty(InnerProperty, "BuildableItems"), "BuildableItems");
 
-        private int GetCollectionCount(object collectionValue, string memberName)
+        private int GetCollectionCount(object? collectionValue, string memberName)
         {
             if (collectionValue == null)
                 return 0;

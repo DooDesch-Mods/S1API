@@ -41,6 +41,10 @@ In `ConfigurePrefab(...)`, set:
 2. Spawn: `WithSpawnPosition(position[, rotation])`
 3. (Physical NPCs) Schedule: `WithSchedule(...)`
 4. (Optional) Appearance defaults: `WithAppearanceDefaults(...)`
+5. (Optional) Designated map region: `WithRegion(Region.Uptown)`
+
+Use `WithRegion(...)` during prefab configuration when the NPC has relationship connections. The game validates
+relationship connections against the NPC's designated region before `OnCreated()` runs.
 
 ```csharp
 using S1API.Entities;

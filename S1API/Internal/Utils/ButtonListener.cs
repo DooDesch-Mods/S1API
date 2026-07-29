@@ -7,7 +7,7 @@ namespace S1API.Internal.Utils
 {
     /// <summary>
     /// INTERNAL: Utility helpers for managing Unity UI <see cref="Button"/>s.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.ButtonUtils"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.ButtonUtils</c> instead.
     /// </summary>
     internal static class ButtonUtils
     {
@@ -17,7 +17,7 @@ namespace S1API.Internal.Utils
         internal static void AddListener(Button button, Action action)
         {
             if (button == null || action == null) return;
-            EventHelper.AddListener(action, button.onClick);
+            global::S1API.Utils.EventHelper.AddListener(action, button.onClick);
         }
 
         /// <summary>
@@ -26,7 +26,7 @@ namespace S1API.Internal.Utils
         internal static void RemoveListener(Button button, Action action)
         {
             if (button == null || action == null) return;
-            EventHelper.RemoveListener(action, button.onClick);
+            global::S1API.Utils.EventHelper.RemoveListener(action, button.onClick);
         }
 
         /// <summary>

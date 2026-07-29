@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Properties = Il2CppScheduleOne.Effects;
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Properties = ScheduleOne.Effects;
 using S1Product = ScheduleOne.Product;
 #endif
@@ -45,6 +45,8 @@ namespace S1API.Properties
         private DrugType[]? _drugs;
         private Action<Player>? _playerBehavior;
         private Action<NPC>? _npcBehavior;
+        private Action<Player>? _playerClearBehavior;
+        private Action<NPC>? _npcClearBehavior;
 
         /// <summary>
         /// Sets the effect's identity and display text.
@@ -172,6 +174,30 @@ namespace S1API.Properties
         }
 
         /// <summary>
+        /// Sets the behavior run when this effect is cleared from the local player.
+        /// The callback can be invoked more than once, so it should remove only state owned by this effect.
+        /// </summary>
+        /// <param name="onClear">Callback invoked with the local player when the effect clears.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public CustomEffectBuilder WithClearBehavior(Action<Player> onClear)
+        {
+            _playerClearBehavior = onClear;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the behavior run when this effect is cleared from an NPC.
+        /// The callback can be invoked more than once, so it should remove only state owned by this effect.
+        /// </summary>
+        /// <param name="onClear">Callback invoked with the NPC when the effect clears.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public CustomEffectBuilder WithNpcClearBehavior(Action<NPC> onClear)
+        {
+            _npcClearBehavior = onClear;
+            return this;
+        }
+
+        /// <summary>
         /// Builds and registers the custom effect and returns a token usable anywhere a property is accepted.
         /// </summary>
         /// <returns>A <see cref="CustomEffect"/> token for the created effect.</returns>
@@ -218,6 +244,12 @@ namespace S1API.Properties
 
             if (_npcBehavior != null)
                 ProductManager.SetNpcEffectCallback(_id, _npcBehavior, allowDefaultEffect: false);
+
+            if (_playerClearBehavior != null)
+                ProductManager.SetEffectClearCallback(_id, _playerClearBehavior, allowDefaultEffect: false);
+
+            if (_npcClearBehavior != null)
+                ProductManager.SetNpcEffectClearCallback(_id, _npcClearBehavior, allowDefaultEffect: false);
 
             CustomEffectRegistry.Register(effect, ResolveDrugs(), _mixMapPosition, _mixMapRadius);
 

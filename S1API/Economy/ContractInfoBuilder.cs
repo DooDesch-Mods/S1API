@@ -2,7 +2,7 @@
 using S1Quests = Il2CppScheduleOne.Quests;
 using S1Product = Il2CppScheduleOne.Product;
 using S1Map = Il2CppScheduleOne.Map;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1Product = ScheduleOne.Product;
 using S1Map = ScheduleOne.Map;
@@ -24,7 +24,7 @@ namespace S1API.Economy
     {
         private float _payment;
         private readonly List<ContractInfo.OrderLine> _orders = new List<ContractInfo.OrderLine>();
-        private DeliveryLocation _deliveryLocation;
+        private DeliveryLocation? _deliveryLocation;
         private (int startTime, int endTime)? _deliveryWindow;
         private bool _isCounterOffer;
         private bool _expires = true;

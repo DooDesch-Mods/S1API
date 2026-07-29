@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 #endif
 
@@ -15,7 +15,7 @@ namespace S1API.Items
     /// </summary>
     /// <remarks>
     /// Use <see cref="BuildableItemCreator.CreateBuilder"/> to create new buildable items,
-    /// or <see cref="BuildableItemCreator.CloneFrom"/> to create variants of existing items.
+    /// or <c>BuildableItemCreator.CloneFrom(...)</c> to create variants of existing items.
     /// </remarks>
     [Obsolete("Use S1API.Items.Buildable.BuildableItemDefinition instead")]
     public sealed class BuildableItemDefinition : StorableItemDefinition

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 #endif
 
@@ -43,7 +43,7 @@ namespace S1API.Products
         /// Gets the display name of the shroom instance.
         /// Automatically pluralizes "Shroom" to "Shrooms" when quantity is greater than 1.
         /// </summary>
-        public new string Name =>
+        public string Name =>
             S1ShroomInstance.Name;
     }
 }

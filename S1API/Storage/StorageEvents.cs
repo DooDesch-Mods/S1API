@@ -17,7 +17,7 @@ namespace S1API.Storage
         /// The item ID of the storage container.
         /// Convenience property for filtering by storage type.
         /// </summary>
-        public string ItemId => Storage?.ItemId;
+        public string? ItemId => Storage?.ItemId;
 
         /// <summary>
         /// INTERNAL: Constructor used by S1API patches.
@@ -84,7 +84,7 @@ namespace S1API.Storage
     /// // Expand storage slots when loading from save
     /// StorageEvents.OnStorageLoading += (args) =>
     /// {
-    ///     if (args.ItemId == "my_custom_storage" && args.NeedsMoreSlots)
+    ///     if (args.ItemId == "my_custom_storage" &amp;&amp; args.NeedsMoreSlots)
     ///     {
     ///         args.Storage.AddSlots(args.AdditionalSlotsNeeded);
     ///     }
@@ -103,7 +103,7 @@ namespace S1API.Storage
         /// Use this event to customize storage properties when items are placed.
         /// This is the primary event for expanding storage slots on placement.
         /// </remarks>
-        public static event Action<StorageEventArgs> OnStorageCreated;
+        public static event Action<StorageEventArgs>? OnStorageCreated;
 
         /// <summary>
         /// Event raised before items are loaded into storage from a save file.
@@ -113,7 +113,7 @@ namespace S1API.Storage
         /// This event is critical for save compatibility when you've expanded storage slots.
         /// Check args.NeedsMoreSlots to determine if expansion is required.
         /// </remarks>
-        public static event Action<StorageLoadingEventArgs> OnStorageLoading;
+        public static event Action<StorageLoadingEventArgs>? OnStorageLoading;
 
         /// <summary>
         /// Event raised just before the storage menu opens for a storage entity.
@@ -134,7 +134,7 @@ namespace S1API.Storage
         /// };
         /// </code>
         /// </example>
-        public static event Action<StorageEventArgs> OnStorageOpening;
+        public static event Action<StorageEventArgs>? OnStorageOpening;
 
         /// <summary>
         /// INTERNAL: Raises the OnStorageCreated event.

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Other = Il2CppScheduleOne.NPCs.Other;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Other = ScheduleOne.NPCs.Other;
 #endif
 
@@ -10,7 +10,7 @@ namespace S1API.Entities.Actions
     /// Wraps the drinking action for an NPC. Use to equip a drink and play the drinking animation.
     /// </summary>
     /// <remarks>
-    /// Requires the drinking component to be configured on the prefab via <see cref="NPCPrefabBuilder.EnsureDrinking"/>.
+    /// Requires the drinking component to be configured on the prefab via <c>NPCPrefabBuilder.EnsureDrinking(...)</c>.
     /// If not present, <see cref="Begin"/> and <see cref="End"/> are no-ops.
     /// </remarks>
     public sealed class NPCDrinking
@@ -29,7 +29,7 @@ namespace S1API.Entities.Actions
             NPC = npc;
         }
 
-        private S1Other.DrinkItem GetComponent()
+        private S1Other.DrinkItem? GetComponent()
         {
             return NPC?.S1NPC?.GetComponentInChildren<S1Other.DrinkItem>(true);
         }
@@ -50,7 +50,7 @@ namespace S1API.Entities.Actions
         /// Begins the drinking action: equips the drink and plays the drinking animation.
         /// </summary>
         /// <remarks>
-        /// No-op if the drinking component is not on the prefab. Call <see cref="NPCPrefabBuilder.EnsureDrinking"/> during ConfigurePrefab to add it.
+        /// No-op if the drinking component is not on the prefab. Call <c>NPCPrefabBuilder.EnsureDrinking(...)</c> during ConfigurePrefab to add it.
         /// </remarks>
         public void Begin()
         {

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
 
@@ -86,7 +86,7 @@ namespace S1API.Rendering
             catch (Exception ex)
             {
                 Logger.Error($"Failed to clone avatar layer '{sourceResourcePath}': {ex.Message}");
-                Logger.Error(ex.StackTrace);
+                Logger.Error(ex.StackTrace ?? ex.ToString());
                 return null;
             }
         }

@@ -3,7 +3,7 @@ using UnityEngine.Events;
 
 #if  IL2CPPMELON
 using Il2CppScheduleOne.Dialogue;
-#elif MONOBEPINEX || MONOMELON || IL2CPPBEPINEX
+#elif MONOMELON
 using ScheduleOne.Dialogue;
 #endif
 

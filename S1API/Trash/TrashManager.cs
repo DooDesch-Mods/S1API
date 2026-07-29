@@ -3,7 +3,7 @@ using UnityEngine;
 
 #if (IL2CPPMELON)
 using S1Trash = Il2CppScheduleOne.Trash;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Trash = ScheduleOne.Trash;
 #endif
 
