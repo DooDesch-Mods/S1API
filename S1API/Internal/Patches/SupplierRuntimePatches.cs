@@ -11,10 +11,13 @@ using S1NPCs = ScheduleOne.NPCs;
 #endif
 
 using System;
+using System.Linq;
 using HarmonyLib;
 using S1API.Entities;
 using S1API.Internal.Entities;
+using S1API.Internal.Entities.Suppliers;
 using S1API.Internal.Utils;
+using UnityEngine;
 
 namespace S1API.Internal.Patches
 {
@@ -121,6 +124,42 @@ namespace S1API.Internal.Patches
         private static bool SupplierStashStartPrefix(S1Economy.SupplierStash __instance)
         {
             return !SupplierRuntimeCoordinator.TryInitializeGeneratedStash(__instance);
+        }
+
+        [HarmonyPatch(
+            typeof(S1Economy.DeadDrop),
+            nameof(S1Economy.DeadDrop.GetRandomEmptyDrop))]
+        [HarmonyPrefix]
+        private static bool ExcludeSupplierStashesFromDeadDropSelection(
+            Vector3 origin,
+            ref S1Economy.DeadDrop __result)
+        {
+            if (!SupplierStashRuntime.HasReservedDeadDrops)
+                return true;
+
+            var candidates = S1Economy.DeadDrop.DeadDrops
+                .ToArray()
+                .Where(drop =>
+                    drop != null &&
+                    drop.Storage.ItemCount == 0 &&
+                    !SupplierStashRuntime.IsReservedDeadDrop(drop))
+                .OrderBy(drop => Vector3.Distance(drop.transform.position, origin))
+                .ToList();
+
+            if (candidates.Count > 1)
+                candidates.RemoveAt(0);
+            if (candidates.Count > 1)
+            {
+                int removeStart = candidates.Count / 2;
+                candidates.RemoveRange(
+                    removeStart,
+                    candidates.Count - removeStart);
+            }
+
+            __result = candidates.Count == 0
+                ? null!
+                : candidates[UnityEngine.Random.Range(0, candidates.Count)];
+            return false;
         }
 
         [HarmonyPatch(

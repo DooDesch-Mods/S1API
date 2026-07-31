@@ -77,13 +77,18 @@ namespace S1API.Internal.Entities
             try
             {
                 string stableId = SupplierRuntimeIds.ResolveStableId(supplier.gameObject, supplierId);
-                SupplierStashRuntime.Bind(supplier, stableId);
+                SupplierStashRuntime.Bind(
+                    supplier,
+                    stableId,
+                    config?.StashDeadDropGuid);
                 S1Shop.ShopInterface shop = SupplierShopRuntime.Ensure(supplier, stableId, config);
                 bool vehicleReady = SupplierDeliveryVehicleRuntime.Ensure(supplier, shop, stableId);
                 bool meetingReady = SupplierMeetingRuntime.EnsureSelected(supplier);
                 bool meetingDialogueReady =
                     SupplierMeetingRuntime.PrepareNativeStartDialogue(supplier);
-                SupplierStashRuntime.SchedulePlacement(supplier);
+                SupplierStashRuntime.SchedulePlacement(
+                    supplier,
+                    config?.StashDeadDropGuid);
 
                 return shop != null
                        && vehicleReady
