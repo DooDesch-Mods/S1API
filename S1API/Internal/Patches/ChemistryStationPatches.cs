@@ -40,7 +40,6 @@ namespace S1API.Internal.Patches
                 "SetSelectedRecipe");
 
         private static bool _loggedRecipeEntriesMissing;
-        private static bool _loggedChemistryStationUiMissing;
         private static bool _loggedSetSelectedRecipeMissing;
 
         private sealed class CanvasInjectionState
@@ -55,32 +54,8 @@ namespace S1API.Internal.Patches
             return CanvasStateTable.GetValue(canvas, _ => new CanvasInjectionState());
         }
 
-        private static Type? ResolveChemistryStationUiType()
-        {
-            return typeof(S1UIStations.ChemistryStationInterface);
-        }
-
-        private static IEnumerable<MethodBase> ResolveChemistryStationUiMethods(string methodName)
-        {
-            var type = ResolveChemistryStationUiType();
-            if (type == null)
-            {
-                if (!_loggedChemistryStationUiMissing)
-                {
-                    _loggedChemistryStationUiMissing = true;
-                    Logger.Warning("[S1API] Chemistry station UI type could not be resolved. Recipe UI injection will be skipped.");
-                }
-
-                yield break;
-            }
-
-            var method = AccessTools.Method(type, methodName);
-            if (method != null)
-                yield return method;
-        }
-
         private static bool TryGetRecipeEntriesList(
-            object canvas,
+            S1UIStations.ChemistryStationInterface canvas,
 #if IL2CPPMELON
             out Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>? entries
 #else
@@ -94,12 +69,12 @@ namespace S1API.Internal.Patches
 
             try
             {
-                var value = ReflectionUtils.TryGetFieldOrProperty(canvas, "recipeEntries");
                 entries =
 #if IL2CPPMELON
-                    value as Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>;
+                    canvas.recipeEntries;
 #else
-                    value as List<S1UIStations.StationRecipeEntry>;
+                    ReflectionUtils.TryGetFieldOrProperty(canvas, "recipeEntries")
+                        as List<S1UIStations.StationRecipeEntry>;
 #endif
             }
             catch
@@ -110,39 +85,24 @@ namespace S1API.Internal.Patches
             return entries != null;
         }
 
-        [HarmonyPatch]
-        private static class ChemistryStationAwakePatch
+        [HarmonyPatch(typeof(S1UIStations.ChemistryStationInterface), "Awake")]
+        [HarmonyPrefix]
+        private static void ChemistryStationAwakePrefix(
+            S1UIStations.ChemistryStationInterface __instance)
         {
-            [HarmonyTargetMethods]
-            private static IEnumerable<MethodBase> TargetMethods()
-            {
-                return ResolveChemistryStationUiMethods("Awake");
-            }
-
-            [HarmonyPrefix]
-            private static void Prefix(object __instance)
-            {
-                AwakePrefix(__instance);
-            }
+            AwakePrefix(__instance);
         }
 
-        [HarmonyPatch]
-        private static class ChemistryStationOpenPatch
+        [HarmonyPatch(typeof(S1UIStations.ChemistryStationInterface), "Open")]
+        [HarmonyPrefix]
+        private static void ChemistryStationOpenPrefix(
+            S1UIStations.ChemistryStationInterface __instance,
+            S1ObjectScripts.ChemistryStation __0)
         {
-            [HarmonyTargetMethods]
-            private static IEnumerable<MethodBase> TargetMethods()
-            {
-                return ResolveChemistryStationUiMethods("Open");
-            }
-
-            [HarmonyPrefix]
-            private static void Prefix(object __instance, S1ObjectScripts.ChemistryStation __0)
-            {
-                OpenPrefix(__instance, __0);
-            }
+            OpenPrefix(__instance, __0);
         }
 
-        private static void AwakePrefix(object __instance)
+        private static void AwakePrefix(S1UIStations.ChemistryStationInterface __instance)
         {
             try
             {
@@ -154,7 +114,9 @@ namespace S1API.Internal.Patches
             }
         }
 
-        private static void OpenPrefix(object __instance, S1ObjectScripts.ChemistryStation __0)
+        private static void OpenPrefix(
+            S1UIStations.ChemistryStationInterface __instance,
+            S1ObjectScripts.ChemistryStation __0)
         {
             try
             {
@@ -168,7 +130,8 @@ namespace S1API.Internal.Patches
             }
         }
 
-        private static void InjectRegisteredRecipes(object canvas)
+        private static void InjectRegisteredRecipes(
+            S1UIStations.ChemistryStationInterface canvas)
         {
             if (canvas == null)
                 return;
@@ -177,12 +140,7 @@ namespace S1API.Internal.Patches
             if (registered.Count == 0)
                 return;
 
-            var recipes =
-#if IL2CPPMELON
-                ReflectionUtils.TryGetFieldOrProperty(canvas, "Recipes") as Il2CppSystem.Collections.Generic.List<S1StationFramework.StationRecipe>;
-#else
-                ReflectionUtils.TryGetFieldOrProperty(canvas, "Recipes") as List<S1StationFramework.StationRecipe>;
-#endif
+            var recipes = canvas.Recipes;
             if (recipes == null)
                 return;
 
@@ -212,7 +170,8 @@ namespace S1API.Internal.Patches
             }
         }
 
-        private static void EnsureRecipeEntries(object canvas)
+        private static void EnsureRecipeEntries(
+            S1UIStations.ChemistryStationInterface canvas)
         {
             if (canvas == null)
                 return;
@@ -254,8 +213,8 @@ namespace S1API.Internal.Patches
 
                 try
                 {
-                    var recipeEntryPrefab = ReflectionUtils.TryGetFieldOrProperty(canvas, "RecipeEntryPrefab") as S1UIStations.StationRecipeEntry;
-                    var recipeContainer = ReflectionUtils.TryGetFieldOrProperty(canvas, "RecipeContainer") as Transform;
+                    var recipeEntryPrefab = canvas.RecipeEntryPrefab;
+                    var recipeContainer = canvas.RecipeContainer;
                     if (recipeEntryPrefab == null || recipeContainer == null)
                         return;
 
