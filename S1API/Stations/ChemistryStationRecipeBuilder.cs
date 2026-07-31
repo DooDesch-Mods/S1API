@@ -240,6 +240,7 @@ namespace S1API.Stations
                 throw new InvalidOperationException("WithProduct(...) must be called before BuildInternal().");
 
             var recipe = ScriptableObject.CreateInstance<S1StationFramework.StationRecipe>();
+            recipe.hideFlags = HideFlags.DontUnloadUnusedAsset;
             recipe.IsDiscovered = _initiallyDiscovered;
             recipe.Unlocked = _initiallyUnlocked;
             recipe.RecipeTitle = string.IsNullOrWhiteSpace(_title) ? _productItemId! : _title!;

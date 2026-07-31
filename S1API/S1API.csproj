@@ -163,13 +163,13 @@
 
     <!-- Automated local deployment -->
     <Target Name="PostBuildIl2CppMelon" AfterTargets="Build" Condition="'$(AutomateLocalDeployment)' == 'true' and '$(Configuration)' == 'Il2CppMelon'">
-        <Message Text="[IL2CPP/MelonLoader] Deploying S1API to local Il2Cpp plugins folder" Importance="high" />
-        <Copy SourceFiles=".\bin\Il2CppMelon\net6.0\S1API.dll" DestinationFiles="$(LocalIl2CppDeploymentPath)\Plugins\S1API\S1API.Il2Cpp.MelonLoader.dll" />
+        <Message Text="[IL2CPP/MelonLoader] Deploying S1API to local Il2Cpp mods folder" Importance="high" />
+        <Copy SourceFiles=".\bin\Il2CppMelon\net6.0\S1API.dll" DestinationFiles="$(LocalIl2CppDeploymentPath)\Mods\S1API.Il2Cpp.MelonLoader.dll" />
     </Target>
 
     <Target Name="PostBuildMonoMelon" AfterTargets="Build" Condition="'$(AutomateLocalDeployment)' == 'true' and '$(Configuration)' == 'MonoMelon'">
-        <Message Text="[Mono/MelonLoader] Deploying S1API to local Mono plugins folder" Importance="high" />
-        <Copy SourceFiles=".\bin\MonoMelon\netstandard2.1\S1API.dll" DestinationFiles="$(LocalMonoDeploymentPath)\Plugins\S1API\S1API.Mono.MelonLoader.dll" />
+        <Message Text="[Mono/MelonLoader] Deploying S1API to local Mono mods folder" Importance="high" />
+        <Copy SourceFiles=".\bin\MonoMelon\netstandard2.1\S1API.dll" DestinationFiles="$(LocalMonoDeploymentPath)\Mods\S1API.Mono.MelonLoader.dll" />
     </Target>
 
 </Project>

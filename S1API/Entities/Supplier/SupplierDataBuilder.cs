@@ -6,6 +6,7 @@ using S1ItemFramework = ScheduleOne.ItemFramework;
 
 using System;
 using System.Collections.Generic;
+using S1API.DeadDrops;
 using S1API.Internal.Utils;
 using S1API.Items;
 using StorableItemDefinition = S1API.Items.Storable.StorableItemDefinition;
@@ -29,6 +30,7 @@ namespace S1API.Entities.Supplier
                 "My friend <NAME> can hook you up with <PRODUCT>. I've passed your number on to them.";
             public string SupplierUnlockHint { get; set; } =
                 "You can now order <PRODUCT> from <NAME>. <PRODUCT> can be used to <PURPOSE>.";
+            public string? StashDeadDropGuid { get; set; }
 
             internal IReadOnlyList<S1ItemFramework.StorableItemDefinition>
                 ResolveDeliveryItems()
@@ -196,6 +198,50 @@ namespace S1API.Entities.Supplier
         public SupplierDataBuilder WithUnlockHint(string? hint)
         {
             data.SupplierUnlockHint = hint ?? string.Empty;
+            return this;
+        }
+
+        /// <summary>
+        /// Uses an existing scene dead drop as this supplier's debt-payment stash.
+        /// </summary>
+        /// <remarks>
+        /// The selected dead drop is reserved from normal supplier delivery selection.
+        /// Omitting this option preserves the generated stash beside the supplier spawn.
+        /// </remarks>
+        /// <param name="deadDrop">The dead drop to use as the supplier stash.</param>
+        /// <returns>The current builder for chaining.</returns>
+        public SupplierDataBuilder WithStashDeadDrop(DeadDropInstance deadDrop)
+        {
+            if (deadDrop == null)
+                throw new ArgumentNullException(nameof(deadDrop));
+
+            return WithStashDeadDrop(deadDrop.GUID);
+        }
+
+        /// <summary>
+        /// Uses the native dead drop represented by <typeparamref name="T"/> as
+        /// this supplier's debt-payment stash.
+        /// </summary>
+        public SupplierDataBuilder WithStashDeadDrop<T>()
+            where T : IDeadDropIdentifier =>
+            WithStashDeadDrop(DeadDropManager.GetGuid<T>());
+
+        /// <summary>
+        /// Uses the scene dead drop with the specified GUID as this supplier's
+        /// debt-payment stash.
+        /// </summary>
+        /// <param name="deadDropGuid">The stable GUID exposed by <see cref="DeadDropInstance.GUID"/>.</param>
+        /// <returns>The current builder for chaining.</returns>
+        public SupplierDataBuilder WithStashDeadDrop(string deadDropGuid)
+        {
+            if (!Guid.TryParse(deadDropGuid, out Guid parsed))
+            {
+                throw new ArgumentException(
+                    "The stash dead-drop GUID must be a valid GUID.",
+                    nameof(deadDropGuid));
+            }
+
+            data.StashDeadDropGuid = parsed.ToString("D");
             return this;
         }
 

@@ -6,6 +6,7 @@ using S1Economy = ScheduleOne.Economy;
 
 using System;
 using System.Linq;
+using System.Reflection;
 using UnityEngine;
 
 namespace S1API.DeadDrops
@@ -36,6 +37,30 @@ namespace S1API.DeadDrops
         /// <returns>The dead drop instance if found; otherwise null.</returns>
         public static DeadDropInstance? GetByGUID(string guid) =>
             All.FirstOrDefault(d => string.Equals(d.GUID, guid, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// Gets a dead drop through a type annotated with <see cref="DeadDropGuidAttribute"/>.
+        /// </summary>
+        public static DeadDropInstance? Get<T>() where T : IDeadDropIdentifier
+        {
+            return GetByGUID(GetGuid<T>());
+        }
+
+        /// <summary>
+        /// Gets the stable native GUID declared by a typed dead-drop identifier.
+        /// </summary>
+        public static string GetGuid<T>() where T : IDeadDropIdentifier
+        {
+            DeadDropGuidAttribute? identifier =
+                typeof(T).GetCustomAttribute<DeadDropGuidAttribute>();
+            if (identifier == null)
+            {
+                throw new InvalidOperationException(
+                    $"Dead-drop identifier '{typeof(T).FullName}' has no {nameof(DeadDropGuidAttribute)}.");
+            }
+
+            return identifier.Guid;
+        }
 
         /// <summary>
         /// Gets the closest dead drop to a world position.

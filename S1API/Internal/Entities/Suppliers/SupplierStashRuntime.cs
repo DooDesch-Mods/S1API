@@ -19,7 +19,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using MelonLoader;
+using S1API.DeadDrops;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using UnityEngine;
@@ -39,6 +41,9 @@ namespace S1API.Internal.Entities.Suppliers
         private static readonly Dictionary<int, GameObject> OwnedStashes = new Dictionary<int, GameObject>();
         private static readonly HashSet<int> InitializedStashes = new HashSet<int>();
         private static readonly HashSet<int> ScheduledPlacements = new HashSet<int>();
+        private static readonly HashSet<int> ConfiguredStashes = new HashSet<int>();
+        private static readonly Dictionary<int, string> ConfiguredStashGuids =
+            new Dictionary<int, string>();
 
         internal static void EnsurePrefab(GameObject prefabRoot)
         {
@@ -103,8 +108,17 @@ namespace S1API.Internal.Entities.Suppliers
             }
         }
 
-        internal static void Bind(S1Economy.Supplier supplier, string stableId)
+        internal static void Bind(
+            S1Economy.Supplier supplier,
+            string stableId,
+            string? stashDeadDropGuid)
         {
+            if (!string.IsNullOrWhiteSpace(stashDeadDropGuid))
+            {
+                BindDeadDrop(supplier, stashDeadDropGuid);
+                return;
+            }
+
             S1Economy.SupplierStash stash = BindPrefab(supplier);
 
             if (stash.Storage != null
@@ -134,7 +148,11 @@ namespace S1API.Internal.Entities.Suppliers
 
         internal static bool TryInitialize(S1Economy.SupplierStash stash)
         {
-            if (stash == null || stash.gameObject == null || stash.gameObject.name != StashObjectName)
+            if (stash == null || stash.gameObject == null)
+                return false;
+
+            bool configuredStash = ConfiguredStashes.Contains(stash.GetInstanceID());
+            if (!configuredStash && stash.gameObject.name != StashObjectName)
                 return false;
 
             int instanceId = stash.GetInstanceID();
@@ -147,7 +165,8 @@ namespace S1API.Internal.Entities.Suppliers
                 return true;
             }
 
-            if (CrossType.Is(stash.Storage, out S1Storage.WorldStorageEntity worldStorage))
+            if (!configuredStash &&
+                CrossType.Is(stash.Storage, out S1Storage.WorldStorageEntity worldStorage))
             {
                 string stableId = SupplierRuntimeIds.ResolveStableId(
                     stash.Supplier.gameObject,
@@ -159,9 +178,14 @@ namespace S1API.Internal.Entities.Suppliers
             stash.IntObj.enabled = stash.Supplier.RelationData.Unlocked;
             stash.IntObj.onInteractStart.AddListener((UnityAction)(() => UpdateSubtitle(stash)));
             stash.Storage.StorageEntityName = $"{stash.Supplier.FullName}'s Stash";
+            if (stash.StashPoI != null)
+            {
+                stash.StashPoI.enabled = stash.Supplier.RelationData.Unlocked;
+                stash.StashPoI.SetMainText($"{stash.Supplier.FullName}'s Stash");
+            }
 #if IL2CPPMELON
             var onUnlocked = DelegateSupport.ConvertDelegate<Il2CppSystem.Action<S1Relation.NPCRelationData.EUnlockType, bool>>(
-                new Action<S1Relation.NPCRelationData.EUnlockType, bool>((_, _) => stash.IntObj.enabled = true));
+                new Action<S1Relation.NPCRelationData.EUnlockType, bool>((_, _) => EnableUnlockedStash(stash)));
             stash.Supplier.RelationData.OnUnlocked = Il2CppSystem.Delegate
                 .Combine(stash.Supplier.RelationData.OnUnlocked, onUnlocked)
                 .Cast<Il2CppSystem.Action<S1Relation.NPCRelationData.EUnlockType, bool>>();
@@ -172,15 +196,27 @@ namespace S1API.Internal.Entities.Suppliers
                 .Combine(stash.Storage.onContentsChanged, onContentsChanged)
                 .Cast<Il2CppSystem.Action>();
 #else
-            stash.Supplier.RelationData.OnUnlocked += (_, _) => stash.IntObj.enabled = true;
+            stash.Supplier.RelationData.OnUnlocked += (_, _) => EnableUnlockedStash(stash);
             stash.Storage.onContentsChanged += () => Recalculate(stash);
 #endif
             Recalculate(stash);
             return true;
         }
 
-        internal static void SchedulePlacement(S1Economy.Supplier supplier)
+        private static void EnableUnlockedStash(S1Economy.SupplierStash stash)
         {
+            stash.IntObj.enabled = true;
+            if (stash.StashPoI != null)
+                stash.StashPoI.enabled = true;
+        }
+
+        internal static void SchedulePlacement(
+            S1Economy.Supplier supplier,
+            string? stashDeadDropGuid)
+        {
+            if (!string.IsNullOrWhiteSpace(stashDeadDropGuid))
+                return;
+
             int supplierKey = supplier.GetInstanceID();
             if (!ScheduledPlacements.Add(supplierKey))
                 return;
@@ -190,7 +226,9 @@ namespace S1API.Internal.Entities.Suppliers
 
         internal static S1Economy.SupplierStash? Find(S1Economy.Supplier supplier)
         {
-            if (supplier.Stash != null && supplier.Stash.gameObject.name == StashObjectName)
+            if (supplier.Stash != null &&
+                (supplier.Stash.gameObject.name == StashObjectName ||
+                 ConfiguredStashes.Contains(supplier.Stash.GetInstanceID())))
                 return supplier.Stash;
 
             if (OwnedStashes.TryGetValue(supplier.GetInstanceID(), out GameObject? ownedStash)
@@ -208,6 +246,11 @@ namespace S1API.Internal.Entities.Suppliers
                 return;
 
             int supplierKey = supplier.GetInstanceID();
+            if (ConfiguredStashGuids.Remove(supplierKey, out string? configuredGuid) &&
+                supplier.Stash != null)
+            {
+                ConfiguredStashes.Remove(supplier.Stash.GetInstanceID());
+            }
             if (OwnedStashes.TryGetValue(supplierKey, out GameObject? stashObject))
             {
                 Destroy(stashObject);
@@ -225,6 +268,8 @@ namespace S1API.Internal.Entities.Suppliers
             OwnedStashes.Clear();
             InitializedStashes.Clear();
             ScheduledPlacements.Clear();
+            ConfiguredStashes.Clear();
+            ConfiguredStashGuids.Clear();
         }
 
         private static IEnumerator PlaceAfterSpawn(S1Economy.Supplier supplier, int supplierKey)
@@ -273,6 +318,64 @@ namespace S1API.Internal.Entities.Suppliers
                 .GetComponentsInChildren<S1Economy.SupplierStash>(true)
                 .FirstOrDefault(candidate => candidate != null && candidate.gameObject.name == StashObjectName);
         }
+
+        private static void BindDeadDrop(
+            S1Economy.Supplier supplier,
+            string deadDropGuid)
+        {
+            DeadDropInstance deadDrop =
+                DeadDropManager.GetByGUID(deadDropGuid) ??
+                throw new InvalidOperationException(
+                    $"Supplier stash dead drop '{deadDropGuid}' is not present in the scene.");
+            S1Economy.DeadDrop nativeDeadDrop = deadDrop.S1DeadDrop;
+            int supplierKey = supplier.GetInstanceID();
+
+            foreach (KeyValuePair<int, string> reservation in ConfiguredStashGuids)
+            {
+                if (reservation.Key != supplierKey &&
+                    string.Equals(
+                        reservation.Value,
+                        deadDrop.GUID,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"Dead drop '{deadDrop.Name}' is already assigned to another supplier stash.");
+                }
+            }
+
+            S1Economy.SupplierStash stash =
+                nativeDeadDrop.GetComponent<S1Economy.SupplierStash>() ??
+                nativeDeadDrop.gameObject.AddComponent<S1Economy.SupplierStash>();
+            S1Storage.StorageEntityInteractable interactable =
+                nativeDeadDrop.Storage.GetComponent<S1Storage.StorageEntityInteractable>() ??
+                nativeDeadDrop.Storage.GetComponentInChildren<S1Storage.StorageEntityInteractable>(true) ??
+                throw new InvalidOperationException(
+                    $"Dead drop '{deadDrop.Name}' has no storage interaction component.");
+
+            stash.Supplier = supplier;
+            stash.Storage = nativeDeadDrop.Storage;
+            stash.IntObj = interactable;
+            stash.Light = nativeDeadDrop.Light;
+            stash.StashPoI = nativeDeadDrop.PoI;
+            stash.locationDescription = nativeDeadDrop.DeadDropDescription;
+            supplier.Stash = stash;
+
+            ConfiguredStashes.Add(stash.GetInstanceID());
+            ConfiguredStashGuids[supplierKey] = deadDrop.GUID;
+        }
+
+        internal static bool IsReservedDeadDrop(S1Economy.DeadDrop deadDrop)
+        {
+            if (deadDrop == null)
+                return false;
+
+            string guid = deadDrop.GUID.ToString("D");
+            return ConfiguredStashGuids.Values.Any(value =>
+                string.Equals(value, guid, StringComparison.OrdinalIgnoreCase));
+        }
+
+        internal static bool HasReservedDeadDrops =>
+            ConfiguredStashGuids.Count > 0;
 
         private static void ConfigureIdentity(S1Storage.WorldStorageEntity storage, string stableId)
         {
