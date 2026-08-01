@@ -15,6 +15,7 @@ using Il2CppScheduleOne.DevUtilities;
 using MelonLoader.Utils;
 using Il2CppInterop.Runtime;
 using S1GameInput = Il2CppScheduleOne.GameInput;
+using S1ExitAction = Il2CppScheduleOne.ExitAction;
 #elif MONOMELON
 using ScheduleOne.UI;
 using ScheduleOne.DevUtilities;
@@ -22,6 +23,7 @@ using ScheduleOne.UI.Phone;
 using ScheduleOne;
 using MelonLoader.Utils;
 using S1GameInput = ScheduleOne.GameInput;
+using S1ExitAction = ScheduleOne.ExitAction;
 #endif
 namespace S1API.PhoneApp
 {
@@ -218,8 +220,10 @@ namespace S1API.PhoneApp
         }
 
         /// <summary>
-        /// Handles exit/home button functionality. Called when user presses escape or home.
+        /// Handles exit/home button functionality without exposing runtime-specific game types.
+        /// Called when the user presses escape or home.
         /// </summary>
+        /// <param name="exit">The cross-runtime exit request.</param>
         public virtual void Exit(ExitAction exit)
         {
             if (!exit.Used && IsOpen() && Phone.InstanceExists && Phone.Instance.IsOpen)
@@ -285,9 +289,9 @@ namespace S1API.PhoneApp
                 
                 // Create IL2CPP-safe delegate instance
 #if IL2CPPMELON
-                _exitDelegate = DelegateSupport.ConvertDelegate<S1GameInput.ExitDelegate>(new System.Action<ExitAction>(Exit));
+                _exitDelegate = DelegateSupport.ConvertDelegate<S1GameInput.ExitDelegate>(new System.Action<S1ExitAction>(HandleNativeExit));
 #else
-                _exitDelegate = new S1GameInput.ExitDelegate(Exit);
+                _exitDelegate = new S1GameInput.ExitDelegate(HandleNativeExit);
 #endif
                 GameInput.RegisterExitListener(_exitDelegate, 1);
 
@@ -295,6 +299,13 @@ namespace S1API.PhoneApp
                 _onPhoneClosedAction = OnPhoneClosed;
                 Phone.Instance.onPhoneClosed += _onPhoneClosedAction;
             }
+        }
+
+        private void HandleNativeExit(S1ExitAction exit)
+        {
+            Exit(new ExitAction(
+                () => exit.Used,
+                used => exit.Used = used));
         }
 
         /// <summary>

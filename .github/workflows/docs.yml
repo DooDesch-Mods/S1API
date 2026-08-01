@@ -376,6 +376,7 @@ jobs:
           "$RUNNER_TEMP/apicompat/apicompat" \
             --left "$RUNNER_TEMP/s1api-api-compat/baseline.dll" \
             --right "$RUNNER_TEMP/s1api-api-compat/current.dll" \
+            --suppression-file .github/api-compat-suppressions.xml \
             --enable-rule-cannot-change-parameter-name \
             --enable-rule-attributes-must-match
 
