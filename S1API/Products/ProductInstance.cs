@@ -1,7 +1,7 @@
 #if (IL2CPPMELON )
 using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1Properties = ScheduleOne.Effects;
 #endif
@@ -58,8 +58,9 @@ namespace S1API.Products
         /// <summary>
         /// Gets the definition of the product associated with this instance.
         /// </summary>
-        public ProductDefinition Definition =>
-            new ProductDefinition(CrossType.As<S1Product.ProductDefinition>(S1ProductInstance.Definition));
+        public new ProductDefinition Definition =>
+            ProductDefinitionWrapper.Wrap(
+                CrossType.As<S1Product.ProductDefinition>(S1ProductInstance.Definition));
 
         /// <summary>
         /// Gets the list of properties associated with the product definition.

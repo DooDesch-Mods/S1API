@@ -3,7 +3,7 @@ using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1UIStations = Il2CppScheduleOne.UI.Stations;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1ObjectScripts = ScheduleOne.ObjectScripts;
 using S1StationFramework = ScheduleOne.StationFramework;
@@ -13,6 +13,7 @@ using S1UIStations = ScheduleOne.UI.Stations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using S1API.Internal.Utils;
@@ -20,6 +21,7 @@ using S1API.Items;
 using S1API.Logging;
 using S1API.Stations;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace S1API.Internal.Patches
 {
@@ -30,25 +32,31 @@ namespace S1API.Internal.Patches
     internal static class ChemistryStationPatches
     {
         private static readonly Log Logger = new Log("ChemistryStationPatches");
-        private static readonly ConditionalWeakTable<S1UIStations.ChemistryStationCanvas, CanvasInjectionState> CanvasStateTable =
-            new ConditionalWeakTable<S1UIStations.ChemistryStationCanvas, CanvasInjectionState>();
+        private static readonly ConditionalWeakTable<object, CanvasInjectionState> CanvasStateTable =
+            new ConditionalWeakTable<object, CanvasInjectionState>();
+        private static readonly MethodInfo? SetSelectedRecipeMethod =
+            AccessTools.Method(
+                typeof(S1UIStations.ChemistryStationInterface),
+                "SetSelectedRecipe");
 
         private static bool _loggedRecipeEntriesMissing;
+        private static bool _loggedSetSelectedRecipeMissing;
 
         private sealed class CanvasInjectionState
         {
             public readonly HashSet<string> LoggedRecipeConflicts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             public readonly HashSet<string> LoggedEntryConflicts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            public readonly HashSet<int> ClickBoundEntryIds = new HashSet<int>();
         }
 
-        private static CanvasInjectionState GetCanvasState(S1UIStations.ChemistryStationCanvas canvas)
+        private static CanvasInjectionState GetCanvasState(object canvas)
         {
             return CanvasStateTable.GetValue(canvas, _ => new CanvasInjectionState());
         }
 
         private static bool TryGetRecipeEntriesList(
-            S1UIStations.ChemistryStationCanvas canvas,
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+            S1UIStations.ChemistryStationInterface canvas,
+#if IL2CPPMELON
             out Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>? entries
 #else
             out List<S1UIStations.StationRecipeEntry>? entries
@@ -61,12 +69,12 @@ namespace S1API.Internal.Patches
 
             try
             {
-                var value = ReflectionUtils.TryGetFieldOrProperty(canvas, "recipeEntries");
                 entries =
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                    value as Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry>;
+#if IL2CPPMELON
+                    canvas.recipeEntries;
 #else
-                    value as List<S1UIStations.StationRecipeEntry>;
+                    ReflectionUtils.TryGetFieldOrProperty(canvas, "recipeEntries")
+                        as List<S1UIStations.StationRecipeEntry>;
 #endif
             }
             catch
@@ -77,9 +85,24 @@ namespace S1API.Internal.Patches
             return entries != null;
         }
 
-        [HarmonyPatch(typeof(S1UIStations.ChemistryStationCanvas), "Awake")]
+        [HarmonyPatch(typeof(S1UIStations.ChemistryStationInterface), "Awake")]
         [HarmonyPrefix]
-        private static void AwakePrefix(S1UIStations.ChemistryStationCanvas __instance)
+        private static void ChemistryStationAwakePrefix(
+            S1UIStations.ChemistryStationInterface __instance)
+        {
+            AwakePrefix(__instance);
+        }
+
+        [HarmonyPatch(typeof(S1UIStations.ChemistryStationInterface), "Open")]
+        [HarmonyPrefix]
+        private static void ChemistryStationOpenPrefix(
+            S1UIStations.ChemistryStationInterface __instance,
+            S1ObjectScripts.ChemistryStation __0)
+        {
+            OpenPrefix(__instance, __0);
+        }
+
+        private static void AwakePrefix(S1UIStations.ChemistryStationInterface __instance)
         {
             try
             {
@@ -91,9 +114,9 @@ namespace S1API.Internal.Patches
             }
         }
 
-        [HarmonyPatch(typeof(S1UIStations.ChemistryStationCanvas), "Open")]
-        [HarmonyPrefix]
-        private static void OpenPrefix(S1UIStations.ChemistryStationCanvas __instance, S1ObjectScripts.ChemistryStation __0)
+        private static void OpenPrefix(
+            S1UIStations.ChemistryStationInterface __instance,
+            S1ObjectScripts.ChemistryStation __0)
         {
             try
             {
@@ -107,7 +130,8 @@ namespace S1API.Internal.Patches
             }
         }
 
-        private static void InjectRegisteredRecipes(S1UIStations.ChemistryStationCanvas canvas)
+        private static void InjectRegisteredRecipes(
+            S1UIStations.ChemistryStationInterface canvas)
         {
             if (canvas == null)
                 return;
@@ -146,7 +170,8 @@ namespace S1API.Internal.Patches
             }
         }
 
-        private static void EnsureRecipeEntries(S1UIStations.ChemistryStationCanvas canvas)
+        private static void EnsureRecipeEntries(
+            S1UIStations.ChemistryStationInterface canvas)
         {
             if (canvas == null)
                 return;
@@ -163,9 +188,6 @@ namespace S1API.Internal.Patches
             }
 
             var registered = ChemistryStationRecipes.GetAllNative();
-            if (registered.Count == 0)
-                return;
-
             var state = GetCanvasState(canvas);
             for (int i = 0; i < registered.Count; i++)
             {
@@ -191,10 +213,12 @@ namespace S1API.Internal.Patches
 
                 try
                 {
-                    if (canvas.RecipeEntryPrefab == null || canvas.RecipeContainer == null)
+                    var recipeEntryPrefab = canvas.RecipeEntryPrefab;
+                    var recipeContainer = canvas.RecipeContainer;
+                    if (recipeEntryPrefab == null || recipeContainer == null)
                         return;
 
-                    var entry = UnityEngine.Object.Instantiate(canvas.RecipeEntryPrefab, canvas.RecipeContainer);
+                    var entry = UnityEngine.Object.Instantiate(recipeEntryPrefab, recipeContainer);
                     if (entry == null)
                         continue;
 
@@ -206,10 +230,63 @@ namespace S1API.Internal.Patches
                     Logger.Warning($"[S1API] Failed to create StationRecipeEntry for '{id}': {ex.Message}");
                 }
             }
+
+            EnsureRecipeEntryClickHandlers(canvas, entries, state);
+        }
+
+        private static void EnsureRecipeEntryClickHandlers(
+            object canvas,
+#if IL2CPPMELON
+            Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry> entries,
+#else
+            List<S1UIStations.StationRecipeEntry> entries,
+#endif
+            CanvasInjectionState state)
+        {
+            if (SetSelectedRecipeMethod == null)
+            {
+                if (!_loggedSetSelectedRecipeMissing)
+                {
+                    _loggedSetSelectedRecipeMissing = true;
+                    Logger.Warning(
+                        "[S1API] Chemistry station selection method could not be resolved. Recipe click binding will be skipped.");
+                }
+
+                return;
+            }
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                S1UIStations.StationRecipeEntry entry = entries[i];
+                if (entry == null || entry.Button == null)
+                    continue;
+
+                int instanceId = entry.GetInstanceID();
+                if (!state.ClickBoundEntryIds.Add(instanceId))
+                    continue;
+
+                entry.Button.onClick.AddListener(
+                    (UnityAction)(() => SelectRecipeFromClick(canvas, entry)));
+            }
+        }
+
+        private static void SelectRecipeFromClick(
+            object canvas,
+            S1UIStations.StationRecipeEntry entry)
+        {
+            try
+            {
+                SetSelectedRecipeMethod?.Invoke(canvas, new object[] { entry });
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"[S1API] Chemistry Station recipe click selection failed: {ex.Message}");
+            }
         }
 
         private static S1StationFramework.StationRecipe? FindRecipeById(
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             Il2CppSystem.Collections.Generic.List<S1StationFramework.StationRecipe> recipes,
 #else
             List<S1StationFramework.StationRecipe> recipes,
@@ -240,7 +317,7 @@ namespace S1API.Internal.Patches
         }
 
         private static S1UIStations.StationRecipeEntry? FindEntryByRecipeId(
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             Il2CppSystem.Collections.Generic.List<S1UIStations.StationRecipeEntry> entries,
 #else
             List<S1UIStations.StationRecipeEntry> entries,
@@ -274,6 +351,19 @@ namespace S1API.Internal.Patches
             return null;
         }
 
+        [HarmonyPatch(typeof(S1StationFramework.StationRecipe), "get_RecipeID")]
+        [HarmonyPrefix]
+        private static bool UseRegisteredRecipeId(
+            S1StationFramework.StationRecipe __instance,
+            ref string __result)
+        {
+            if (!ChemistryStationRecipes.TryGetRegisteredId(__instance, out var recipeId))
+                return true;
+
+            __result = recipeId;
+            return false;
+        }
+
         [HarmonyPatch(typeof(S1StationFramework.StationRecipe), "CalculateQuality")]
         [HarmonyPrefix]
         private static bool UseCustomCalcMethods(S1StationFramework.StationRecipe __instance,
@@ -295,8 +385,8 @@ namespace S1API.Internal.Patches
             // Use default quality calculation for non-absolute methods
             if (currentAddedRecipe.QualityCalculationMethod != QualityCalculationMethod.Absolute) return true;
             var product = currentAddedRecipe.Product.ItemId;
-            var itemDefinition = ItemManager.GetItemDefinition(product);
-            if (itemDefinition is not QualityItemDefinition qualityItemDefinition)
+            var itemDefinition = ItemManager.GetDefinition(product);
+            if (itemDefinition is not global::S1API.Items.Quality.QualityItemDefinition qualityItemDefinition)
             {
                 Logger.Warning($"[S1API] Absolute quality calculation method specified for recipe '{currentAddedRecipe.RecipeID}' but product '{product}' is not a quality item. Falling back to default calculation.");
                 return true;

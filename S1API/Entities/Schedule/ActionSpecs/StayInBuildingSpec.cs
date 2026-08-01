@@ -6,7 +6,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 using S1VehiclesAI = Il2CppScheduleOne.Vehicles.AI;
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1Map = ScheduleOne.Map;
@@ -41,9 +41,9 @@ namespace S1API.Entities.Schedule
 
         private sealed class PendingAction
         {
-            public S1NPCsSchedules.NPCEvent_StayInBuilding Action;
-            public NPCSchedule Schedule;
-            public string BuildingName;
+            public S1NPCsSchedules.NPCEvent_StayInBuilding? Action;
+            public NPCSchedule? Schedule;
+            public string? BuildingName;
             public int StartTime;
             public int? DoorIndex;
         }
@@ -54,11 +54,11 @@ namespace S1API.Entities.Schedule
         /// <value>The building GUID, or <c>null</c> if using name-based lookup.</value>
         /// <remarks>
         /// The building GUID is typically generated at runtime and may not be stable across game sessions.
-        /// For modder-facing APIs prefer using name-based lookup via <see cref="Building.GetByName(string)"/>
-        /// or typed identifiers via <see cref="Building.Get{T}()"/>. Use the GUID only if you have a
+        /// For modder-facing APIs prefer using name-based lookup via <c>Building.GetByName(...)</c>
+        /// or typed identifiers via <c>Building.Get&lt;T&gt;()</c>. Use the GUID only if you have a
         /// reliable runtime reference to the exact game object.
         /// </remarks>
-        public string BuildingGUID { get; set; }
+        public string? BuildingGUID { get; set; }
         
         /// <summary>
         /// Gets or sets the name of the building where the NPC should stay.
@@ -67,17 +67,17 @@ namespace S1API.Entities.Schedule
         /// <remarks>
         /// The building name takes precedence over <see cref="BuildingGUID"/> and is the
         /// recommended identifier for mod developers. It should match a building registered
-        /// in the S1API building registry (see <see cref="Building.GetByName(string)"/> and
-        /// <see cref="Building.Get{T}()"/>). Names are stable across game sessions and
+        /// in the S1API building registry (see <c>Building.GetByName(...)</c> and
+        /// <c>Building.Get&lt;T&gt;()</c>). Names are stable across game sessions and
         /// preferred for persistence and prefab configuration.
         /// </remarks>
-        public string BuildingName { get; set; }
+        public string? BuildingName { get; set; }
 
         /// <summary>
         /// INTERNAL: Gets or sets the building identifier type for deferred resolution.
         /// Set automatically when a deferred building wrapper is used.
         /// </summary>
-        internal Type BuildingIdentifierType { get; set; }
+        internal Type? BuildingIdentifierType { get; set; }
         
         /// <summary>
         /// Gets or sets the time when this action should start, in minutes from midnight.
@@ -109,7 +109,7 @@ namespace S1API.Entities.Schedule
         /// Gets or sets the optional name for this action.
         /// </summary>
         /// <value>The action name, or <c>null</c> to use the default name "StayInBuilding".</value>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         public void ApplyTo(NPCSchedule schedule)
         {
@@ -124,16 +124,16 @@ namespace S1API.Entities.Schedule
             
             // Calculate and set EndTime from StartTime + Duration
             // This is required for the action to properly start and end
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var endTime = Il2CppScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(StartTime, action.Duration);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
             var endTime = ScheduleOne.GameTime.TimeManager.AddMinutesTo24HourTime(StartTime, action.Duration);
 #endif
             ReflectionUtils.TrySetFieldOrProperty(action, "EndTime", endTime);
 
             // Resolve building using S1API.Map name-based registry
-            object gameBuilding = null;
-            Map.Building wrapper = null;
+            object? gameBuilding = null;
+            Map.Building? wrapper = null;
             
             if (!string.IsNullOrEmpty(BuildingName))
             {
@@ -232,7 +232,7 @@ namespace S1API.Entities.Schedule
                 for (int i = PendingActions.Count - 1; i >= 0; i--)
                 {
                     var pending = PendingActions[i];
-                    if (pending.Action == null || pending.Schedule == null)
+                    if (pending.Action == null || pending.Schedule == null || string.IsNullOrEmpty(pending.BuildingName))
                     {
                         resolved.Add(pending);
                         continue;
@@ -276,7 +276,7 @@ namespace S1API.Entities.Schedule
             }
         }
 
-        private void ApplyBuildingToAction(S1NPCsSchedules.NPCEvent_StayInBuilding action, object gameBuilding)
+        private void ApplyBuildingToAction(S1NPCsSchedules.NPCEvent_StayInBuilding? action, object? gameBuilding)
         {
             if (action == null)
             {
@@ -309,7 +309,7 @@ namespace S1API.Entities.Schedule
             {
                 var buildingType = gameBuilding.GetType();
                 const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
-                IList doorsList = null;
+                IList? doorsList = null;
                 var doorsField = buildingType.GetField("Doors", flags);
                 if (doorsField != null)
                     doorsList = doorsField.GetValue(gameBuilding) as IList;
@@ -330,7 +330,7 @@ namespace S1API.Entities.Schedule
             }
         }
 
-        private void RegisterDeferredBuildingResolution(S1NPCsSchedules.NPCEvent_StayInBuilding action, NPCSchedule schedule, Map.Building existingWrapper = null)
+        private void RegisterDeferredBuildingResolution(S1NPCsSchedules.NPCEvent_StayInBuilding action, NPCSchedule schedule, Map.Building? existingWrapper = null)
         {
             // If we have an identifier type, use typed lookup
             if (BuildingIdentifierType != null)
@@ -390,13 +390,13 @@ namespace S1API.Entities.Schedule
             }
         }
 
-        private object TryFindBuildingInScene(string buildingName)
+        private object? TryFindBuildingInScene(string? buildingName)
         {
             try
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<Il2CppScheduleOne.Map.NPCEnterableBuilding>(includeInactive: true);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 var arr = UnityEngine.Object.FindObjectsOfType<ScheduleOne.Map.NPCEnterableBuilding>(true);
 #else
                 var arr = Array.Empty<UnityEngine.Object>();
@@ -407,7 +407,7 @@ namespace S1API.Entities.Schedule
                     if (b == null) continue;
                     var type = b.GetType();
                     var nameField = type.GetField("BuildingName", BindingFlags.Public | BindingFlags.Instance);
-                    string name = nameField?.GetValue(b) as string;
+                    string? name = nameField?.GetValue(b) as string;
                     if (string.IsNullOrEmpty(name))
                     {
                         var nameProp = type.GetProperty("BuildingName", BindingFlags.Public | BindingFlags.Instance);

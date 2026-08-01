@@ -49,9 +49,13 @@ namespace S1API.Internal.Entities
         private static float lastStateLogTime;
         private static bool pendingSpawnBlockedLogged;
 
+        private static bool AllNetworkPrefabsReady =>
+            NPC.PrefabsConfiguredForLocalProcess
+            && SupplierRuntimeCoordinator.DeliveryPrefabsReadyForLocalProcess;
+
         public static bool ClientsReadyToSpawnNpcs =>
             mainSceneInitialized &&
-            NPC.PrefabsConfiguredForLocalProcess &&
+            AllNetworkPrefabsReady &&
             connectionObjectsReady &&
             clientsReady;
 
@@ -70,7 +74,7 @@ namespace S1API.Internal.Entities
 
         internal static void EnsurePrefabsWarmup()
         {
-            if (NPC.PrefabsConfiguredForLocalProcess)
+            if (AllNetworkPrefabsReady)
                 return;
 
             if (prefabsWarmupScheduled)
@@ -128,6 +132,8 @@ namespace S1API.Internal.Entities
                 if (spawnables != null)
                 {
                     NPC.PreRegisterAllNpcPrefabs();
+                    if (!AllNetworkPrefabsReady)
+                        EnsurePrefabsWarmup();
                 }
                 else
                 {
@@ -148,10 +154,10 @@ namespace S1API.Internal.Entities
             var start = Time.realtimeSinceStartup;
             var timeout = 20f;
 
-            while (!NPC.PrefabsConfiguredForLocalProcess && (Time.realtimeSinceStartup - start) < timeout)
+            while (!AllNetworkPrefabsReady && (Time.realtimeSinceStartup - start) < timeout)
             {
-                NetworkManager nm = null;
-                PrefabObjects spawnables = null;
+                NetworkManager? nm = null;
+                PrefabObjects? spawnables = null;
                 try
                 {
                     nm = InstanceFinder.NetworkManager;
@@ -164,7 +170,8 @@ namespace S1API.Internal.Entities
                     try
                     {
                         NPC.PreRegisterAllNpcPrefabs();
-                        break;
+                        if (AllNetworkPrefabsReady)
+                            break;
                     }
                     catch (Exception ex)
                     {
@@ -182,7 +189,7 @@ namespace S1API.Internal.Entities
 
         private static IEnumerator ReadinessMonitor()
         {
-            NetworkManager nm = null;
+            NetworkManager? nm = null;
             var start = Time.realtimeSinceStartup;
             // Wait for NetworkManager
             while (nm == null)
@@ -233,7 +240,7 @@ namespace S1API.Internal.Entities
         private static void EvaluateReadiness()
         {
             var nm = InstanceFinder.NetworkManager;
-            if (nm == null || !NPC.PrefabsConfiguredForLocalProcess)
+            if (nm == null || !AllNetworkPrefabsReady)
             {
                 clientsReady = false;
                 connectionObjectsReady = false;
@@ -363,7 +370,7 @@ namespace S1API.Internal.Entities
 
                 var netObject = pending.NetObject;
                 var owner = pending.Owner;
-                var ownerId = owner?.S1NPC?.ID ?? owner?.gameObject?.name ?? "<unknown>";
+                var ownerId = owner?.ID ?? owner?.gameObject?.name ?? "<unknown>";
 
                 if (netObject == null)
                 {
@@ -372,8 +379,28 @@ namespace S1API.Internal.Entities
                 }
 
                 var go = netObject.gameObject;
-                if (go == null || netObject.IsSpawned)
+                if (go == null)
                 {
+                    PendingSpawns.RemoveAt(i);
+                    continue;
+                }
+
+                // FishNet can spawn the object through its normal host path before this
+                // deferred queue observes it. The NPC still needs S1API's one-time
+                // post-spawn hydration; dropping the entry here leaves relationship,
+                // supplier visibility, and other prefab defaults unfinished.
+                if (netObject.IsSpawned)
+                {
+                    try
+                    {
+                        owner?.FinalizeNetworkSpawn();
+                    }
+                    catch (Exception finalizeEx)
+                    {
+                        Logger.Warning(
+                            $"[NPCNetworkBootstrap] FinalizeNetworkSpawn threw for already-spawned NPC '{ownerId}': {finalizeEx.Message}");
+                    }
+
                     PendingSpawns.RemoveAt(i);
                     continue;
                 }
@@ -388,11 +415,19 @@ namespace S1API.Internal.Entities
 
                 try
                 {
-                    owner?.PrepareForNetworkSpawn();
+                    if (owner != null && !owner.PrepareForNetworkSpawn())
+                    {
+                        Logger.Warning(
+                            $"[NPCNetworkBootstrap] Dropping invalid pending spawn for '{ownerId}'.");
+                        PendingSpawns.RemoveAt(i);
+                        continue;
+                    }
                 }
                 catch (Exception prepEx)
                 {
                     Logger.Warning($"[NPCNetworkBootstrap] PrepareForNetworkSpawn threw for '{ownerId}': {prepEx.Message}");
+                    PendingSpawns.RemoveAt(i);
+                    continue;
                 }
 
                 try

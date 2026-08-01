@@ -89,7 +89,7 @@ namespace S1API.Internal.Map
         /// </summary>
         private static bool TryResolveLookup(DeferredLookup lookup)
         {
-            object resolved = null;
+            object? resolved = null;
 
             // Try typed lookup first
             if (lookup.IdentifierType != null)
@@ -127,7 +127,7 @@ namespace S1API.Internal.Map
         /// <summary>
         /// Resolves a typed lookup by delegating to the appropriate registry.
         /// </summary>
-        private static object ResolveTypedLookup(Type identifierType)
+        private static object? ResolveTypedLookup(Type identifierType)
         {
             try
             {
@@ -204,7 +204,7 @@ namespace S1API.Internal.Map
             try
             {
                 var scene = SceneManager.GetActiveScene();
-                return scene != null && string.Equals(scene.name, "Main", StringComparison.OrdinalIgnoreCase);
+                return string.Equals(scene.name, "Main", StringComparison.OrdinalIgnoreCase);
             }
             catch
             {
@@ -220,7 +220,7 @@ namespace S1API.Internal.Map
             try
             {
                 var scene = SceneManager.GetActiveScene();
-                return scene != null && !string.Equals(scene.name, "Main", StringComparison.OrdinalIgnoreCase);
+                return !string.Equals(scene.name, "Main", StringComparison.OrdinalIgnoreCase);
             }
             catch
             {

@@ -2,14 +2,14 @@
 using S1Properties = Il2CppScheduleOne.Effects;
 using S1MixMaps = Il2CppScheduleOne.Effects.MixMaps;
 using S1Product = Il2CppScheduleOne.Product;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Properties = ScheduleOne.Effects;
 using S1MixMaps = ScheduleOne.Effects.MixMaps;
 using S1Product = ScheduleOne.Product;
 #endif
 using System;
 using System.Collections.Generic;
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using S1API.Internal.Utils;
 #endif
 using S1API.Lifecycle;
@@ -178,7 +178,7 @@ namespace S1API.Internal.Properties
 
         private static bool EnsureInPropertiesDict(S1Product.PropertyUtility propertyUtility, S1Properties.Effect effect)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var dict = propertyUtility.PropertiesDict;
             if (dict == null)
                 return false;

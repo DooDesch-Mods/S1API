@@ -3,15 +3,15 @@ using S1Loaders = Il2CppScheduleOne.Persistence.Loaders;
 using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Quests = Il2CppScheduleOne.Quests;
 using S1Persistence = Il2CppScheduleOne.Persistence;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Loaders = ScheduleOne.Persistence.Loaders;
 using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Quests = ScheduleOne.Quests;
 using S1Persistence = ScheduleOne.Persistence;
 #endif
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
 using System.Collections.Generic;
 #endif
 
@@ -35,7 +35,7 @@ namespace S1API.Internal.Patches
     {
         /// <summary>
         /// Provides a centralized logging mechanism to capture and output messages, warnings,
-        /// and errors during runtime, using underlying logging frameworks like BepInEx or MelonLoader.
+        /// and errors during runtime through the shared S1API logger.
         /// </summary>
         private static readonly Logging.Log Logger = new Logging.Log("QuestPatches");
 
@@ -236,7 +236,8 @@ namespace S1API.Internal.Patches
 
             string[] questDirectories = Directory.GetDirectories(moddedQuestsPath)
                 .Select(Path.GetFileName)
-                .Where(directory => directory != null && directory.StartsWith("Quest_"))
+                .OfType<string>()
+                .Where(directory => directory.StartsWith("Quest_"))
                 .ToArray();
 
             foreach (var questDirectory in questDirectories)

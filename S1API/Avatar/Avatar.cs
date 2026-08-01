@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
 
@@ -33,7 +33,7 @@ namespace S1API.Avatar
         /// <summary>
         /// The GameObject associated with this avatar.
         /// </summary>
-        public GameObject GameObject =>
+        public GameObject? GameObject =>
             S1Avatar?.gameObject;
 
         /// <summary>
@@ -61,9 +61,9 @@ namespace S1API.Avatar
         /// <returns>An array of Avatar wrappers found in the scene.</returns>
         public static Avatar[] FindInScene(bool includeInactive = false)
         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             var avatars = Object.FindObjectsOfType<S1AvatarFramework.Avatar>(includeInactive);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
             var avatars = Object.FindObjectsOfType<S1AvatarFramework.Avatar>(includeInactive);
 #else
             var avatars = System.Array.Empty<S1AvatarFramework.Avatar>();

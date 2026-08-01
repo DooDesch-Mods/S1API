@@ -10,7 +10,7 @@ namespace S1API.Internal.Utils
     /// INTERNAL: Utilities for subscribing to and managing Toggle value change events in a
     /// cross-compatible way between Mono and IL2CPP. Handles Unity versions where
     /// Toggle.onValueChanged is exposed as either a field or a property.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.ToggleUtils"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.ToggleUtils</c> instead.
     /// </summary>
     internal static class ToggleUtils
     {
@@ -30,7 +30,7 @@ namespace S1API.Internal.Utils
             if (!TryGetOnValueChanged(toggle, out UnityEvent<bool>? evt) || evt == null)
                 return;
 
-            EventHelper.AddListener(listener, evt);
+            global::S1API.Utils.EventHelper.AddListener(listener, evt);
         }
 
         /// <summary>
@@ -44,7 +44,7 @@ namespace S1API.Internal.Utils
             if (!TryGetOnValueChanged(toggle, out UnityEvent<bool>? evt) || evt == null)
                 return;
 
-            EventHelper.RemoveListener(listener, evt);
+            global::S1API.Utils.EventHelper.RemoveListener(listener, evt);
         }
 
         /// <summary>

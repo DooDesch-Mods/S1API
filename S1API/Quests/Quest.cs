@@ -4,7 +4,7 @@ using S1Dev = Il2CppScheduleOne.DevUtilities;
 using S1Map = Il2CppScheduleOne.Map;
 using S1Data = Il2CppScheduleOne.Persistence.Datas;
 using S1Contacts = Il2CppScheduleOne.UI.Phone.ContactsApp;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Quests = ScheduleOne.Quests;
 using S1Dev = ScheduleOne.DevUtilities;
 using S1Map = ScheduleOne.Map;
@@ -12,11 +12,11 @@ using S1Data = ScheduleOne.Persistence.Datas;
 using S1Contacts = ScheduleOne.UI.Phone.ContactsApp;
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using System.Reflection;
 using System.Collections.Generic;
 using HarmonyLib;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
 using Il2CppSystem.Collections;
 using Il2CppSystem.Collections.Generic;
 #endif
@@ -95,10 +95,10 @@ namespace S1API.Quests
             _gameObject = new GameObject("Quest");
             S1Quest = _gameObject.AddComponent<S1Quests.Quest>();
             S1Quest.StaticGUID = string.Empty;
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             FieldInfo titleField = AccessTools.Field(typeof(S1Quests.Quest), "title");
             titleField.SetValue(S1Quest, Title);
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
             S1Quest.title = Title;
 #endif
             S1Quest.onActiveState = new UnityEvent();
@@ -109,10 +109,10 @@ namespace S1API.Quests
             S1Quest.onTrackChange = new UnityEvent<bool>();
             S1Quest.TrackOnBegin = true;
             S1Quest.AutoCompleteOnAllEntriesComplete = true;
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             FieldInfo autoInitField = AccessTools.Field(typeof(S1Quests.Quest), "autoInitialize");
             autoInitField.SetValue(S1Quest, false);
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
             S1Quest.autoInitialize = false;
 #endif
 
@@ -160,10 +160,10 @@ namespace S1API.Quests
             poiPrefabObject.transform.SetParent(_gameObject.transform);
             S1Map.POI poi = poiPrefabObject.AddComponent<S1Map.POI>();
             poi.DefaultMainText = "Did it work?";
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
             FieldInfo uiPrefabField = AccessTools.Field(typeof(S1Map.POI), "UIPrefab");
             uiPrefabField.SetValue(poi, uiPrefabObject);
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
             poi.UIPrefab = uiPrefabObject;
 #endif
             S1Quest.PoIPrefab = poiPrefabObject;
@@ -270,8 +270,8 @@ namespace S1API.Quests
         /// </summary>
         public event Action OnComplete
         {
-            add => EventHelper.AddListener(value, S1Quest.onComplete);
-            remove => EventHelper.RemoveListener(value, S1Quest.onComplete);
+            add => global::S1API.Utils.EventHelper.AddListener(value, S1Quest.onComplete);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, S1Quest.onComplete);
         }
 
         /// <summary>

@@ -8,7 +8,30 @@ Apps integrate with the native Home Screen, spawn icons, and manage open/close s
 - Derive from `PhoneApp`
 - Do not manually register; S1API auto-discovers `PhoneApp` subclasses when the phone `HomeScreen` starts
 - Implement `OnCreatedUI(GameObject container)` to build your UI
-- Optionally override `OnPhoneClosed()` and `Exit(ExitAction exit)` for UX
+- Optionally override `OnPhoneClosed()` and `Exit(S1API.PhoneApp.ExitAction exit)` for UX
+
+`S1API.PhoneApp.ExitAction` is a cross-runtime wrapper. Its `Used` property is
+forwarded to the active Mono or IL2CPP game action, so phone apps do not need to
+reference either native Schedule One type.
+
+### Migrating from S1API 3.0.6
+
+S1API 3.0.6 exposed `ScheduleOne.DevUtilities.ExitAction` directly. Schedule I
+0.4.6f11 moved that native type and made the old signature impossible to retain.
+Change phone-app overrides to use the S1API-owned wrapper:
+
+```csharp
+public override void Exit(S1API.PhoneApp.ExitAction exit)
+{
+    if (!exit.Used)
+    {
+        exit.Used = true;
+        // Close or reset custom UI state here.
+    }
+}
+```
+
+This is the only intentional public signature exception in the 3.1.0 promotion.
 
 ## Minimal example
 
@@ -35,7 +58,7 @@ public class HelloWorldApp : PhoneApp
     }
 
     // OnCreatedUI is called when the app's UI panel is created and needs content.
-    // S1API clones a template app panel (e.g., "ProductManagerApp") and provides it as the 'container'.
+    // S1API provides a full-size container configured for the app's Orientation.
     // An internal PhoneAppButtonHandler component is automatically added to the app panel to manage button interactions.
     protected override void OnCreatedUI(GameObject container)
     {
@@ -70,7 +93,15 @@ Registration is automatic:
 
 ## Orientation
 
-Override `Orientation` to `Vertical` for portrait-style apps. S1API adjusts phone rotation and camera offset accordingly.
+`Orientation` is the single source of truth for both the physical phone and the app panel layout. Horizontal apps use the full landscape canvas. Vertical apps keep the phone in portrait orientation and receive a rotated panel with dimensions derived from the phone canvas.
+
+Override `Orientation` to create a portrait-style app:
+
+```csharp
+protected override EOrientation Orientation => EOrientation.Vertical;
+```
+
+Build UI beneath the provided `container` with anchors and layout components so it resizes to the selected orientation. Treat `Orientation` as fixed for the lifetime of the app UI; S1API does not rebuild child controls for runtime orientation changes.
 
 ## Icons
 

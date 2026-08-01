@@ -1,6 +1,6 @@
-﻿#if (MONOMELON || MONOBEPINEX)
+﻿#if MONOMELON
 using System.Collections.Generic;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
 using Il2CppSystem.Collections.Generic;
 #endif
 
@@ -12,13 +12,13 @@ using S1API.Internal.Utils;
 using S1API.Saveables;
 #if (IL2CPPMELON)
 using S1Datas = Il2CppScheduleOne.Persistence.Datas;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Datas = ScheduleOne.Persistence.Datas;
 #endif
 
 #if (IL2CPPMELON)
 using S1Persistence = Il2CppScheduleOne.Persistence;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Persistence = ScheduleOne.Persistence;
 #endif
 

@@ -21,8 +21,10 @@ namespace S1API.Entities.Appearances.CustomizationFields
         public const string Franklin = "Avatar/Hair/franklin/Franklin";
         public const string FringePonyTail = "Avatar/Hair/fringeponytail/FringePonyTail";
         public const string HighBun = "Avatar/Hair/highbun/HighBun";
-        public const string Jesus = "Avatar/Hair/jesus/Jesus";
+        [System.Obsolete("The Jesus hairstyle was removed in game version 0.4.6 and now resolves to no hair.")]
+        public const string Jesus = "";
         public const string LongCurly = "Avatar/Hair/longcurly/LongCurly";
+        public const string LongSlicked = "Avatar/Hair/longslicked/LongSlicked";
         public const string LowBun = "Avatar/Hair/lowbun/LowBun";
         public const string MessyBob = "Avatar/Hair/messybob/MessyBob";
         public const string MidFringe = "Avatar/Hair/midfringe/MidFringe";

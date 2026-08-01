@@ -3,7 +3,7 @@ using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Interaction = Il2CppScheduleOne.Interaction;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Interaction = ScheduleOne.Interaction;
@@ -40,6 +40,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return false;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return false;
             return CanItemFitInternal(temp);
         }
 
@@ -51,6 +53,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return 0;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return 0;
             return GetCapacityForItemInternal(temp);
         }
 
@@ -63,6 +67,8 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(itemId) || quantity <= 0)
                 return false;
             var temp = BuildTempItem(itemId, quantity);
+            if (temp == null)
+                return false;
             if (!CanItemFitInternal(temp))
                 return false;
             InsertItemInternal(temp, network);
@@ -77,7 +83,7 @@ namespace S1API.Entities
         /// </summary>
         public void EnsureInitialized()
         {
-            var npcId = NPC?.S1NPC?.ID ?? "<null>";
+            var npcId = NPC?.ID ?? "<null>";
             var inv = Component;
             if (inv == null && NPC != null)
             {
@@ -90,7 +96,7 @@ namespace S1API.Entities
             
             if (inv.ItemSlots == null)
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 inv.ItemSlots = new Il2CppSystem.Collections.Generic.List<S1Items.ItemSlot>();
 #else
                 inv.ItemSlots = new System.Collections.Generic.List<S1Items.ItemSlot>();
@@ -98,7 +104,7 @@ namespace S1API.Entities
             }
             
             var currentCount = inv.ItemSlots.Count;
-            var targetCount = inv.SlotCount;
+            var targetCount = GetSlotCount(inv, currentCount);
             
             if (currentCount > targetCount)
             {
@@ -149,10 +155,10 @@ namespace S1API.Entities
                 {
                     var slot = new S1Items.ItemSlot();
                     
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     var handler = new System.Action(() =>
                     {
-                        try { inv.onContentsChanged?.Invoke(); }
+                        try { TryInvokeContentsChanged(inv); }
                         catch
                         {
                             // ignored
@@ -167,16 +173,10 @@ namespace S1API.Entities
                         slot.onItemDataChanged,
                         new Action(() =>
                         {
-                            try { inv.onContentsChanged?.Invoke(); }
+                            try { TryInvokeContentsChanged(inv); }
                             catch
                             {
-                                try
-                                {
-                                    var evtField = typeof(S1NPCs.NPCInventory).GetField("onContentsChanged", BindingFlags.Public | BindingFlags.Instance);
-                                    var evt = evtField?.GetValue(inv) as UnityEvent;
-                                    evt?.Invoke();
-                                }
-                                catch { }
+                                // ignored
                             }
                         })
                     );
@@ -203,7 +203,7 @@ namespace S1API.Entities
                 }
             }
 
-            if (inv.PickpocketIntObj == null && NPC != null)
+            if (GetPickpocketInteractable(inv) == null && NPC != null)
             {
                 var talk = NPC.GetType().GetMethod("GetPrimaryInteractable", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 var primary = talk?.Invoke(NPC, null) as S1Interaction.InteractableObject;
@@ -221,7 +221,7 @@ namespace S1API.Entities
                 {
                     pick = NPC.gameObject.AddComponent< S1Interaction.InteractableObject >();
                 }
-                inv.PickpocketIntObj = pick;
+                SetPickpocketInteractable(inv, pick);
             }
 
             try
@@ -247,6 +247,30 @@ namespace S1API.Entities
             }
 
             try { inv.NetworkInitializeIfDisabled(); } catch (Exception ex) { Logger.Warning($"[NPCInventory] EnsureInitialized: NetworkInitializeIfDisabled threw for '{npcId}': {ex.Message}"); }
+        }
+
+        private static int GetSlotCount(S1NPCs.NPCInventory inv, int fallback)
+        {
+            var value = ReflectionUtils.TryGetFieldOrProperty(inv, "SlotCount");
+            return value is int slotCount && slotCount >= 0
+                ? slotCount
+                : fallback;
+        }
+
+        private static void TryInvokeContentsChanged(S1NPCs.NPCInventory inv)
+        {
+            var evt = ReflectionUtils.TryGetFieldOrProperty(inv, "onContentsChanged") as UnityEvent;
+            evt?.Invoke();
+        }
+
+        private static S1Interaction.InteractableObject? GetPickpocketInteractable(S1NPCs.NPCInventory inv)
+        {
+            return ReflectionUtils.TryGetFieldOrProperty(inv, "PickpocketIntObj") as S1Interaction.InteractableObject;
+        }
+
+        private static void SetPickpocketInteractable(S1NPCs.NPCInventory inv, S1Interaction.InteractableObject interactable)
+        {
+            ReflectionUtils.TrySetFieldOrProperty(inv, "PickpocketIntObj", interactable);
         }
 
         private S1NPCs.NPCInventory Component => NPC.gameObject.GetComponent<S1NPCs.NPCInventory>();

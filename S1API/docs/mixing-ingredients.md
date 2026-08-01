@@ -3,6 +3,42 @@
 Create custom mixing ingredients (the additives you drop into the Mixing Station),
 custom effects (drug properties), and mixing reactions between them.
 
+## Opting a custom logical kind into mixing
+
+`ProductMixingProfile` opts one logical `ProductKind` into the native mixing
+lifecycle. `ProductMixingMap` is an explicit native execution strategy, not a
+logical-kind alias: the output preserves the logical kind selected by the
+factory. This supports mod-created kinds with no game enum as well as kinds
+whose optional compatibility metadata is MDMA or another dormant enum.
+
+The input generic product must use the same explicit native map through
+`CustomProductDefinitionBuilder.WithNativeMixerMap(...)`; otherwise S1API
+rejects the mix before the unsupported native switch. Do not cast or invent
+native enum values.
+
+```csharp
+var kind = new ProductKindBuilder("moredrugs:mdma").Build();
+
+var profile = new ProductMixingProfileBuilder(kind)
+    .WithMixerMap(ProductMixingMap.Cocaine)
+    .WithOutputFactoryCompatibility("moredrugs:mdma-mixing", 1)
+    .WithOutputFactory(input => new ProductMixingOutputDefinition(
+        input.MixName, input.SourceKind, input.SourcePrice + 10f))
+    .Build();
+```
+
+Use the same output-factory compatibility identity and version on every peer.
+S1API includes it and the selected map in the multiplayer manifest, rejects a
+mismatch before player data, and transports scalar descriptors for mixes created
+after the host session starts so late joins and reconnects recreate them.
+
+Generated product IDs are allocated only after the native mix-name sanitizer
+has finished, then namespaced deterministically by source product and sanitized
+native ID. Saves and FishNet RPCs therefore use the same ID. For packaging
+content registered by product ID, add `RegisterForProductKind(...)` as a safe
+fallback for generated output IDs; product-specific content still takes
+precedence.
+
 ## Important Notes
 
 - A mixing ingredient is a builder-only definition. Configure its imprinted effect at build time.
@@ -89,6 +125,11 @@ var glow = EffectCreator.CreateBuilder()
     .WithBehavior(player =>
     {
         // Runs when this effect triggers on the local player.
+    })
+    .WithClearBehavior(player =>
+    {
+        // Runs when the native product lifecycle clears this effect from the local player.
+        // Keep this cleanup safe if it is called more than once.
     })
     .Build();
 

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
 
@@ -34,12 +34,12 @@ namespace S1API.Rendering
         /// <param name="colorTint">Optional color tint to apply.</param>
         /// <param name="targetResourcePath">Optional target resource path for the cloned accessory. If provided, sets Accessory.AssetPath to this value instead of sourceResourcePath. This ensures PlayerClothing validation can match the accessory correctly.</param>
         /// <returns>The cloned and customized accessory GameObject, or null if cloning failed.</returns>
-        public static GameObject CloneAccessoryWithCustomTextures(
+        public static GameObject? CloneAccessoryWithCustomTextures(
             string sourceResourcePath,
             string newName,
-            System.Collections.Generic.Dictionary<string, Texture2D> textureReplacements = null,
+            System.Collections.Generic.Dictionary<string, Texture2D>? textureReplacements = null,
             Color? colorTint = null,
-            string targetResourcePath = null)
+            string? targetResourcePath = null)
         {
             try
             {
@@ -94,7 +94,7 @@ namespace S1API.Rendering
             catch (Exception ex)
             {
                 Logger.Error($"Failed to clone accessory '{sourceResourcePath}': {ex.Message}");
-                Logger.Error(ex.StackTrace);
+                Logger.Error(ex.StackTrace ?? ex.ToString());
                 return null;
             }
         }
@@ -179,7 +179,7 @@ namespace S1API.Rendering
             string sourceResourcePath,
             string targetResourcePath,
             string newName,
-            System.Collections.Generic.Dictionary<string, Texture2D> textureReplacements = null,
+            System.Collections.Generic.Dictionary<string, Texture2D>? textureReplacements = null,
             Color? colorTint = null)
         {
             var clonedAccessory = CloneAccessoryWithCustomTextures(
@@ -204,7 +204,7 @@ namespace S1API.Rendering
         /// <summary>
         /// INTERNAL: Gets the texture replacements for a registered accessory path.
         /// </summary>
-        internal static System.Collections.Generic.Dictionary<string, Texture2D> GetTextureReplacements(string resourcePath)
+        internal static System.Collections.Generic.Dictionary<string, Texture2D>? GetTextureReplacements(string resourcePath)
         {
             _accessoryTextureRegistry.TryGetValue(resourcePath, out var replacements);
             return replacements;

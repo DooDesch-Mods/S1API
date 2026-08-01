@@ -6,7 +6,7 @@ using S1API.Logging;
 
 #if (IL2CPPMELON)
 using S1Phone = Il2CppScheduleOne.UI.Phone;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Phone = ScheduleOne.UI.Phone;
 #endif
 
@@ -36,7 +36,7 @@ namespace S1API.Internal.Patches
                 SetupScrollableGrid(__instance);
                 _isInitialized = true;
             }
-            catch (System.Exception ex)
+            catch (System.Exception)
             {
                 // Setup failed; leave scroll disabled
             }

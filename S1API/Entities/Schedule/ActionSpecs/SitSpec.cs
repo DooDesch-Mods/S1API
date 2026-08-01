@@ -3,7 +3,7 @@ using Il2Cpp;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1AvatarAnimation = Il2CppScheduleOne.AvatarFramework.Animation;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1AvatarAnimation = ScheduleOne.AvatarFramework.Animation;
@@ -51,7 +51,7 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// Gets or sets the optional display name for this action. Defaults to "Sit".
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// Gets or sets whether the NPC should be warped to the seat if the action is skipped.
@@ -65,7 +65,7 @@ namespace S1API.Entities.Schedule
         /// The reference may be an <see cref="S1AvatarAnimation.AvatarSeatSet"/>, a <see cref="GameObject"/>,
         /// or any <see cref="Component"/> that is part of the seat set hierarchy.
         /// </remarks>
-        public UnityEngine.Object SeatSetReference { get; set; }
+        public UnityEngine.Object? SeatSetReference { get; set; }
 
         /// <summary>
         /// Gets or sets a transform path (e.g. "@Locations/Cafe/Seats/Booth01") used to locate the seat set.
@@ -74,7 +74,7 @@ namespace S1API.Entities.Schedule
         /// Paths are matched case-insensitively against full transform hierarchies. Inactive objects are included
         /// when <see cref="IncludeInactiveSearch"/> is <c>true</c>.
         /// </remarks>
-        public string SeatSetPath { get; set; }
+        public string? SeatSetPath { get; set; }
 
         /// <summary>
         /// Gets or sets the GameObject name of the desired seat set.
@@ -82,7 +82,7 @@ namespace S1API.Entities.Schedule
         /// <remarks>
         /// Name lookups search all seat sets in the scene and are case-insensitive.
         /// </remarks>
-        public string SeatSetName { get; set; }
+        public string? SeatSetName { get; set; }
 
         /// <summary>
         /// Gets or sets whether lookups should consider inactive seat sets. Defaults to <c>true</c>.
@@ -122,13 +122,13 @@ namespace S1API.Entities.Schedule
             action.Duration = DurationMinutes > 0 ? DurationMinutes : 60;
         }
 
-        private S1AvatarAnimation.AvatarSeatSet ResolveSeatSet(NPCSchedule schedule)
+        private S1AvatarAnimation.AvatarSeatSet? ResolveSeatSet(NPCSchedule? schedule)
         {
             var direct = TryGetFromObject(SeatSetReference);
             if (direct != null)
                 return direct;
 
-            S1AvatarAnimation.AvatarSeatSet[] cache = null;
+            S1AvatarAnimation.AvatarSeatSet[]? cache = null;
 
             if (!string.IsNullOrEmpty(SeatSetPath))
             {
@@ -159,7 +159,7 @@ namespace S1API.Entities.Schedule
             return null;
         }
 
-        private S1AvatarAnimation.AvatarSeatSet TryResolveFromPath(string path, ref S1AvatarAnimation.AvatarSeatSet[] cache)
+        private S1AvatarAnimation.AvatarSeatSet? TryResolveFromPath(string? path, ref S1AvatarAnimation.AvatarSeatSet[]? cache)
         {
             if (string.IsNullOrEmpty(path))
                 return null;
@@ -195,7 +195,7 @@ namespace S1API.Entities.Schedule
             return null;
         }
 
-        private S1AvatarAnimation.AvatarSeatSet TryResolveFromName(string name, ref S1AvatarAnimation.AvatarSeatSet[] cache)
+        private S1AvatarAnimation.AvatarSeatSet? TryResolveFromName(string? name, ref S1AvatarAnimation.AvatarSeatSet[]? cache)
         {
             if (string.IsNullOrEmpty(name))
                 return null;
@@ -225,9 +225,9 @@ namespace S1API.Entities.Schedule
         {
             try
             {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 return UnityEngine.Object.FindObjectsOfType<S1AvatarAnimation.AvatarSeatSet>(includeInactive: IncludeInactiveSearch);
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
                 return UnityEngine.Object.FindObjectsOfType<S1AvatarAnimation.AvatarSeatSet>(IncludeInactiveSearch);
 #else
                 return Array.Empty<S1AvatarAnimation.AvatarSeatSet>();
@@ -282,7 +282,7 @@ namespace S1API.Entities.Schedule
             builder.Append(node.name);
         }
 
-        private static S1AvatarAnimation.AvatarSeatSet TryGetFromObject(UnityEngine.Object obj)
+        private static S1AvatarAnimation.AvatarSeatSet? TryGetFromObject(UnityEngine.Object? obj)
         {
             if (obj == null)
                 return null;

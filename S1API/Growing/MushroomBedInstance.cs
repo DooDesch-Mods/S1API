@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1ObjectScripts = Il2CppScheduleOne.ObjectScripts;
 using S1Growing = Il2CppScheduleOne.Growing;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ObjectScripts = ScheduleOne.ObjectScripts;
 using S1Growing = ScheduleOne.Growing;
 #endif
@@ -37,7 +37,7 @@ namespace S1API.Growing
         /// <summary>
         /// The mushroom colony currently growing in this bed, or null if empty.
         /// </summary>
-        public ShroomColonyInstance CurrentColony
+        public ShroomColonyInstance? CurrentColony
         {
             get
             {

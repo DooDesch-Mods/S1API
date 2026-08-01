@@ -9,10 +9,11 @@ The `ConfigurePrefab` method is where you set up your NPC's components and defau
 3. [Spawn Position Configuration](#spawn-position-configuration)
 4. [WithAppearanceDefaults](#withappearancedefaults)
 5. [Customer Configuration](#customer-configuration)
-6. [Relationship Configuration](#relationship-configuration)
-7. [Schedule Configuration](#schedule-configuration)
-8. [Configuration Workflow](#configuration-workflow)
-9. [Best Practices](#best-practices)
+6. [Supplier Configuration](#supplier-configuration)
+7. [Relationship Configuration](#relationship-configuration)
+8. [Schedule Configuration](#schedule-configuration)
+9. [Configuration Workflow](#configuration-workflow)
+10. [Best Practices](#best-practices)
 
 ## Overview
 
@@ -20,6 +21,7 @@ The `ConfigurePrefab` method is called during NPC prefab creation and allows you
 
 - Set spawn position and rotation
 - Configure customer behavior defaults
+- Configure dealer or supplier root behavior
 - Set relationship parameters
 - Define schedule actions
 - Add required components
@@ -445,6 +447,34 @@ Set preferred product properties:
 cd.WithPreferredProperties(Property.Munchies, Property.Energizing, Property.Cyclopean);
 ```
 
+## Supplier Configuration
+
+Supplier NPCs use a specialized native NPC root rather than an add-on behavior component. The NPC must be physical and cannot also be a dealer:
+
+```csharp
+public override bool IsPhysical => true;
+public override bool IsSupplier => true;
+
+protected override void ConfigurePrefab(NPCPrefabBuilder builder)
+{
+    builder.WithIdentity("warehouse_supplier", "Morgan", "Reed")
+        .WithSpawnPosition(new Vector3(-53.5f, 1.1f, 67.8f))
+        .WithSupplierDefaults(supplier => supplier
+            .WithOrderLimits(250f, 2500f)
+            .WithDeliveryItem("my_registered_supply_item")
+            .WithRecommendationMessage(
+                "My friend <NAME> can supply <PRODUCT>.")
+            .WithUnlockHint(
+                "You can now order <PRODUCT> from <NAME>."));
+}
+```
+
+`WithSupplierDefaults(...)` ensures the supplier root automatically. `EnsureSupplier()` is also available when the default order limits, empty listings, and default messages are sufficient.
+
+Supplier delivery items must be registered and storable before prefab configuration runs. Order limits must be finite; the minimum must be non-negative, the maximum must be positive, and the maximum cannot be below the minimum. Keep the identity ID stable: S1API uses it for the supplier's persistent stash, shop, and delivery vehicle.
+
+S1API automatically supplies the reserved meeting action and isolated native runtime infrastructure. Do not clone a base-game supplier's stash, shop, or vehicle in mod code. See [Supplier NPCs](supplier-system.md) for runtime access through `NPCSupplier`.
+
 ## Relationship Configuration
 
 ### Starting Relationship
@@ -539,8 +569,8 @@ plan.Add(new DriveToCarParkSpec {
 1. **Set identity** (id, firstName, lastName)
 2. **Set icon** (optional)
 3. **Set spawn position**
-4. **Add customer component** (if needed)
-5. **Configure customer defaults** (if customer)
+4. **Choose one specialized role** (customer component, dealer root, or supplier root, if needed)
+5. **Configure role defaults**
 6. **Set relationship defaults**
 7. **Define schedule** (if physical NPC)
 
@@ -605,6 +635,9 @@ protected override void ConfigurePrefab(NPCPrefabBuilder builder)
 - **Don't spawn NPCs in inaccessible locations**
 - **Don't use invalid GUIDs** for buildings, vehicles, or machines
 - **Don't forget to call `EnsureCustomer()`** before `WithCustomerDefaults()`
+- **Don't mark one NPC as both a dealer and a supplier**
+- **Don't configure a supplier as non-physical**
+- **Don't assign native supplier scene objects**; use the S1API wrappers and hidden runtime integration
 
 ### Error Handling
 
@@ -661,4 +694,6 @@ Now that you understand prefab configuration, explore:
 - **[Scheduling System](scheduling-system.md)** - Detailed schedule management
 - **[Location-Based Actions](location-based-actions.md)** - SmokeBreak, Graffiti, Drinking, and HoldItem actions
 - **[Customer Behavior](customer-behavior.md)** - Customer system details
+- **[Supplier NPCs](supplier-system.md)** - Supplier configuration and runtime wrappers
+- **[Deliveries](delivery-system.md)** - Active delivery and history lookups
 - **[Relationship Management](relationship-management.md)** - Relationship system

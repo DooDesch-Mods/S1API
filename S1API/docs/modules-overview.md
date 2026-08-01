@@ -7,16 +7,18 @@ S1API provides **28+ major modules** covering all aspects of Schedule One moddin
 ### Entities & NPCs
 **Namespace**: `S1API.Entities`
 
-Create custom NPCs with behaviors, schedules, dialogue, and AI.
+Create custom NPCs with behaviors, schedules, dialogue, customer, dealer, and supplier roles.
 
 **Key Classes**:
 - `NPC` - Base class for custom NPCs
 - `NPCPrefabBuilder` - Configure NPC prefabs
 - `NPCSchedule` - Daily routine system
 - `NPCCustomer` - Customer behavior
-- `Dealer` - Dealer functionality
+- `NPCDealer` - Dealer functionality
+- `NPCSupplier` - Supplier state plus shop, stash, and delivery access
+- `SupplierDataBuilder` - Supplier order limits, listings, and messages
 
-**Documentation**: [Custom NPCs](custom-npcs.md) | [Dealer System](dealer-system.md) | [Scheduling System](scheduling-system.md) | [Location-Based Actions](location-based-actions.md)
+**Documentation**: [Custom NPCs](custom-npcs.md) | [Dealer System](dealer-system.md) | [Supplier NPCs](supplier-system.md) | [Scheduling System](scheduling-system.md) | [Location-Based Actions](location-based-actions.md)
 
 ---
 
@@ -66,10 +68,11 @@ Register station-related content at runtime (currently Chemistry Station recipes
 ### Products & Properties
 **Namespace**: `S1API.Products`, `S1API.Properties`
 
-Create sellable products (drugs, goods) with custom properties.
+Access product definitions and create native-family marijuana variants with custom properties.
 
 **Key Classes**:
 - `ProductDefinition` - Product wrapper
+- `WeedItemCreator`, `WeedDefinitionBuilder` - Native-family weed variant creation
 - `WeedDefinition`, `CocaineDefinition`, `MethDefinition` - Specific drugs
 - `Property` - Product property tokens such as `Munchies`, `Energizing`, and `Cyclopean`
 - `ProductPropertyWrapper` - Runtime property access
@@ -191,6 +194,21 @@ Contracts, dealers, and customer systems.
 - `DealerType` - Dealer types
 
 **Documentation**: [Dealer System](dealer-system.md) | [Customer Behavior](customer-behavior.md)
+
+---
+
+### Deliveries
+**Namespace**: `S1API.Deliveries`
+
+Observe active supplier deliveries and delivery order history without exposing native runtime types.
+
+**Key Classes**:
+- `DeliveryRegistry` - Active-delivery lookups, history, and lifecycle events
+- `Delivery` - Read-only active delivery
+- `DeliveryItem` - Item and quantity snapshot
+- `DeliveryReceipt` - Immutable delivery order receipt
+
+**Documentation**: [Deliveries](delivery-system.md)
 
 ---
 
@@ -447,13 +465,14 @@ Reflection and cross-runtime utilities.
 |------|--------|---------------|
 | Custom NPC | `S1API.Entities` | [Custom NPCs](custom-npcs.md) |
 | Dealer NPC | `S1API.Entities` + `S1API.Economy` | [Dealer System](dealer-system.md) |
+| Supplier NPC | `S1API.Entities` + `S1API.Deliveries` | [Supplier NPCs](supplier-system.md) |
 | Customer NPC | `S1API.Entities` | [Customer Behavior](customer-behavior.md) |
 | Quest | `S1API.Quests` | [Quests System](quests-system.md) |
 | Item | `S1API.Items` | [Items](items.md) |
 | Phone App | `S1API.PhoneApp` | [Phone Apps](phone-app.md) |
 | TV App | `S1API.TVApp` | [TV Apps](tv-app.md) |
 | Phone Call | `S1API.PhoneCalls` | [Phone Calls](phone-calls.md) |
-| Custom Product | `S1API.Products` | [Products & Properties](products-system.md) |
+| Weed Variant | `S1API.Products` | [Native Weed Variants](weed-variants.md) |
 | UI Element | `S1API.UI` | [UI](ui.md) |
 
 ### "I want to work with..."
@@ -465,6 +484,7 @@ Reflection and cross-runtime utilities.
 | Appearance | `S1API.Entities.Appearances` | [Appearance Customization](appearance-customization.md) |
 | Relationships | `S1API.Entities` | [Relationship Management](relationship-management.md) |
 | Buildings & Locations | `S1API.Map` | [Building Registry](building-registry.md) |
+| Supplier Deliveries | `S1API.Deliveries` | [Deliveries](delivery-system.md) |
 | Save/Load Data | `S1API.Saveables` | [Save System](save-system.md) |
 | Cartel Status | `S1API.Cartel` | [Cartel System](cartel-system.md) |
 

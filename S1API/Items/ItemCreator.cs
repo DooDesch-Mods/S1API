@@ -5,7 +5,7 @@ using UnityEngine;
 #if (IL2CPPMELON)
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;
 #endif
@@ -119,8 +119,8 @@ namespace S1API.Items
             LegalStatus legalStatus = LegalStatus.Legal,
             bool requiresLevelToPurchase = false,
             FullRank? requiredRank = null,
-            Sprite icon = null,
-            Equippable equippable = null)
+            Sprite? icon = null,
+            Equippable? equippable = null)
         {
             var builder = new StorableItemDefinitionBuilder()
                 .WithBasicInfo(id, name, description, category)

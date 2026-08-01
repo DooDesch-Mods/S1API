@@ -5,7 +5,7 @@ using S1NPCsOther = Il2CppScheduleOne.NPCs.Other;
 using S1InstanceFinder = Il2CppFishNet.InstanceFinder;
 using S1Graffiti = Il2CppScheduleOne.Graffiti;
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
 using S1NPCsOther = ScheduleOne.NPCs.Other;
@@ -85,7 +85,7 @@ namespace S1API.Entities.Schedule
         /// <summary>
         /// Gets or sets the optional name for this action.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// For Graffiti: optional region to pick a spray surface from. If null, nearest to destination is used.
@@ -101,13 +101,13 @@ namespace S1API.Entities.Schedule
         /// For HoldItem: Resources path to the AvatarEquippable prefab (e.g. "Avatar/Equippables/Phone_Lowered").
         /// If null, uses the prefab's configured HoldItem equippable.
         /// </summary>
-        public string EquippableAssetPath { get; set; }
+        public string? EquippableAssetPath { get; set; }
 
         /// <summary>
         /// For Drinking: Resources path to the drink AvatarEquippable prefab (e.g. "Avatar/Equippables/Beer").
         /// If null, uses the prefab's configured DrinkItem.
         /// </summary>
-        public string DrinkEquippablePath { get; set; }
+        public string? DrinkEquippablePath { get; set; }
 
         void IScheduleActionSpec.ApplyTo(NPCSchedule schedule)
         {
@@ -146,21 +146,21 @@ namespace S1API.Entities.Schedule
             switch (ArriveBehaviour)
             {
                 case LocationArriveBehaviour.SmokeBreak:
-                    EventHelper.AddListener(() => ToggleSmoking(schedule, true), action.onStartAction);
-                    EventHelper.AddListener(() => ToggleSmoking(schedule, false), action.onEndAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleSmoking(schedule, true), action.onStartAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleSmoking(schedule, false), action.onEndAction);
                     break;
                 case LocationArriveBehaviour.Graffiti:
                     var destPos = destinationTransform != null ? destinationTransform.position : Destination;
-                    EventHelper.AddListener(() => ToggleGraffiti(this, schedule, destPos, true), action.onStartAction);
-                    EventHelper.AddListener(() => ToggleGraffiti(this, schedule, default, false), action.onEndAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleGraffiti(this, schedule, destPos, true), action.onStartAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleGraffiti(this, schedule, default, false), action.onEndAction);
                     break;
                 case LocationArriveBehaviour.Drinking:
-                    EventHelper.AddListener(() => ToggleDrinking(this, schedule, true), action.onStartAction);
-                    EventHelper.AddListener(() => ToggleDrinking(this, schedule, false), action.onEndAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleDrinking(this, schedule, true), action.onStartAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleDrinking(this, schedule, false), action.onEndAction);
                     break;
                 case LocationArriveBehaviour.HoldItem:
-                    EventHelper.AddListener(() => ToggleItemHolding(this, schedule, true), action.onStartAction);
-                    EventHelper.AddListener(() => ToggleItemHolding(this, schedule, false), action.onEndAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleItemHolding(this, schedule, true), action.onStartAction);
+                    global::S1API.Utils.EventHelper.AddListener(() => ToggleItemHolding(this, schedule, false), action.onEndAction);
                     break;
                 case LocationArriveBehaviour.None:
                 default:
@@ -246,7 +246,7 @@ namespace S1API.Entities.Schedule
                 return;
             }
 
-            S1Graffiti.WorldSpraySurface surface = null;
+            S1Graffiti.WorldSpraySurface? surface = null;
             if (spec.GraffitiSurfaceGuid.HasValue)
                 surface = GraffitiManager.FindSurfaceByGuid(spec.GraffitiSurfaceGuid.Value);
             if (surface == null && spec.GraffitiRegion.HasValue)
@@ -272,17 +272,26 @@ namespace S1API.Entities.Schedule
 
             var baseNpc = schedule.NPC.S1NPC;
             var npcBehaviour = baseNpc.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
-            var behaviour = npcBehaviour?.GetBehaviour("GraffitiBehaviour");
+            if (npcBehaviour == null)
+            {
+                Logger.Warning("[LocationBasedActionSpec] Graffiti: NPCBehaviour component not found.");
+                return;
+            }
+
+            var behaviour = npcBehaviour.GetBehaviour("GraffitiBehaviour");
             if (behaviour == null)
             {
                 Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour not found.");
                 return;
             }
 
-            var graffitiBehaviour = behaviour as S1NPCsBehaviour.GraffitiBehaviour;
+            if (!CrossType.Is<S1NPCsBehaviour.GraffitiBehaviour>(behaviour, out var graffitiBehaviour)
+                || graffitiBehaviour == null)
+                graffitiBehaviour = npcBehaviour.GetComponentInChildren<S1NPCsBehaviour.GraffitiBehaviour>(true);
+
             if (graffitiBehaviour == null)
             {
-                Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour could not be cast to the concrete type.");
+                Logger.Warning("[LocationBasedActionSpec] Graffiti: GraffitiBehaviour could not be resolved as the concrete type.");
                 return;
             }
 

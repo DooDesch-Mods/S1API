@@ -2,7 +2,7 @@
 using S1API.Vehicles;
 using S1API.Entities.Schedule;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using S1Vehicles = Il2CppScheduleOne.Vehicles;
 #else
 using S1Vehicles = ScheduleOne.Vehicles;

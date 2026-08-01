@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-#if (MONOMELON || IL2CPPBEPINEX || MONOBEPINEX)
+#if MONOMELON
 using ScheduleOne.Money;
 using S1Property = ScheduleOne.Property;
 

@@ -8,9 +8,11 @@
     <PropertyGroup>
         <TargetFrameworks>netstandard2.1;net6.0</TargetFrameworks>
         <Nullable>enable</Nullable>
-        <Configurations>Il2CppMelon;MonoBepInEx;MonoMelon;Il2CppBepInEx</Configurations>
+        <Configurations>Il2CppMelon;MonoMelon</Configurations>
         <Platforms>AnyCPU</Platforms>
         <RootNamespace>S1APILoader</RootNamespace>
+        <!-- MelonLoader intentionally ships framework-targeted assets for its cross-runtime bootstrap API. -->
+        <NoWarn>$(NoWarn);NU1701</NoWarn>
     </PropertyGroup>
     
     <ItemGroup>

@@ -1,4 +1,4 @@
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
 using Il2CppInterop.Runtime;
 #endif
 
@@ -66,7 +66,7 @@ namespace S1API.Rendering
             string typedKey = GetTypedKey(resourcePath, asset.GetType());
             _typedAssets[typedKey] = asset;
 
-            Logger.Msg($"Registered '{resourcePath}' as type '{asset.GetType().Name}'");
+            Logger.Debug($"Registered '{resourcePath}' as type '{asset.GetType().Name}'");
             return true;
         }
 
@@ -103,7 +103,7 @@ namespace S1API.Rendering
             string typedKey = GetTypedKey(resourcePath, forType);
             _typedAssets[typedKey] = asset;
 
-            Logger.Msg($"Registered '{resourcePath}' for type '{NormalizeTypeName(forType.FullName)}'");
+            Logger.Debug($"Registered '{resourcePath}' for type '{NormalizeTypeName(forType.FullName)}'");
             return true;
         }
 
@@ -176,9 +176,56 @@ namespace S1API.Rendering
             return asset;
         }
 
+        /// <summary>
+        /// Removes only registrations at a path that still reference the expected asset.
+        /// </summary>
+        internal static bool UnregisterAssetIfMatches(
+            string resourcePath,
+            Object expectedAsset)
+        {
+            if (string.IsNullOrEmpty(resourcePath) ||
+                ReferenceEquals(expectedAsset, null))
+            {
+                return false;
+            }
+
+            bool removed = false;
+            if (_registeredAssets.TryGetValue(
+                    resourcePath,
+                    out Object? registered) &&
+                AreSameAsset(registered, expectedAsset))
+            {
+                removed = _registeredAssets.Remove(resourcePath);
+            }
+
+            string typedPrefix = resourcePath + "|";
+            var typedKeys = new List<string>();
+            foreach (KeyValuePair<string, Object> entry in _typedAssets)
+            {
+                if (entry.Key.StartsWith(
+                        typedPrefix,
+                        StringComparison.Ordinal) &&
+                    AreSameAsset(entry.Value, expectedAsset))
+                {
+                    typedKeys.Add(entry.Key);
+                }
+            }
+
+            for (int i = 0; i < typedKeys.Count; i++)
+                removed = _typedAssets.Remove(typedKeys[i]) || removed;
+
+            return removed;
+        }
+
         #endregion
 
         #region Private Implementation
+
+        private static bool AreSameAsset(Object left, Object right)
+        {
+            return ReferenceEquals(left, right) ||
+                   (left != null && right != null && left == right);
+        }
 
         /// <summary>
         /// Gets a typed key for the typed asset dictionary.
@@ -275,7 +322,7 @@ namespace S1API.Rendering
                 }
 
                 _isPatched = true;
-                Logger.Msg($"Patched Resources.Load methods (typed={loadWithTypeMethod != null}, string={loadStringMethod != null})");
+                Logger.Debug($"Patched Resources.Load methods (typed={loadWithTypeMethod != null}, string={loadStringMethod != null})");
             }
             catch (Exception ex)
             {
@@ -284,7 +331,7 @@ namespace S1API.Rendering
             }
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         /// <summary>
         /// Harmony prefix for Resources.Load(string, Il2CppSystem.Type) on IL2CPP.
         /// </summary>

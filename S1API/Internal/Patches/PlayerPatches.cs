@@ -82,9 +82,15 @@ namespace S1API.Internal.Patches
         private static void SubscribeToIL2CPPEvent(Type targetType, string eventName, string methodName, Type? parameterType)
         {
             var methodInfo = typeof(PlayerPatches).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Public);
+            if (methodInfo == null)
+            {
+                Logger.Warning($"Could not find player event handler '{methodName}'.");
+                return;
+            }
+
             var existing = ReflectionUtils.TryGetStaticFieldOrProperty(targetType, eventName);
     
-            object il2cppDelegate;
+            object? il2cppDelegate;
     
             if (parameterType == null)
             {
@@ -101,8 +107,20 @@ namespace S1API.Internal.Patches
                 // Convert using DelegateSupport with the generic IL2CPP Action type
                 var il2cppActionType = typeof(Il2CppSystem.Action<>).MakeGenericType(parameterType);
                 var convertMethod = typeof(DelegateSupport).GetMethod("ConvertDelegate", BindingFlags.Public | BindingFlags.Static);
+                if (convertMethod == null)
+                {
+                    Logger.Warning("Could not find IL2CPP delegate conversion method.");
+                    return;
+                }
+
                 var genericConvert = convertMethod.MakeGenericMethod(il2cppActionType);
                 il2cppDelegate = genericConvert.Invoke(null, new object[] { managedDelegate });
+            }
+
+            if (il2cppDelegate == null)
+            {
+                Logger.Warning($"Could not convert player event handler '{methodName}' to an IL2CPP delegate.");
+                return;
             }
     
             if (existing != null)

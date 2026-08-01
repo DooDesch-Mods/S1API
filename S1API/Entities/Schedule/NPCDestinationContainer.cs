@@ -21,7 +21,7 @@ namespace S1API.Entities.Schedule
         /// The container will be created if it doesn't exist, and the hierarchy will be maintained
         /// as: "@Managers/@NPCs/NPC Containers/{npcName}/".
         /// </remarks>
-        public static GameObject GetOrCreateContainer(string npcName)
+        public static GameObject? GetOrCreateContainer(string? npcName)
         {
             if (string.IsNullOrEmpty(npcName))
                 return null;
@@ -73,7 +73,7 @@ namespace S1API.Entities.Schedule
         /// dedicated container to keep the scene hierarchy organized. If no forward direction
         /// is specified, the marker will face forward (0,0,1).
         /// </remarks>
-        public static Transform CreateDestinationMarker(string npcName, string markerName, Vector3 position, Vector3? forward = null)
+        public static Transform? CreateDestinationMarker(string? npcName, string markerName, Vector3 position, Vector3? forward = null)
         {
             var container = GetOrCreateContainer(npcName);
             if (container == null)

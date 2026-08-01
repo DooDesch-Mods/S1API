@@ -9,7 +9,7 @@ using S1API.Internal.Utils;
 using S1Calling = Il2CppScheduleOne.Calling;
 using S1ScriptableObjects = Il2CppScheduleOne.ScriptableObjects;
 using S1UIPhone = Il2CppScheduleOne.UI.Phone;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Calling = ScheduleOne.Calling;
 using S1ScriptableObjects = ScheduleOne.ScriptableObjects;
 using S1UIPhone = ScheduleOne.UI.Phone;

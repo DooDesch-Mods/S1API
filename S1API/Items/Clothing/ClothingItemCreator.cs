@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1 = Il2CppScheduleOne;
 using S1Clothing = Il2CppScheduleOne.Clothing;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1 = ScheduleOne;
 using S1Clothing = ScheduleOne.Clothing;
 #endif
@@ -57,7 +57,7 @@ namespace S1API.Items.Clothing
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(string sourceItemId)
+        public static ClothingItemDefinitionBuilder? CloneFrom(string sourceItemId)
         {
             if (string.IsNullOrWhiteSpace(sourceItemId))
             {
@@ -95,7 +95,7 @@ namespace S1API.Items.Clothing
         ///     .Build();
         /// </code>
         /// </example>
-        public static ClothingItemDefinitionBuilder CloneFrom(ClothingItemDefinition source)
+        public static ClothingItemDefinitionBuilder? CloneFrom(ClothingItemDefinition source)
         {
             if (source == null)
             {

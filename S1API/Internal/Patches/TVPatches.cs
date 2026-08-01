@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ using S1API.Logging;
 
 #if IL2CPPMELON
 using Il2CppScheduleOne.TV;
-#elif MONOMELON || MONOBEPINEX || IL2CPPBEPINEX
+#elif MONOMELON
 using ScheduleOne.TV;
 #endif
 
@@ -139,7 +140,7 @@ namespace S1API.Internal.Patches
                 Rect contentRect = content.rect;
 
                 // Get parent's rect to determine viewport size
-                RectTransform parentRT = originalParent as RectTransform;
+            RectTransform? parentRT = originalParent as RectTransform;
                 Rect parentRect = parentRT != null ? parentRT.rect : new Rect(0, 0, 800, 200);
 
                 // Create scroll view - stretch to fill parent horizontally, use content height
@@ -236,13 +237,19 @@ namespace S1API.Internal.Patches
     /// <summary>
     /// Patches TVHomeScreen.Close to prevent interface closing when custom app is opening.
     /// </summary>
-    [HarmonyPatch(typeof(TVHomeScreen), "Close")]
+    [HarmonyPatch]
     internal static class TVHomeScreen_Close_Patch
     {
         /// <summary>
         /// Flag indicating that a custom TV app is about to open.
         /// </summary>
         internal static bool SkipInterfaceClose { get; set; }
+
+        static MethodBase? TargetMethod()
+        {
+            return AccessTools.GetDeclaredMethods(typeof(TVHomeScreen))
+                .Find(method => method.Name == "Close" || method.Name == "OnClose");
+        }
 
         static void Prefix(TVHomeScreen __instance)
         {

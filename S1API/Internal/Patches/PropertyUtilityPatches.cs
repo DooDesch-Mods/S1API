@@ -3,12 +3,7 @@ using S1Product = Il2CppScheduleOne.Product;
 using S1Properties = Il2CppScheduleOne.Effects;
 using StringList = Il2CppSystem.Collections.Generic.List<string>;
 using EffectList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Effects.Effect>;
-#elif (IL2CPPBEPINEX)
-using S1Product = ScheduleOne.Product;
-using S1Properties = ScheduleOne.Effects;
-using StringList = Il2CppSystem.Collections.Generic.List<string>;
-using EffectList = Il2CppSystem.Collections.Generic.List<ScheduleOne.Effects.Effect>;
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1Properties = ScheduleOne.Effects;
 using StringList = System.Collections.Generic.List<string>;
@@ -41,7 +36,7 @@ namespace S1API.Internal.Patches
             S1Product.EDrugType.Shrooms
         };
 
-        private static MethodBase TargetMethod()
+        private static MethodBase? TargetMethod()
         {
             // The GetProperties(List<string>) overload, distinguished from GetProperties(int tier).
             return typeof(S1Product.PropertyUtility)
@@ -92,7 +87,7 @@ namespace S1API.Internal.Patches
             return false;
         }
 
-        private static S1Properties.Effect FindInMixMaps(S1Product.ProductManager productManager, string id)
+        private static S1Properties.Effect? FindInMixMaps(S1Product.ProductManager productManager, string id)
         {
             foreach (var drug in MixDrugs)
             {
@@ -112,7 +107,7 @@ namespace S1API.Internal.Patches
             return null;
         }
 
-        private static S1Properties.Effect FindInIngredients(S1Product.ProductManager productManager, string id)
+        private static S1Properties.Effect? FindInIngredients(S1Product.ProductManager productManager, string id)
         {
             var validMixIngredients = productManager.ValidMixIngredients;
             if (validMixIngredients == null)

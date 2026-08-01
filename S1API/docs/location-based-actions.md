@@ -489,6 +489,6 @@ Make sure action durations do not overlap with the next scheduled action's start
 
 - **[Scheduling System](scheduling-system.md)** — Full schedule reference (WalkTo, StayInBuilding, etc.)
 - **[Prefab Configuration](prefab-configuration.md)** — All `NPCPrefabBuilder` methods
-- **[Graffiti System](../Graffiti/)** — `GraffitiManager` and `SpraySurface` API
+- **<xref:S1API.Graffiti.GraffitiManager>** — Graffiti manager API
 - **`S1API.Entities.Equippables.EquippablePath`** — Full equippable path reference
 - **`S1API.Entities.Equippables.Misc`** — Legacy string constants (still accepted)

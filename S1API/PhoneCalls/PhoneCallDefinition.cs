@@ -1,12 +1,12 @@
 ﻿#if (IL2CPPMELON)
 using S1ScriptableObjects = Il2CppScheduleOne.ScriptableObjects;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ScriptableObjects = ScheduleOne.ScriptableObjects;
 #endif
 
-#if (MONOMELON || MONOBEPINEX)
+#if MONOMELON
 using System.Collections.Generic;
-#elif (IL2CPPMELON || IL2CPPBEPINEX)
+#elif IL2CPPMELON
 using Il2CppSystem.Collections.Generic;
 #endif
 

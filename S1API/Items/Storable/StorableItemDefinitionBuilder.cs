@@ -5,7 +5,7 @@ using S1Levelling = Il2CppScheduleOne.Levelling;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1Storage = Il2CppScheduleOne.Storage;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
 using S1Levelling = ScheduleOne.Levelling;
@@ -15,6 +15,7 @@ using S1Storage = ScheduleOne.Storage;
 #endif
 using System;
 using System.Collections.Generic;
+using S1API.Internal.Items;
 using S1API.Logging;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -67,7 +68,7 @@ namespace S1API.Items.Storable
             new Dictionary<int, S1StationFramework.StationItem>();
 
         internal static readonly HashSet<int> WarnedStationItemModuleMissing = new HashSet<int>();
-        internal static GameObject _stationItemRoot;
+        internal static GameObject? _stationItemRoot;
     }
 
     /// <summary>
@@ -86,7 +87,7 @@ namespace S1API.Items.Storable
         private static HashSet<int> WarnedStationItemModuleMissing =>
             StorableItemDefinitionBuilderState.WarnedStationItemModuleMissing;
 
-        private static GameObject StationItemRoot
+        private static GameObject? StationItemRoot
         {
             get => StorableItemDefinitionBuilderState._stationItemRoot;
             set  => StorableItemDefinitionBuilderState._stationItemRoot = value;
@@ -394,6 +395,7 @@ namespace S1API.Items.Storable
 
             // Register with the game's registry
             S1Registry.Instance.AddToRegistry(Definition);
+            RuntimeItemDefinitionRegistry.Retain(Definition.ID, Definition);
 
             // Return wrapper
             return CreateWrapper(Definition);

@@ -21,7 +21,7 @@ namespace S1API.Rendering
         /// <param name="filterMode">The filter mode for the texture.</param>
         /// <param name="wrapMode">The wrap mode for the texture.</param>
         /// <returns>The loaded texture, or null if loading failed.</returns>
-        public static Texture2D LoadTextureFromResource(
+        public static Texture2D? LoadTextureFromResource(
             Assembly assembly,
             string resourceName,
             FilterMode filterMode = FilterMode.Bilinear,
@@ -63,7 +63,7 @@ namespace S1API.Rendering
         /// <param name="filterMode">The filter mode for the texture.</param>
         /// <param name="wrapMode">The wrap mode for the texture.</param>
         /// <returns>The loaded texture, or null if loading failed.</returns>
-        public static Texture2D LoadTextureFromBytes(
+        public static Texture2D? LoadTextureFromBytes(
             byte[] imageData,
             FilterMode filterMode = FilterMode.Bilinear,
             TextureWrapMode wrapMode = TextureWrapMode.Clamp)
@@ -93,7 +93,7 @@ namespace S1API.Rendering
         /// <param name="filterMode">The filter mode for the texture.</param>
         /// <param name="wrapMode">The wrap mode for the texture.</param>
         /// <returns>The loaded texture, or null if loading failed.</returns>
-        public static Texture2D LoadTextureFromFile(
+        public static Texture2D? LoadTextureFromFile(
             string filePath,
             FilterMode filterMode = FilterMode.Bilinear,
             TextureWrapMode wrapMode = TextureWrapMode.Clamp)

@@ -8,7 +8,8 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1CoreEquipping = Il2CppScheduleOne.Core.Equipping.Framework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+using S1MapBase = Il2CppScheduleOne.Map;
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
@@ -18,6 +19,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1Items = ScheduleOne.ItemFramework;
 using S1Registry = ScheduleOne.Registry;
 using S1CoreEquipping = ScheduleOne.Core.Equipping.Framework;
+using S1MapBase = ScheduleOne.Map;
 #endif
 
 using System;
@@ -27,12 +29,16 @@ using UnityEngine;
 using S1API.Entities.Schedule;
 using S1API.Entities.Customer;
 using S1API.Entities.Dealer;
+using S1API.Entities.Supplier;
 using S1API.Entities.Impostors;
+using S1API.Entities.Voices;
 using S1API.Entities.Relation;
+using S1API.Entities.Appearances.Base;
 using System.Collections.Generic;
 using S1API.Internal.Entities;
 using S1API.Internal.Utils;
 using S1API.Logging;
+using S1API.Map;
 using Object = UnityEngine.Object;
 
 namespace S1API.Entities
@@ -103,6 +109,11 @@ namespace S1API.Entities
                 identity.Id = id;
                 identity.FirstName = firstName;
                 identity.LastName = lastName;
+                NPCDataAccess.ApplyIdentity(
+                    prefabRoot.GetComponent<S1NPCs.NPC>(),
+                    id,
+                    firstName,
+                    lastName);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
             }
@@ -127,6 +138,7 @@ namespace S1API.Entities
             {
                 var identity = EnsureIdentityComponent();
                 identity.Icon = icon;
+                NPCDataAccess.ApplyIcon(prefabRoot.GetComponent<S1NPCs.NPC>(), icon);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
             }
@@ -168,6 +180,8 @@ namespace S1API.Entities
                 settings.EyebrowRestingAngle = builder.EyebrowRestingAngle;
                 settings.HairPath = builder.HairPath ?? string.Empty;
                 settings.HairColor = builder.HairColor;
+                settings.UseCombinedLayer = false;
+                settings.CombinedLayer = null;
                 if ((builder.ImpostorSelection.Kind == AvatarImpostorSelectionKind.Texture ||
                      builder.ImpostorSelection.Kind == AvatarImpostorSelectionKind.Definition) &&
                     ImpostorTextureResolver.TryResolve(
@@ -226,6 +240,7 @@ namespace S1API.Entities
                 var identity = EnsureIdentityComponent();
                 identity.AppearanceDefaults = settings;
                 identity.AppearanceImpostorSelection = builder.ImpostorSelection;
+                NPCDataAccess.ApplyAppearance(prefabRoot.GetComponent<S1NPCs.NPC>(), settings);
                 // Register to static cache for Il2Cpp network spawn support
                 identity.RegisterToStaticCache(prefabRoot.name);
 
@@ -310,16 +325,16 @@ namespace S1API.Entities
         /// </summary>
         /// <remarks>
         /// Enables the NPC to act as a dealer that sells products to assigned customers.
-        /// Note: Since Dealer inherits from NPC in the base game, dealer functionality is applied
-        /// through configuration rather than component addition. This marks the NPC type as dealer-capable.
+        /// This marks the NPC type as dealer-capable; S1API will ensure the generated spawnable prefab
+        /// has a Dealer-compatible NPC component before network registration when the selected base prefab
+        /// does not already include one.
         /// When the NPC spawns, <see cref="NPCDealer.EnsureDealer"/> will be called automatically to initialize
         /// dealer functionality and ensure the messaging app displays the correct Dealer category badge.
         /// </remarks>
         /// <returns>The builder instance for fluent chaining.</returns>
         public NPCPrefabBuilder EnsureDealer()
         {
-            // Since Dealer inherits from NPC (not a component), we can't add it as a component.
-            // Instead, we mark this NPC type as dealer-capable and store configuration.
+            // Mark the type as dealer-capable; NPC prefab creation materializes the correct runtime component.
             NPC.RegisterDealerType(ownerType);
             
             // Ensure required schedule components exist
@@ -355,6 +370,100 @@ namespace S1API.Entities
                 go.SetActive(false);
             }
 
+            return this;
+        }
+
+        /// <summary>
+        /// Selects a supported base-game voice while preserving the prefab's inherited pitch.
+        /// </summary>
+        /// <param name="voice">The S1API-owned voice definition.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="voice"/> is <c>null</c>.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(NPCVoiceDefinition voice) =>
+            WithVoiceInternal(voice, null);
+
+        /// <summary>
+        /// Selects a supported base-game voice and default pitch.
+        /// </summary>
+        /// <param name="voice">The S1API-owned voice definition.</param>
+        /// <param name="pitch">The default playback pitch, from 0.1 through 4.0.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="voice"/> is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pitch"/> is outside the supported range.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(NPCVoiceDefinition voice, float pitch) =>
+            WithVoiceInternal(voice, pitch);
+
+        /// <summary>
+        /// Selects a supported base-game voice by its stable, case-insensitive identifier.
+        /// </summary>
+        /// <param name="identifier">An identifier from <see cref="NPCVoiceCatalog"/>.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="identifier"/> is missing or unsupported.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(string identifier) =>
+            WithVoice(NPCVoiceCatalog.Get(identifier));
+
+        /// <summary>
+        /// Selects a supported base-game voice and default pitch by identifier.
+        /// </summary>
+        /// <param name="identifier">An identifier from <see cref="NPCVoiceCatalog"/>.</param>
+        /// <param name="pitch">The default playback pitch, from 0.1 through 4.0.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentException">Thrown when <paramref name="identifier"/> is missing or unsupported.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="pitch"/> is outside the supported range.</exception>
+        /// <exception cref="InvalidOperationException">Thrown when the voice database or custom NPC data is unavailable.</exception>
+        public NPCPrefabBuilder WithVoice(string identifier, float pitch) =>
+            WithVoice(NPCVoiceCatalog.Get(identifier), pitch);
+
+        private NPCPrefabBuilder WithVoiceInternal(NPCVoiceDefinition voice, float? pitch)
+        {
+            if (voice == null)
+                throw new ArgumentNullException(nameof(voice));
+
+            if (pitch.HasValue
+                && (float.IsNaN(pitch.Value)
+                    || float.IsInfinity(pitch.Value)
+                    || pitch.Value < 0.1f
+                    || pitch.Value > 4f))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(pitch),
+                    pitch,
+                    "NPC voice pitch must be between 0.1 and 4.0.");
+            }
+
+            var npc = prefabRoot.GetComponent<S1NPCs.NPC>()
+                      ?? throw new InvalidOperationException("The custom NPC prefab has no NPC component.");
+            var database = NPCVoiceResolver.Resolve(voice);
+            if (!NPCDataAccess.ApplyVoice(npc, database, pitch))
+            {
+                throw new InvalidOperationException(
+                    $"Could not apply S1API voice '{voice.Id}' because the custom NPC has no framework data.");
+            }
+
+            var identity = EnsureIdentityComponent();
+            identity.VoiceId = voice.Id;
+            identity.VoicePitch = pitch;
+            identity.RegisterToStaticCache(prefabRoot.name);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configures this NPC type to use the native supplier root.
+        /// </summary>
+        /// <remarks>
+        /// Supplier NPCs support dead-drop orders, supplier meetings, delivery unlocks, and debt tracking.
+        /// S1API reserves a location-dialogue schedule action required by the native supplier lifecycle.
+        /// A custom NPC cannot be both a dealer and a supplier.
+        /// </remarks>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public NPCPrefabBuilder EnsureSupplier()
+        {
+            NPC.RegisterSupplierType(ownerType);
+            SupplierRuntimeCoordinator.EnsurePrefabInfrastructure(prefabRoot);
             return this;
         }
 
@@ -469,6 +578,48 @@ namespace S1API.Entities
             // Configuration will be applied when the NPC instance is created as a Dealer.
             // This is handled in NPC.cs during FinalizeNetworkSpawn or similar lifecycle methods.
             
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the NPC's designated map region on the native prefab before it is network-spawned.
+        /// </summary>
+        /// <remarks>
+        /// Configure this in <see cref="NPC.ConfigurePrefab"/> when the NPC has relationship connections.
+        /// The native relationship initializer removes connections to NPCs in a different region, so setting
+        /// <see cref="NPC.Region"/> later in <see cref="NPC.OnCreated"/> is too late.
+        /// </remarks>
+        /// <param name="region">The NPC's designated map region.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        public NPCPrefabBuilder WithRegion(Region region)
+        {
+            try
+            {
+                var npc = prefabRoot.GetComponent<S1NPCs.NPC>();
+                if (npc != null)
+                    npc.Region = (S1MapBase.EMapRegion)(int)region;
+            }
+            catch
+            {
+                // Keep the existing prefab defaults when the native NPC component is unavailable.
+            }
+
+            return this;
+        }
+
+        /// <summary>
+        /// Configures native supplier data for this NPC type.
+        /// </summary>
+        /// <param name="configure">Action that defines order limits, delivery items, and supplier messages.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="configure"/> is null.</exception>
+        public NPCPrefabBuilder WithSupplierDefaults(Action<SupplierDataBuilder> configure)
+        {
+            if (configure == null)
+                throw new ArgumentNullException(nameof(configure));
+
+            EnsureSupplier();
+            NPC.RegisterSupplierDefaultsForType(ownerType, configure);
             return this;
         }
 
@@ -676,7 +827,7 @@ namespace S1API.Entities
             {
                 var path = sprayPaintEquippablePath ?? "Weapons/SprayPaint/SprayPaint_AvatarEquippable";
                 var sprayPrefab = Resources.Load<GameObject>(path);
-                S1AvatarFramework.Equipping.AvatarEquippable sprayEquippable = null;
+            S1AvatarFramework.Equipping.AvatarEquippable? sprayEquippable = null;
                 if (sprayPrefab != null)
                     sprayEquippable = sprayPrefab.GetComponent<S1AvatarFramework.Equipping.AvatarEquippable>()
                         ?? sprayPrefab.GetComponentInChildren<S1AvatarFramework.Equipping.AvatarEquippable>(true);
@@ -696,8 +847,14 @@ namespace S1API.Entities
                         {
                             foreach (var t in all)
                             {
-                                var prefab = ReflectionUtils.TryGetFieldOrProperty(t, "_sprayPaintPrefab") as S1AvatarFramework.Equipping.AvatarEquippable;
-                                if (prefab == null) continue;
+                                var prefabObject = ReflectionUtils.TryGetFieldOrProperty(t, "_sprayPaintPrefab");
+                                if (prefabObject == null
+                                    || !CrossType.Is<S1AvatarFramework.Equipping.AvatarEquippable>(prefabObject, out var prefab)
+                                    || prefab == null)
+                                {
+                                    continue;
+                                }
+
                                 sprayEquippable = prefab;
                                 break;
                             }
@@ -705,8 +862,6 @@ namespace S1API.Entities
                     }
                     catch { /* ignore */ }
                 }
-                if (sprayEquippable == null)
-                    Logger.Warning($"EnsureGraffiti: Could not load spray paint equippable at '{path}'. Spray painting may not work. Supply a valid path or register via AvatarEquippableRegistry.");
 
                 var npcBehaviour = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
                 if (npcBehaviour == null)
@@ -734,11 +889,26 @@ namespace S1API.Entities
                     sprayPaint = spGo.AddComponent<S1NPCsOther.SprayPaint>();
                 }
 
+                if (sprayEquippable == null)
+                {
+                    var configuredPrefab = ReflectionUtils.TryGetFieldOrProperty(sprayPaint, "_sprayPaintPrefab");
+                    if (configuredPrefab != null
+                        && CrossType.Is<S1AvatarFramework.Equipping.AvatarEquippable>(configuredPrefab, out var inheritedPrefab)
+                        && inheritedPrefab != null)
+                    {
+                        sprayEquippable = inheritedPrefab;
+                    }
+                }
+
+                if (sprayEquippable == null)
+                    Logger.Warning($"EnsureGraffiti: Could not load spray paint equippable at '{path}'. Spray painting may not work. Supply a valid path or register via AvatarEquippableRegistry.");
+
                 var baseNpc = prefabRoot.GetComponent<S1NPCs.NPC>();
 
                 ReflectionUtils.TrySetFieldOrProperty(graffiti, "_sprayPaint", sprayPaint);
                 ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_npc", baseNpc);
-                ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_sprayPaintPrefab", sprayEquippable);
+                if (sprayEquippable != null)
+                    ReflectionUtils.TrySetFieldOrProperty(sprayPaint, "_sprayPaintPrefab", sprayEquippable);
                 SetBehaviourRefs(graffiti, npcBehaviour, baseNpc);
                 var gradient = new Gradient();
                 gradient.SetKeys(
@@ -900,16 +1070,16 @@ namespace S1API.Entities
                 // Apply random cash
                 if (data.RandomCashMin.HasValue || data.RandomCashMax.HasValue)
                 {
-                    inventory.RandomCash = true;
+                    ReflectionUtils.TrySetFieldOrProperty(inventory, "RandomCash", true);
                     if (data.RandomCashMin.HasValue)
-                        inventory.RandomCashMin = data.RandomCashMin.Value;
+                        ReflectionUtils.TrySetFieldOrProperty(inventory, "RandomCashMin", data.RandomCashMin.Value);
                     if (data.RandomCashMax.HasValue)
-                        inventory.RandomCashMax = data.RandomCashMax.Value;
+                        ReflectionUtils.TrySetFieldOrProperty(inventory, "RandomCashMax", data.RandomCashMax.Value);
                 }
 
                 // Apply ClearInventoryEachNight setting
                 if (data.ClearInventoryEachNight.HasValue)
-                    inventory.ClearInventoryEachNight = data.ClearInventoryEachNight.Value;
+                    ReflectionUtils.TrySetFieldOrProperty(inventory, "ClearInventoryEachNight", data.ClearInventoryEachNight.Value);
 
                 // Do NOT set StartupItems here on the prefab - they will be set during runtime initialization
                 // in NPC.InitializeInventoryComponent to avoid duplicate insertion when NPCInventory.Awake runs.
@@ -970,9 +1140,11 @@ namespace S1API.Entities
                     case DriveToCarParkSpec:
                         driveToCarPark++;
                         break;
+#pragma warning disable CS0618 // Compatibility spec retained for older compiled mods.
                     case EnsureDealSignalSpec:
                         dealSignal = Math.Max(dealSignal, 1);
                         break;
+#pragma warning restore CS0618
                     case UseATMSpec:
                         useATM++;
                         break;
@@ -993,24 +1165,19 @@ namespace S1API.Entities
 
             if (dealSignal > 0)
             {
-                EnsurePrefabAction<S1NPCsSchedules.NPCSignal_WaitForDelivery>(count: 1, namePrefix: "DealSignal");
-
-                // Wire the deal signal to the Customer component so runtime deal handling works without relying on OnValidate
+#if IL2CPPMELON
+                EnsureIl2CppCustomerAttendDealBehaviour();
+#else
                 try
                 {
-                    var scheduleManager = EnsureScheduleManager();
-                    var signal = scheduleManager.GetComponentInChildren<S1NPCsSchedules.NPCSignal_WaitForDelivery>(true);
-                    var customer = prefabRoot.GetComponent<S1Economy.Customer>();
-                    if (signal != null && customer != null)
-                    {
-                        customer.DealSignal = signal;
-                    }
+                    NPCCustomer.EnsureDealAttendanceSupport(prefabRoot, ownerType);
                 }
                 catch (Exception ex)
                 {
                     var npcTypeName = ownerType?.Name ?? "Unknown";
-                    Logger.Warning($"Failed to wire DealSignal on prefab for NPC type {npcTypeName}: {ex.Message}");
+                    Logger.Warning($"Failed to configure customer deal attendance on prefab for NPC type {npcTypeName}: {ex.Message}");
                 }
+#endif
             }
             EnsurePrefabAction<S1NPCsSchedules.NPCSignal_WalkToLocation>(walkTo, "WalkTo");
             EnsurePrefabAction<S1NPCsSchedules.NPCEvent_StayInBuilding>(stayInBuilding, "StayInBuilding");
@@ -1047,7 +1214,33 @@ namespace S1API.Entities
                 go.SetActive(false);
                 comp.enabled = false;
             }
+
         }
+
+#if IL2CPPMELON
+        private void EnsureIl2CppCustomerAttendDealBehaviour()
+        {
+            var behaviourManager = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.NPCBehaviour>(true);
+            if (behaviourManager == null)
+            {
+                Logger.Warning($"Cannot add CustomerAttendDealBehaviour for NPC type {ownerType?.Name ?? "Unknown"}: NPCBehaviour is missing.");
+                return;
+            }
+
+            var component = prefabRoot.GetComponentInChildren<S1NPCsBehaviour.CustomerAttendDealBehaviour>(true);
+            if (component == null)
+            {
+                var behaviourObject = new GameObject("Customer attend deal");
+                behaviourObject.transform.SetParent(behaviourManager.transform, false);
+                component = behaviourObject.AddComponent<S1NPCsBehaviour.CustomerAttendDealBehaviour>();
+            }
+
+            ReflectionUtils.TrySetFieldOrProperty(component, "EnabledOnAwake", false);
+            ReflectionUtils.TrySetFieldOrProperty(component, "Name", "Customer attend deal");
+            ReflectionUtils.TrySetFieldOrProperty(component, "Priority", 4);
+            component.SetCanUseUmbrellaDuringBehaviour(true);
+        }
+#endif
 
         /// <summary>
         /// Sets beh (NPCBehaviour) and ensures NPCBehaviour.Npc on Behaviour instances.
@@ -1158,6 +1351,10 @@ namespace S1API.Entities
                 return this;
             }
 
+            public AvatarDefaultsBuilder WithFaceLayer<T>(string path, Color color)
+                where T : BaseFaceAppearance =>
+                WithFaceLayer(path, color);
+
             public AvatarDefaultsBuilder WithBodyLayer(string path, Color color)
             {
                 if (!string.IsNullOrEmpty(path))
@@ -1165,12 +1362,20 @@ namespace S1API.Entities
                 return this;
             }
 
+            public AvatarDefaultsBuilder WithBodyLayer<T>(string path, Color color)
+                where T : BaseBodyAppearance =>
+                WithBodyLayer(path, color);
+
             public AvatarDefaultsBuilder WithAccessoryLayer(string path, Color color)
             {
                 if (!string.IsNullOrEmpty(path))
                     AccessoryLayers.Add((path, color));
                 return this;
             }
+
+            public AvatarDefaultsBuilder WithAccessoryLayer<T>(string path, Color color)
+                where T : BaseAccessoryAppearance =>
+                WithAccessoryLayer(path, color);
 
             /// <summary>
             /// Uses an existing game-owned NPC impostor by character settings name.

@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Storage = Il2CppScheduleOne.Storage;
 using S1AccessSettings = Il2CppScheduleOne.Storage.StorageEntity.EAccessSettings;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Storage = ScheduleOne.Storage;
 using S1AccessSettings = ScheduleOne.Storage.StorageEntity.EAccessSettings;
 #endif
@@ -349,8 +349,8 @@ namespace S1API.Storages
         /// </summary>
         public event Action OnOpened
         {
-            add => EventHelper.AddListener(value, h => S1Storage.onOpened += h);
-            remove => EventHelper.RemoveListener(value, h => S1Storage.onOpened -= h);
+            add => global::S1API.Utils.EventHelper.AddListener(value, h => S1Storage.onOpened += h);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, h => S1Storage.onOpened -= h);
         }
 
         /// <summary>
@@ -358,8 +358,8 @@ namespace S1API.Storages
         /// </summary>
         public event Action OnClosed
         {
-            add => EventHelper.AddListener(value, h => S1Storage.onClosed += h);
-            remove => EventHelper.RemoveListener(value, h => S1Storage.onClosed -= h);
+            add => global::S1API.Utils.EventHelper.AddListener(value, h => S1Storage.onClosed += h);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, h => S1Storage.onClosed -= h);
         }
 
         /// <summary>
@@ -367,8 +367,8 @@ namespace S1API.Storages
         /// </summary>
         public event Action OnContentsChanged
         {
-            add => EventHelper.AddListener(value, h => S1Storage.onContentsChanged += h);
-            remove => EventHelper.RemoveListener(value, h => S1Storage.onContentsChanged -= h);
+            add => global::S1API.Utils.EventHelper.AddListener(value, h => S1Storage.onContentsChanged += h);
+            remove => global::S1API.Utils.EventHelper.RemoveListener(value, h => S1Storage.onContentsChanged -= h);
         }
     }
 }

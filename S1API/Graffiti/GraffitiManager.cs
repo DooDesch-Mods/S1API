@@ -2,7 +2,7 @@
 using S1Graffiti = Il2CppScheduleOne.Graffiti;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1Map = Il2CppScheduleOne.Map;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Graffiti = ScheduleOne.Graffiti;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1Map = ScheduleOne.Map;
@@ -25,13 +25,13 @@ namespace S1API.Graffiti
         /// <summary>
         /// Gets the in-game GraffitiManager singleton instance.
         /// </summary>
-        private static S1Graffiti.GraffitiManager Instance
+        private static S1Graffiti.GraffitiManager? Instance
         {
             get
             {
 #if (IL2CPPMELON)
                 return S1DevUtilities.NetworkSingleton<S1Graffiti.GraffitiManager>.Instance;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
                 return S1DevUtilities.NetworkSingleton<S1Graffiti.GraffitiManager>.Instance;
 #endif
             }
@@ -62,7 +62,7 @@ namespace S1API.Graffiti
                     result.Add(new SpraySurface(surface));
                 }
             }
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
             // Mono: Access WorldSpraySurfaces and iterate directly
             if (instance.WorldSpraySurfaces == null)
                 return result;
@@ -142,7 +142,7 @@ namespace S1API.Graffiti
         /// </summary>
         /// <param name="guid">The surface GUID.</param>
         /// <returns>The raw WorldSpraySurface, or null if not found.</returns>
-        internal static S1Graffiti.WorldSpraySurface FindSurfaceByGuid(System.Guid guid)
+        internal static S1Graffiti.WorldSpraySurface? FindSurfaceByGuid(System.Guid guid)
         {
             var instance = Instance;
             if (instance?.WorldSpraySurfaces == null)
@@ -201,13 +201,13 @@ namespace S1API.Graffiti
         /// </summary>
         /// <param name="position">Search from this position.</param>
         /// <returns>The nearest available raw WorldSpraySurface, or null.</returns>
-        internal static S1Graffiti.WorldSpraySurface FindNearestAvailableForNPC(Vector3 position)
+        internal static S1Graffiti.WorldSpraySurface? FindNearestAvailableForNPC(Vector3 position)
         {
             var instance = Instance;
             if (instance?.WorldSpraySurfaces == null)
                 return null;
 
-            S1Graffiti.WorldSpraySurface nearest = null;
+            S1Graffiti.WorldSpraySurface? nearest = null;
             float nearestDist = float.MaxValue;
 
 #if (IL2CPPMELON)

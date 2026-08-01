@@ -1,9 +1,10 @@
 #if (IL2CPPMELON)
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 #endif
 
+using S1API.Internal.Utils;
 using UnityEngine;
 
 namespace S1API.Entities
@@ -140,7 +141,9 @@ namespace S1API.Entities
         /// Gets the default walking speed of the NPC.
         /// </summary>
         public float DefaultWalkSpeed =>
-            SpeedController?.DefaultWalkSpeed ?? 0.08f;
+            SpeedController != null && ReflectionUtils.TryGetFieldOrProperty(SpeedController, "DefaultWalkSpeed") is float speed
+                ? speed
+                : 0.08f;
 
         /// <summary>
         /// Adds or updates a speed control with the specified parameters.

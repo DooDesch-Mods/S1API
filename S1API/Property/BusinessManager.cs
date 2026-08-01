@@ -1,6 +1,6 @@
 ﻿
 using System.Collections.Generic;
-#if (MONOMELON || IL2CPPBEPINEX || MONOBEPINEX)
+#if MONOMELON
 using S1Property = ScheduleOne.Property;
 
 #elif IL2CPPMELON

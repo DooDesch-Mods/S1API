@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to publish or refresh
+        description: Existing release tag to publish or refresh (for example v3.1.0 or v3.1.0-beta.1)
         required: true
         type: string
       publish_nexus:
@@ -54,19 +54,31 @@ jobs:
             exit 1
           fi
 
-          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(r[0-9]+)?$ ]]; then
+          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-([0-9A-Za-z][0-9A-Za-z.-]*))?(r[0-9]+)?$ ]]; then
             echo "::error::Tag '$tag' does not match the expected release format"
             exit 1
           fi
 
           base_version="${BASH_REMATCH[1]}"
+          release_version="${BASH_REMATCH[1]}${BASH_REMATCH[2]}"
           release_name="S1API ${tag#v}"
-          release_branch="releases/${base_version}"
+          if [[ -n "${BASH_REMATCH[2]}" ]]; then
+            prerelease="true"
+            release_branch="beta"
+            assembly_branch="beta"
+          else
+            prerelease="false"
+            release_branch="releases/${base_version}"
+            assembly_branch="main"
+          fi
 
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           echo "base_version=${base_version}" >> "$GITHUB_OUTPUT"
+          echo "release_version=${release_version}" >> "$GITHUB_OUTPUT"
           echo "release_name=${release_name}" >> "$GITHUB_OUTPUT"
           echo "release_branch=${release_branch}" >> "$GITHUB_OUTPUT"
+          echo "assembly_branch=${assembly_branch}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout S1API
         uses: actions/checkout@v4
@@ -84,6 +96,7 @@ jobs:
         with:
           repository: ${{ secrets.GAME_ASSEMBLIES_REPO }}
           token: ${{ secrets.GAME_ASSEMBLIES_TOKEN }}
+          ref: ${{ steps.metadata.outputs.assembly_branch }}
           path: game-assemblies
           fetch-depth: 1
 
@@ -159,7 +172,7 @@ jobs:
         with:
           repository: ${{ secrets.IL2CPP_ASSEMBLIES_REPO }}
           token: ${{ secrets.IL2CPP_ASSEMBLIES_TOKEN }}
-          ref: main
+          ref: ${{ steps.metadata.outputs.assembly_branch }}
           path: il2cpp-scheduleone-assemblies
           fetch-depth: 1
 
@@ -240,10 +253,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          package_dir="artifacts/S1API-Forked-${{ steps.metadata.outputs.base_version }}"
-          zip_path="artifacts/S1API-Forked-${{ steps.metadata.outputs.base_version }}.zip"
-          thunderstore_dir="artifacts/S1API-TS-${{ steps.metadata.outputs.base_version }}"
-          thunderstore_zip_path="artifacts/S1API-TS-${{ steps.metadata.outputs.base_version }}.zip"
+          package_dir="artifacts/S1API-Forked-${{ steps.metadata.outputs.release_version }}"
+          zip_path="artifacts/S1API-Forked-${{ steps.metadata.outputs.release_version }}.zip"
+          thunderstore_dir="artifacts/S1API-TS-${{ steps.metadata.outputs.release_version }}"
+          thunderstore_zip_path="artifacts/S1API-TS-${{ steps.metadata.outputs.release_version }}.zip"
 
           mkdir -p "${package_dir}/Mods" "${package_dir}/Plugins"
           cp artifacts/build/S1API.Mono.MelonLoader.dll "${package_dir}/Mods/S1API.Mono.MelonLoader.dll"
@@ -273,7 +286,7 @@ jobs:
 
           jq -n \
             --arg name "${THUNDERSTORE_PACKAGE_NAME}" \
-            --arg version "${{ steps.metadata.outputs.base_version }}" \
+            --arg version "${{ steps.metadata.outputs.release_version }}" \
             --arg website "${THUNDERSTORE_WEBSITE}" \
             --arg description "${RELEASE_DESCRIPTION}" \
             '{
@@ -301,7 +314,7 @@ jobs:
             unzip -Z1 "${thunderstore_zip_path}" | grep -Fx "${entry}" >/dev/null
           done
 
-          jq -e --arg version "${{ steps.metadata.outputs.base_version }}" '.version_number == $version' "${thunderstore_dir}/manifest.json" >/dev/null
+          jq -e --arg version "${{ steps.metadata.outputs.release_version }}" '.version_number == $version' "${thunderstore_dir}/manifest.json" >/dev/null
 
           echo "zip_path=${zip_path}" >> "$GITHUB_OUTPUT"
           echo "thunderstore_zip_path=${thunderstore_zip_path}" >> "$GITHUB_OUTPUT"
@@ -312,6 +325,7 @@ jobs:
           RELEASE_TAG: ${{ steps.metadata.outputs.tag }}
           RELEASE_NAME: ${{ steps.metadata.outputs.release_name }}
           RELEASE_BRANCH: ${{ steps.metadata.outputs.release_branch }}
+          PRERELEASE: ${{ steps.metadata.outputs.prerelease }}
         with:
           script: |
             const owner = context.repo.owner;
@@ -319,6 +333,7 @@ jobs:
             const tag = process.env.RELEASE_TAG;
             const releaseName = process.env.RELEASE_NAME;
             const releaseBranch = process.env.RELEASE_BRANCH;
+            const prerelease = process.env.PRERELEASE === "true";
 
             const resolveTargetCommitish = async () => {
               try {
@@ -369,8 +384,8 @@ jobs:
               name: releaseName,
               body: notes.data.body,
               draft: false,
-              prerelease: false,
-              make_latest: "legacy"
+              prerelease,
+              make_latest: prerelease ? "false" : "legacy"
             };
 
             let existingRelease = null;
@@ -407,14 +422,14 @@ jobs:
           gh release upload "${{ steps.metadata.outputs.tag }}" "${{ steps.package.outputs.zip_path }}" --clobber
 
       - name: Upload Nexus Mods release
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.publish_nexus) && env.NEXUSMODS_API_KEY != '' && env.NEXUSMODS_FILE_GROUP_ID != '' }}
+        if: ${{ steps.metadata.outputs.prerelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_nexus) && env.NEXUSMODS_API_KEY != '' && env.NEXUSMODS_FILE_GROUP_ID != '' }}
         uses: Nexus-Mods/upload-action@v1.0.0-beta.7
         with:
           api_key: ${{ env.NEXUSMODS_API_KEY }}
           file_group_id: ${{ env.NEXUSMODS_FILE_GROUP_ID }}
           filename: ${{ steps.package.outputs.zip_path }}
-          version: ${{ steps.metadata.outputs.base_version }}
-          display_name: S1API Forked ${{ steps.metadata.outputs.base_version }}
+          version: ${{ steps.metadata.outputs.release_version }}
+          display_name: S1API Forked ${{ steps.metadata.outputs.release_version }}
           description: ${{ env.RELEASE_DESCRIPTION }}
           file_category: main
           archive_existing_file: true
@@ -423,12 +438,12 @@ jobs:
           show_requirements_pop_up: false
 
       - name: Skip Nexus Mods upload
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.publish_nexus) && (env.NEXUSMODS_API_KEY == '' || env.NEXUSMODS_FILE_GROUP_ID == '') }}
+        if: ${{ steps.metadata.outputs.prerelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_nexus) && (env.NEXUSMODS_API_KEY == '' || env.NEXUSMODS_FILE_GROUP_ID == '') }}
         shell: bash
         run: echo "::notice::Skipping Nexus Mods upload because NEXUSMODS_API_KEY or NEXUSMODS_FILE_GROUP_ID is not configured."
 
       - name: Upload Thunderstore release
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.publish_thunderstore) && env.THUNDERSTORE_TOKEN != '' }}
+        if: ${{ steps.metadata.outputs.prerelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_thunderstore) && env.THUNDERSTORE_TOKEN != '' }}
         uses: GreenTF/upload-thunderstore-package@v4.3
         with:
           token: ${{ env.THUNDERSTORE_TOKEN }}
@@ -436,13 +451,17 @@ jobs:
           namespace: ${{ env.THUNDERSTORE_NAMESPACE }}
           name: ${{ env.THUNDERSTORE_PACKAGE_NAME }}
           description: ${{ env.RELEASE_DESCRIPTION }}
-          version: ${{ steps.metadata.outputs.base_version }}
+          version: ${{ steps.metadata.outputs.release_version }}
           file: ${{ steps.package.outputs.thunderstore_zip_path }}
           repo: https://thunderstore.io
           website: ${{ env.THUNDERSTORE_WEBSITE }}
           categories: ${{ env.THUNDERSTORE_CATEGORIES }}
 
       - name: Skip Thunderstore upload
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.publish_thunderstore) && env.THUNDERSTORE_TOKEN == '' }}
+        if: ${{ steps.metadata.outputs.prerelease != 'true' && (github.event_name != 'workflow_dispatch' || inputs.publish_thunderstore) && env.THUNDERSTORE_TOKEN == '' }}
         shell: bash
         run: echo "::notice::Skipping Thunderstore upload because THUNDERSTORE_TOKEN is not configured."
+
+      - name: Skip external prerelease uploads
+        if: ${{ steps.metadata.outputs.prerelease == 'true' }}
+        run: echo "::notice::Experimental releases are published to GitHub only; Nexus Mods and Thunderstore uploads are disabled."

@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Product = Il2CppScheduleOne.Product;
 using S1Registry = Il2CppScheduleOne.Registry;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Product = ScheduleOne.Product;
 using S1Registry = ScheduleOne.Registry;
 #endif

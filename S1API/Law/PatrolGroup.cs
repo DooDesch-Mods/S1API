@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1NPCBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCBehaviour = ScheduleOne.NPCs.Behaviour;
 using S1NPCs = ScheduleOne.NPCs;
 #endif
@@ -39,7 +39,7 @@ namespace S1API.Law
         /// <summary>
         /// Gets the patrol route this group is following.
         /// </summary>
-        public FootPatrolRoute Route
+        public FootPatrolRoute? Route
         {
             get
             {

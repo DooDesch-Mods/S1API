@@ -3,7 +3,7 @@ using S1Customization = Il2CppScheduleOne.AvatarFramework.Customization;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1UI = Il2CppScheduleOne.UI;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Customization = ScheduleOne.AvatarFramework.Customization;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using MelonLoader;
 using S1API.Avatar;
 using S1API.Entities;
+using S1API.Internal.Utils;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -28,7 +29,7 @@ namespace S1API.UI
     public static class CharacterCreatorManager
     {
         private static readonly Logging.Log Logger = new Logging.Log("CharacterCreatorManager");
-        private static S1Customization.CharacterCreator _s1Creator;
+        private static S1Customization.CharacterCreator? _s1Creator;
         private static bool _isInitialized;
         private static bool _eventsRegistered;
 
@@ -37,12 +38,12 @@ namespace S1API.UI
         /// <summary>
         /// Fired when the character creator is opened.
         /// </summary>
-        public static event Action OnOpened;
+        public static event Action? OnOpened;
 
         /// <summary>
         /// Fired when the character creator is closed without completion.
         /// </summary>
-        public static event Action OnClosed;
+        public static event Action? OnClosed;
 
         /// <summary>
         /// Fired when character customization is completed successfully.
@@ -50,7 +51,7 @@ namespace S1API.UI
         /// <remarks>
         /// The BasicAvatarSettings parameter contains the finalized character configuration.
         /// </remarks>
-        public static event Action<BasicAvatarSettings> OnCompleted;
+        public static event Action<BasicAvatarSettings>? OnCompleted;
 
         #endregion
 
@@ -72,7 +73,7 @@ namespace S1API.UI
         /// The current avatar settings being edited in the character creator.
         /// Returns null if the creator is not open.
         /// </summary>
-        public static BasicAvatarSettings ActiveSettings
+        public static BasicAvatarSettings? ActiveSettings
         {
             get
             {
@@ -93,7 +94,7 @@ namespace S1API.UI
         /// </summary>
         /// <param name="initialSettings">Optional initial avatar settings. If null, player's current avatar settings are loaded, or default settings if player has none.</param>
         /// <param name="showUI">Whether to display the UI. Set to false to customize programmatically without showing UI.</param>
-        public static void Open(BasicAvatarSettings initialSettings = null, bool showUI = true)
+        public static void Open(BasicAvatarSettings? initialSettings = null, bool showUI = true)
         {
             EnsureInitialized();
 
@@ -117,14 +118,10 @@ namespace S1API.UI
                 initialSettings = GetPlayerAvatarSettings();
             }
 
-            // Register as active UI element BEFORE opening to prevent dialogue from restoring camera
-            if (showUI && S1DevUtilities.PlayerSingleton<S1PlayerScripts.PlayerCamera>.InstanceExists)
-            {
-                S1DevUtilities.PlayerSingleton<S1PlayerScripts.PlayerCamera>.Instance.AddActiveUIElement(_s1Creator.name);
-            }
-
             var s1Settings = initialSettings?.S1BasicAvatarSettings;
-            _s1Creator.Open(s1Settings, showUI);
+            _s1Creator.Open(s1Settings);
+            if (!showUI && _s1Creator.Canvas != null)
+                _s1Creator.Canvas.enabled = false;
 
             try
             {
@@ -395,11 +392,11 @@ namespace S1API.UI
                 camera.RemoveActiveUIElement(_s1Creator?.name ?? "CharacterCreator");
                 
                 // Only restore camera if no other UI elements are active
-                if (camera.activeUIElementCount == 0)
+                if (GetActiveUIElementCount(camera) == 0)
                 {
                     camera.StopTransformOverride(0f, reenableCameraLook: true, returnToOriginalRotation: false);
                     camera.StopFOVOverride(0f);
-                    camera.SetCanLook(c: true);
+                    camera.SetCanLook(true);
                     camera.LockMouse();
                 }
             }
@@ -426,7 +423,7 @@ namespace S1API.UI
         /// Returns null if player has no avatar settings yet.
         /// </summary>
         /// <returns>Player's current avatar settings, or null if not available.</returns>
-        private static BasicAvatarSettings GetPlayerAvatarSettings()
+        private static BasicAvatarSettings? GetPlayerAvatarSettings()
         {
             try
             {
@@ -437,15 +434,15 @@ namespace S1API.UI
                     return null;
                 }
 
-                var playerSettings = localPlayer.S1Player.CurrentAvatarSettings;
-                if (playerSettings == null)
+                var currentSettings = localPlayer.GetCurrentBasicAvatarSettings();
+                if (currentSettings == null)
                 {
-                    Logger.Msg("Player has no current avatar settings, using default");
+                    Logger.Debug("Player has no current avatar settings, using default");
                     return null;
                 }
 
                 // Create a copy to avoid modifying the original
-                var copy = Object.Instantiate(playerSettings);
+                var copy = Object.Instantiate(currentSettings.S1BasicAvatarSettings);
                 return new BasicAvatarSettings(copy);
             }
             catch (Exception ex)
@@ -453,6 +450,22 @@ namespace S1API.UI
                 Logger.Error($"Failed to get player avatar settings: {ex}");
                 return null;
             }
+        }
+
+        private static int GetActiveUIElementCount(S1PlayerScripts.PlayerCamera camera)
+        {
+            if (camera == null)
+                return 0;
+
+#if IL2CPPMELON
+            if (ReflectionUtils.TryGetFieldOrProperty(camera, "ActiveUIElementCount") is int count)
+                return count;
+#else
+            if (ReflectionUtils.TryGetFieldOrProperty(camera, "activeUIElementCount") is int count)
+                return count;
+#endif
+
+            return 0;
         }
 
         #endregion

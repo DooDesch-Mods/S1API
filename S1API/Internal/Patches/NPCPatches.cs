@@ -3,10 +3,12 @@ using S1Relation = Il2CppScheduleOne.NPCs.Relation;
 using S1Loaders = Il2CppScheduleOne.Persistence.Loaders;
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1NPCsBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
+using S1NPCsActions = Il2CppScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
 using S1Map = Il2CppScheduleOne.Map;
 using S1Money = Il2CppScheduleOne.Money;
 using S1Economy = Il2CppScheduleOne.Economy;
+using S1Combat = Il2CppScheduleOne.Combat;
 using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1GameTime = Il2CppScheduleOne.GameTime;
@@ -15,11 +17,12 @@ using Il2CppFishNet;
 using Il2CppFishNet.Object;
 using Il2CppScheduleOne.DevUtilities;
 using Il2CppSystem.Collections.Generic;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Relation = ScheduleOne.NPCs.Relation;
 using S1Loaders = ScheduleOne.Persistence.Loaders;
 using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
+using S1NPCsActions = ScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
 using FishNet;
 using FishNet.Object;
@@ -27,11 +30,11 @@ using ScheduleOne.DevUtilities;
 using S1Map = ScheduleOne.Map;
 using S1Money = ScheduleOne.Money;
 using S1Economy = ScheduleOne.Economy;
+using S1Combat = ScheduleOne.Combat;
 using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Items = ScheduleOne.ItemFramework;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Quests = ScheduleOne.Quests;
-using System.Collections.Generic;
 #endif
 
 using System;
@@ -61,6 +64,7 @@ namespace S1API.Internal.Patches
     {
         private static readonly Logging.Log Logger = new Logging.Log("NPCPatches");
         private static readonly HashSet<string> _loadingDealers = new HashSet<string>();
+        private const float DefaultRelationDelta = 2f;
         public static bool CustomNpcsReady = false;
         // Pending custom NPC types to instantiate when using consolidated NPCs.json saves (non-physical/custom contacts).
         private static readonly System.Collections.Generic.List<Type> _pendingCustomNpcTypes = new System.Collections.Generic.List<Type>();
@@ -78,6 +82,125 @@ namespace S1API.Internal.Patches
         private static readonly System.Collections.Generic.Dictionary<string, S1Datas.DeserializedItemSet> _pendingInventoryLoads
             = new System.Collections.Generic.Dictionary<string, S1Datas.DeserializedItemSet>();
 
+        private static object? GetInventoryMember(S1NPCs.NPCInventory inventory, string memberName)
+        {
+            return ReflectionUtils.TryGetFieldOrProperty(inventory, memberName);
+        }
+
+        private static bool SetInventoryMember(S1NPCs.NPCInventory inventory, string memberName, object? value)
+        {
+            return ReflectionUtils.TrySetFieldOrProperty(inventory, memberName, value);
+        }
+
+        private static bool GetInventoryBool(S1NPCs.NPCInventory inventory, string memberName)
+        {
+            return GetInventoryMember(inventory, memberName) is bool value && value;
+        }
+
+        private static int GetInventoryInt(S1NPCs.NPCInventory inventory, string memberName, int fallback)
+        {
+            return GetInventoryMember(inventory, memberName) is int value ? value : fallback;
+        }
+
+        private static int GetArrayLength(object? value)
+        {
+            if (value == null)
+                return 0;
+
+            if (value is Array array)
+                return array.Length;
+
+            var length = value.GetType().GetProperty("Length", BindingFlags.Public | BindingFlags.Instance)?.GetValue(value);
+            return length is int intLength ? intLength : 0;
+        }
+
+        private static void EnsureInventoryArray(S1NPCs.NPCInventory inventory, string memberName)
+        {
+            if (inventory == null || GetInventoryMember(inventory, memberName) != null)
+                return;
+
+            var memberType = GetMemberType(inventory.GetType(), memberName);
+            if (memberType == null)
+                return;
+
+            object? empty = null;
+            try
+            {
+                if (memberType.IsArray)
+                {
+                    var elementType = memberType.GetElementType();
+                    if (elementType != null)
+                        empty = Array.CreateInstance(elementType, 0);
+                }
+                else
+                {
+                    empty = Activator.CreateInstance(memberType, 0);
+                }
+            }
+            catch
+            {
+                empty = null;
+            }
+
+            if (empty != null)
+                SetInventoryMember(inventory, memberName, empty);
+        }
+
+        private static void ClearInventoryArray(S1NPCs.NPCInventory inventory, string memberName)
+        {
+            if (inventory == null)
+                return;
+
+            var current = GetInventoryMember(inventory, memberName);
+            if (GetArrayLength(current) == 0)
+                return;
+
+            var memberType = GetMemberType(inventory.GetType(), memberName);
+            if (memberType == null)
+                return;
+
+            object? empty = null;
+            try
+            {
+                if (memberType.IsArray)
+                {
+                    var elementType = memberType.GetElementType();
+                    if (elementType != null)
+                        empty = Array.CreateInstance(elementType, 0);
+                }
+                else
+                {
+                    empty = Activator.CreateInstance(memberType, 0);
+                }
+            }
+            catch
+            {
+                empty = null;
+            }
+
+            if (empty != null)
+                SetInventoryMember(inventory, memberName, empty);
+        }
+
+        private static Type? GetMemberType(Type? type, string memberName)
+        {
+            const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
+            while (type != null && type != typeof(object))
+            {
+                var field = type.GetField(memberName, flags);
+                if (field != null)
+                    return field.FieldType;
+
+                var property = type.GetProperty(memberName, flags);
+                if (property != null)
+                    return property.PropertyType;
+
+                type = type.BaseType;
+            }
+
+            return null;
+        }
+
         /// <summary>
         /// Resets static state that can leak across save loads.
         /// </summary>
@@ -88,7 +211,7 @@ namespace S1API.Internal.Patches
             _pendingInventoryLoads.Clear();
         }
 
-        private static void LogCustomNpcInstantiationException(Type type, string context, Exception ex)
+        private static void LogCustomNpcInstantiationException(Type? type, string context, Exception? ex)
         {
             if (ex == null)
             {
@@ -97,7 +220,7 @@ namespace S1API.Internal.Patches
             }
 
             var exceptionChain = new System.Collections.Generic.List<Exception>();
-            for (Exception current = ex; current != null; current = current.InnerException)
+            for (Exception? current = ex; current != null; current = current.InnerException)
                 exceptionChain.Add(current);
 
             string chainSummary = string.Join(" --> ",
@@ -236,9 +359,9 @@ namespace S1API.Internal.Patches
         /// Returns the instance if successful; otherwise null. Non-matching temporary instances
         /// are cleaned up immediately to avoid registration side effects.
         /// </summary>
-        private static NPC TryInstantiateCustomNpcForSaveId(string npcId, string reasonTag)
+        private static NPC? TryInstantiateCustomNpcForSaveId(string? npcId, string reasonTag)
         {
-            if (_pendingCustomNpcTypes.Count == 0)
+            if (_pendingCustomNpcTypes.Count == 0 || string.IsNullOrWhiteSpace(npcId))
                 return null;
 
             // First check if NPC already exists - don't create duplicates
@@ -268,6 +391,12 @@ namespace S1API.Internal.Patches
             for (int i = 0; i < _pendingCustomNpcTypes.Count; i++)
             {
                 var type = _pendingCustomNpcTypes[i];
+                if (!NPC.TryGetConfiguredNpcId(type, out string configuredId)
+                    || !configuredId.Equals(npcId, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 NPC? customNPC = null;
                 try
                 {
@@ -281,23 +410,43 @@ namespace S1API.Internal.Patches
                 if (customNPC == null)
                     continue;
 
-                string defaultId = null;
-                try { defaultId = customNPC.S1NPC?.ID; } catch { }
+                _pendingCustomNpcTypes.RemoveAt(i);
+                RegisterCustomNpcForNetworking(customNPC);
+                return customNPC;
+            }
 
-                bool idMatches = !string.IsNullOrEmpty(npcId)
-                                 && !string.IsNullOrEmpty(defaultId)
-                                 && defaultId.Equals(npcId, StringComparison.OrdinalIgnoreCase);
+            // Constructor-only identity is obsolete but remains supported for older mods.
+            // Probe only types that did not provide prefab metadata, never every configured type.
+            for (int i = 0; i < _pendingCustomNpcTypes.Count; i++)
+            {
+                var type = _pendingCustomNpcTypes[i];
+                if (NPC.TryGetConfiguredNpcId(type, out _))
+                    continue;
 
-                if (idMatches)
+                NPC? customNPC = null;
+                try
+                {
+                    customNPC = (NPC)Activator.CreateInstance(type, true)!;
+                }
+                catch (Exception ex)
+                {
+                    LogCustomNpcInstantiationException(type, $"for save ID '{npcId}'", ex);
+                }
+
+                if (customNPC == null)
+                    continue;
+
+                string? defaultId = customNPC.S1NPC?.ID;
+                if (!string.IsNullOrEmpty(defaultId)
+                    && defaultId.Equals(npcId, StringComparison.OrdinalIgnoreCase))
                 {
                     _pendingCustomNpcTypes.RemoveAt(i);
                     RegisterCustomNpcForNetworking(customNPC);
                     return customNPC;
                 }
 
-                // Cleanup non-matching instance to avoid registry pollution
-                try { NPC.All.Remove(customNPC); } catch { }
-                try { UnityEngine.Object.DestroyImmediate(customNPC.gameObject); } catch { }
+                NPC.All.Remove(customNPC);
+                UnityEngine.Object.DestroyImmediate(customNPC.gameObject);
             }
 
             return null;
@@ -394,10 +543,13 @@ namespace S1API.Internal.Patches
                 if (type.Assembly == Assembly.GetExecutingAssembly())
                     continue;
 
-                string npcId = customNPC.S1NPC?.ID ?? "<null>";
+                var baseNpc = customNPC.S1NPC
+                    ?? throw new InvalidOperationException(
+                        $"Custom NPC type '{type.FullName}' did not create its base-game NPC instance.");
+                string npcId = baseNpc.ID ?? "<null>";
 
                 // Load SaveableFields from per-NPC folder for legacy saves
-                string npcPath = Path.Combine(mainPath, customNPC.S1NPC.SaveFolderName);
+                string npcPath = Path.Combine(mainPath, baseNpc.SaveFolderName);
                 customNPC.LoadInternal(npcPath);
 
                 try
@@ -428,7 +580,6 @@ namespace S1API.Internal.Patches
 
             // We instantiated all custom NPCs up front; clear pending list to avoid duplicate fallback instantiation.
             _pendingCustomNpcTypes.Clear();
-            CustomNpcsReady = true;
         }
 
         /// <summary>
@@ -549,25 +700,10 @@ namespace S1API.Internal.Patches
             }
             catch { }
 
-            // Ensure definition arrays are not null before length/enumeration in Awake_UserLogic
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-            if (__instance.TestItems == null)
-                __instance.TestItems =
- new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Il2CppScheduleOne.ItemFramework.ItemDefinition>(0);
-            if (__instance.StartupItems == null)
-                __instance.StartupItems =
- new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Il2CppScheduleOne.ItemFramework.ItemDefinition>(0);
-            if (__instance.RandomInventoryItems == null)
-                __instance.RandomInventoryItems =
- new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<Il2CppScheduleOne.NPCs.NPCInventory.RandomInventoryItem>(0);
-#else
-            if (__instance.TestItems == null)
-                __instance.TestItems = Array.Empty<ScheduleOne.ItemFramework.ItemDefinition>();
-            if (__instance.StartupItems == null)
-                __instance.StartupItems = Array.Empty<ScheduleOne.ItemFramework.ItemDefinition>();
-            if (__instance.RandomInventoryItems == null)
-                __instance.RandomInventoryItems = Array.Empty<ScheduleOne.NPCs.NPCInventory.RandomInventoryItem>();
-#endif
+            // Ensure definition arrays are not null before length/enumeration in Awake_UserLogic.
+            EnsureInventoryArray(__instance, "TestItems");
+            EnsureInventoryArray(__instance, "StartupItems");
+            EnsureInventoryArray(__instance, "RandomInventoryItems");
 
             // For custom NPCs, clear StartupItems if they're empty/null to prevent Awake from processing stale data
             // ApplyRandomInventoryDefaults() handles inserting items directly and clearing StartupItems,
@@ -582,7 +718,7 @@ namespace S1API.Internal.Patches
                 {
                     // If StartupItems are set but items already exist in inventory, clear StartupItems
                     // This handles the case where ApplyRandomInventoryDefaults() inserted items before Awake ran
-                    if (__instance.StartupItems != null && __instance.ItemSlots != null)
+                    if (GetInventoryMember(__instance, "StartupItems") != null && __instance.ItemSlots != null)
                     {
                         bool hasItems = false;
                         try
@@ -601,21 +737,7 @@ namespace S1API.Internal.Patches
 
                         if (hasItems)
                         {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                            var il2cppArray = __instance.StartupItems as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemDefinition>;
-                            if (il2cppArray != null && il2cppArray.Length > 0)
-                            {
-                                // Items already exist, clear StartupItems to prevent duplicate insertion
-                                __instance.StartupItems = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemDefinition>(0);
-                            }
-#else
-                            var array = __instance.StartupItems as S1Items.ItemDefinition[];
-                            if (array != null && array.Length > 0)
-                            {
-                                // Items already exist, clear StartupItems to prevent duplicate insertion
-                                __instance.StartupItems = Array.Empty<S1Items.ItemDefinition>();
-                            }
-#endif
+                            ClearInventoryArray(__instance, "StartupItems");
                         }
                     }
                 }
@@ -671,22 +793,7 @@ namespace S1API.Internal.Patches
 
                 // Clear StartupItems after processing to prevent duplicate insertion on subsequent Awake calls
                 // This ensures startup items are only inserted once, even if Awake runs multiple times
-                if (__instance.StartupItems != null)
-                {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                    var il2cppArray = __instance.StartupItems as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemDefinition>;
-                    if (il2cppArray != null && il2cppArray.Length > 0)
-                    {
-                        __instance.StartupItems = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemDefinition>(0);
-                    }
-#else
-                    var array = __instance.StartupItems as S1Items.ItemDefinition[];
-                    if (array != null && array.Length > 0)
-                    {
-                        __instance.StartupItems = Array.Empty<S1Items.ItemDefinition>();
-                    }
-#endif
-                }
+                ClearInventoryArray(__instance, "StartupItems");
             }
             catch (Exception ex)
             {
@@ -694,48 +801,85 @@ namespace S1API.Internal.Patches
             }
         }
 
-        /// <summary>
-        /// Refresh behaviourStack from GetComponentsInChildren so dynamically added behaviours (e.g. SmokeBreakBehaviour,
-        /// GraffitiBehaviour from NPCPrefabBuilder) are included. Also ensures each Behaviour has beh and Npc set
-        /// (Enable_Server requires beh; prefab build may run before Awake so these can be null on spawn).
-        /// </summary>
-        [HarmonyPatch(typeof(S1NPCsBehaviour.NPCBehaviour), "Start")]
+        [HarmonyPatch(typeof(S1NPCs.NPC), "Awake")]
         [HarmonyPrefix]
         [HarmonyPriority(Priority.First)]
-        private static void NPCBehaviour_Start_Prefix(S1NPCsBehaviour.NPCBehaviour __instance)
+        private static bool NPC_Awake_Prefix(S1NPCs.NPC __instance)
         {
             try
             {
-                var behaviours = __instance.GetComponentsInChildren<S1NPCsBehaviour.Behaviour>(true);
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                var list = new Il2CppSystem.Collections.Generic.List<S1NPCsBehaviour.Behaviour>();
-                for (int i = 0; i < behaviours.Length; i++)
-                    list.Add(behaviours[i]);
-#else
-                var list = new System.Collections.Generic.List<S1NPCsBehaviour.Behaviour>(behaviours);
-#endif
-                ReflectionUtils.TrySetFieldOrProperty(__instance, "behaviourStack", list);
-                __instance.SortBehaviourStack();
-
-                var npc = __instance.Npc;
-                if (npc == null)
-                    npc = __instance.GetComponentInParent<S1NPCs.NPC>(true);
-                if (npc != null)
-                    ReflectionUtils.TrySetFieldOrProperty(__instance, "Npc", npc);
-
-                for (int i = 0; i < list.Count; i++)
+                var identity = __instance != null ? __instance.GetComponent<NPCPrefabIdentity>() : null;
+                if (identity != null)
                 {
-                    var b = list[i];
-                    if (b == null) continue;
-                    var existingBeh = ReflectionUtils.TryGetFieldOrProperty(b, "beh");
-                    if (existingBeh == null)
-                        ReflectionUtils.TrySetFieldOrProperty(b, "beh", __instance);
+                    identity.ApplyCriticalIdentityBeforeAwake(__instance!);
                 }
             }
             catch (Exception ex)
             {
-                Logger.Warning($"NPCBehaviour_Start_Prefix: Failed to refresh behaviourStack: {ex.Message}");
+                Logger.Warning($"NPC_Awake_Prefix: Failed to apply S1API identity before Awake: {ex.Message}");
             }
+
+            return true;
+        }
+
+        [HarmonyPatch(typeof(S1Economy.Dealer), "Awake")]
+        [HarmonyPrefix]
+        [HarmonyPriority(Priority.First)]
+        private static bool Dealer_Awake_Prefix(S1Economy.Dealer __instance)
+        {
+            if (IsS1ApiCustomNpcComponent(__instance))
+            {
+                try
+                {
+                    var identity = __instance.GetComponent<NPCPrefabIdentity>();
+                    identity?.ApplyCriticalIdentityBeforeAwake(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning($"Dealer_Awake_Prefix: Failed to apply S1API identity before Awake: {ex.Message}");
+                }
+            }
+            return true;
+        }
+
+        internal static bool IsS1ApiCustomNpcComponent(Component component)
+        {
+            if (component == null)
+                return false;
+
+            try
+            {
+                for (Transform current = component.transform; current != null; current = current.parent)
+                {
+                    if (current.gameObject != null)
+                    {
+                        string name = current.gameObject.name ?? string.Empty;
+                        if (name.StartsWith("S1API_", StringComparison.OrdinalIgnoreCase))
+                            return true;
+
+                        if (current.gameObject.GetComponent<NPCPrefabIdentity>() != null)
+                            return true;
+                    }
+                }
+
+                if (component.GetComponent<NPCPrefabIdentity>() != null)
+                    return true;
+
+                if (component.GetComponentInParent<NPCPrefabIdentity>(true) != null)
+                    return true;
+
+                var npc = component as S1NPCs.NPC ?? component.GetComponentInParent<S1NPCs.NPC>(true);
+                if (npc != null)
+                {
+                    var apiNpc = FindWrapperForS1Npc(npc);
+                    return apiNpc != null && apiNpc.IsCustomNPC;
+                }
+            }
+            catch
+            {
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -776,14 +920,21 @@ namespace S1API.Internal.Patches
             {
                 // Ensure conversation exists before CreateInternal() tries to access it
                 apiNpc.EnsureMessageConversationReady(resetDefaults: false);
-                apiNpc.CreateInternal();
+                if (InstanceFinder.IsServer)
+                    apiNpc.CreateInternal();
+                else
+                {
+                    apiNpc.CreateFromClientNetworkSpawn();
+                    NPC.CheckAndSetCustomNpcsReady();
+                }
                 
                 // Ensure visibility is set correctly on clients based on IsPhysical
                 // On server, this is handled in FinalizeNetworkSpawn(), but clients need it here
                 // We use a coroutine to delay until after the NPC is fully spawned/initialized
                 if (!InstanceFinder.IsServer)
                 {
-                    MelonCoroutines.Start(SetClientVisibilityDelayed(__instance, apiNpc.IsPhysical));
+                    MelonCoroutines.Start(
+                        SetClientVisibilityDelayed(__instance, apiNpc));
                 }
             }
 
@@ -816,7 +967,9 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Coroutine to set NPC visibility on clients after a delay to ensure the NPC is fully spawned/initialized.
         /// </summary>
-        private static IEnumerator SetClientVisibilityDelayed(S1NPCs.NPC npc, bool isPhysical)
+        private static IEnumerator SetClientVisibilityDelayed(
+            S1NPCs.NPC npc,
+            NPC apiNpc)
         {
             // Wait a frame to ensure the NPC is fully initialized and spawned
             yield return null;
@@ -829,7 +982,9 @@ namespace S1API.Internal.Patches
                 if (npc != null && npc.gameObject != null)
                 {
                     // Set visibility directly on clients (not networked since we're a client)
-                    npc.SetVisible(isPhysical, networked: false);
+                    npc.SetVisible(
+                        apiNpc.ShouldBeVisibleAfterSpawn(),
+                        networked: false);
                 }
             }
             catch (Exception ex)
@@ -848,7 +1003,7 @@ namespace S1API.Internal.Patches
         [HarmonyPatch(typeof(S1NPCs.NPC), "WriteData")]
         [HarmonyPostfix]
         private static void NPCWriteData(S1NPCs.NPC __instance, string parentFolderPath, 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             ref Il2CppSystem.Collections.Generic.List<string> __result)
 #else
             ref System.Collections.Generic.List<string> __result)
@@ -878,7 +1033,7 @@ namespace S1API.Internal.Patches
         /// <param name="__result">The dynamic save data result.</param>
         [HarmonyPatch(typeof(S1NPCs.NPC), nameof(S1NPCs.NPC.GetSaveData))]
         [HarmonyPrefix]
-        private static bool NPC_GetSaveData_Prefix(S1NPCs.NPC __instance, ref S1Datas.DynamicSaveData __result)
+        private static bool NPC_GetSaveData_Prefix(S1NPCs.NPC __instance, ref S1Datas.DynamicSaveData? __result)
         {
             // Check if instance is null
             if (__instance == null)
@@ -1053,6 +1208,8 @@ namespace S1API.Internal.Patches
 
                 if (saveData.TryGetData("MessageConversation", out S1Datas.MSGConversationData convo))
                 {
+                    apiNpc?.EnsureMessageConversationReady(resetDefaults: false);
+
                     if (s1BaseNpc.MSGConversation == null)
                     {
                         Logger.Warning($"NPCLoader_Load_Prefix: MSGConversation is null for '{baseData.ID}'");
@@ -1075,11 +1232,10 @@ namespace S1API.Internal.Patches
                     {
                         try
                         {
-                            apiNpc.Customer.EnsureCustomer();
+                            apiNpc?.Customer?.EnsureCustomer();
 
-                            var npcType = apiNpc.GetType();
-                            bool hasDefaults = NPC.HasCustomerDefaultsForType(npcType);
-                            if (hasDefaults)
+                            var npcType = apiNpc?.GetType();
+                            if (npcType != null && NPC.HasCustomerDefaultsForType(npcType))
                             {
                                 var defaultData = NPC.BuildCustomerDefaultsForType(npcType);
                                 if (defaultData != null)
@@ -1156,14 +1312,14 @@ namespace S1API.Internal.Patches
                     if (hasDefaults)
                     {
                         var builder = new NPCRelationshipDataBuilder();
-                        relCfg(builder);
+                        relCfg!(builder);
                         var rel = s1BaseNpc.RelationData;
                         if (rel != null)
                         {
                             // Preserve relationship delta if it was loaded from save (non-default value)
                             // Default relationship delta is 2.0, so if it's different, it came from save
                             float currentDelta = rel.RelationDelta;
-                            bool deltaWasLoadedFromSave = Math.Abs(currentDelta - S1Relation.NPCRelationData.DEFAULT_RELATION_DELTA) > 0.01f;
+                            bool deltaWasLoadedFromSave = Math.Abs(currentDelta - DefaultRelationDelta) > 0.01f;
                             
                             // Store the loaded delta before applying defaults
                             float savedDelta = currentDelta;
@@ -1188,6 +1344,16 @@ namespace S1API.Internal.Patches
                         {
                             Logger.Warning($"[S1API] NPCLoader_Load_Prefix: RelationData is null when trying to apply defaults for '{baseData.ID}'");
                         }
+                    }
+
+                    // SetVisible(false) deactivates the Avatar GameObject. Custom suppliers
+                    // must remain active through FishNet spawn so native NPC.Awake can find
+                    // the Avatar reference; FinalizeNetworkSpawn applies idle visibility.
+                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(wrap.IsSupplier))
+                    {
+                        s1BaseNpc.SetVisible(
+                            wrap.ShouldBeVisibleAfterSpawn(),
+                            networked: false);
                     }
                 }
                 else
@@ -1223,14 +1389,14 @@ namespace S1API.Internal.Patches
                 try
                 {
                     // Use reflection to access currentAffinityData field/property
-                    PropertyInfo currentAffinityProp;
-                    FieldInfo currentAffinityField;
+                    PropertyInfo? currentAffinityProp;
+                    FieldInfo? currentAffinityField;
                     currentAffinityField = customerType.GetField("currentAffinityData",
                         BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
                     currentAffinityProp = customerType.GetProperty("currentAffinityData",
                         BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public);
 
-                    S1Economy.CustomerAffinityData currentAffinity = null;
+                    S1Economy.CustomerAffinityData? currentAffinity = null;
                     if (currentAffinityField != null)
                     {
                         if (currentAffinityField is FieldInfo field)
@@ -1285,7 +1451,9 @@ namespace S1API.Internal.Patches
                         {
                             var countProperty = productAffinities.GetType()
                                 .GetProperty("Count", BindingFlags.Public | BindingFlags.Instance);
-                            var count = countProperty != null ? (int)countProperty.GetValue(productAffinities) : 0;
+                            var count = countProperty?.GetValue(productAffinities) is int countValue
+                                ? countValue
+                                : 0;
                             var actualCount = Math.Min(cust.ProductAffinities.Length, count);
 
                             for (int i = 0; i < actualCount; i++)
@@ -1484,7 +1652,7 @@ namespace S1API.Internal.Patches
                         continue;
                     try
                     {
-                        string n = npc.gameObject != null ? npc.gameObject.name : null;
+                        string? n = npc.gameObject != null ? npc.gameObject.name : null;
                         if (!string.IsNullOrEmpty(n) && n.StartsWith("S1API_", StringComparison.Ordinal))
                             continue; // skip template prefab entries
 
@@ -1554,7 +1722,7 @@ namespace S1API.Internal.Patches
             try
             {
                 // Clear inventory without networking
-                if (__instance.ClearInventoryEachNight)
+                if (GetInventoryBool(__instance, "ClearInventoryEachNight"))
                 {
                     for (int i = 0; i < __instance.ItemSlots.Count; i++)
                     {
@@ -1575,9 +1743,11 @@ namespace S1API.Internal.Patches
                     return false;
 
                 // Random cash (local-only)
-                if (__instance.RandomCash)
+                if (GetInventoryBool(__instance, "RandomCash"))
                 {
-                    int amount = UnityEngine.Random.Range(__instance.RandomCashMin, __instance.RandomCashMax);
+                    int amount = UnityEngine.Random.Range(
+                        GetInventoryInt(__instance, "RandomCashMin", 0),
+                        GetInventoryInt(__instance, "RandomCashMax", 0));
                     if (amount > 0)
                     {
                         var cash = NetworkSingleton<S1Money.MoneyManager>.Instance.GetCashInstance(amount);
@@ -1586,8 +1756,8 @@ namespace S1API.Internal.Patches
                 }
 
                 // Random items (local-only) - Use AddRandomItemsToInventory which handles the new API
-                if (__instance.RandomItems && __instance.RandomInventoryItems != null &&
-                    __instance.RandomInventoryItems.Length > 0)
+                if (GetInventoryBool(__instance, "RandomItems") &&
+                    GetArrayLength(GetInventoryMember(__instance, "RandomInventoryItems")) > 0)
                 {
                     // v0.4.2f4 changed GetRandomInventoryItem to require excludeIDs parameter
                     // and added AddRandomItemsToInventory() as a public method - use that instead
@@ -1641,8 +1811,8 @@ namespace S1API.Internal.Patches
                 }
 
                 // Disable behaviours locally (non-networked equivalent of Disable_Server)
-                baseNpc.Behaviour.DeadBehaviour?.Disable();
-                baseNpc.Behaviour.UnconsciousBehaviour?.Disable();
+                baseNpc!.Behaviour?.DeadBehaviour?.Disable();
+                baseNpc.Behaviour?.UnconsciousBehaviour?.Disable();
 
                 // Fire revive event so downstream listeners still react
                 __instance.onRevive?.Invoke();
@@ -1699,14 +1869,13 @@ namespace S1API.Internal.Patches
                 Logger.Warning($"[S1API] NPCLoader_Load_Postfix: Exception marking NPC '{baseData.ID}' as loaded: {ex.Message}");
             }
 
-            CustomNpcsReady = true;
         }
 
         /// <summary>
         /// Utility to find a base-game NPC by ID in a way compatible with both System and Il2Cpp lists.
         /// Also checks S1API NPC.All list as a fallback for custom NPCs that might not be in NPCRegistry yet.
         /// </summary>
-        private static S1NPCs.NPC FindBaseNpcById(string id)
+        internal static S1NPCs.NPC? FindBaseNpcById(string? id)
         {
             try
             {
@@ -1775,7 +1944,9 @@ namespace S1API.Internal.Patches
                                    overflowSlotsObj.GetType().GetProperty("Count");
                     if (countProp != null)
                     {
-                        slotCount = (int)countProp.GetValue(overflowSlotsObj);
+                        slotCount = countProp.GetValue(overflowSlotsObj) is int countValue
+                            ? countValue
+                            : 0;
                         needsInit = slotCount == 0;
                     }
                     else
@@ -1788,13 +1959,13 @@ namespace S1API.Internal.Patches
 
                 if (needsInit)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     // Create IL2CPP array
                     var overflowSlots = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>(10);
                     for (int i = 0; i < 10; i++)
                     {
                         overflowSlots[i] = new S1Items.ItemSlot();
-                        overflowSlots[i].SetSlotOwner(dealer.Cast<S1Items.IItemSlotOwner>());
+                        overflowSlots[i].SetSlotOwner(dealer!.Cast<S1Items.IItemSlotOwner>());
                     }
 #else
                     // Create regular C# array for Mono
@@ -1806,12 +1977,12 @@ namespace S1API.Internal.Patches
                     }
 #endif
                     
-                    Utils.ReflectionUtils.TrySetFieldOrProperty(dealer, "overflowSlots", overflowSlots);
+                    Utils.ReflectionUtils.TrySetFieldOrProperty(dealer!, "overflowSlots", overflowSlots);
                 }
                 else if (slotCount > 0)
                 {
                     // Slots exist, ensure they have proper owners
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                     // For IL2CPP, cast to Il2CppReferenceArray and use direct indexing
                     var il2cppArray = overflowSlotsObj as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>;
                     if (il2cppArray != null)
@@ -1821,7 +1992,7 @@ namespace S1API.Internal.Patches
                             var slot = il2cppArray[i];
                             if (slot != null)
                             {
-                                slot.SetSlotOwner(dealer.Cast<S1Items.IItemSlotOwner>());
+                                slot.SetSlotOwner(dealer!.Cast<S1Items.IItemSlotOwner>());
                             }
                         }
                     }
@@ -1851,7 +2022,7 @@ namespace S1API.Internal.Patches
         /// <summary>
         /// Utility to find the S1API wrapper for a base-game NPC.
         /// </summary>
-        private static NPC FindWrapperForS1Npc(S1NPCs.NPC baseNpc)
+        internal static NPC? FindWrapperForS1Npc(S1NPCs.NPC? baseNpc)
         {
             try
             {
@@ -1881,7 +2052,7 @@ namespace S1API.Internal.Patches
         /// Returns true only when the active scene is exactly "Main" (case-insensitive).
         /// Custom NPC flow is restricted to this scene to avoid prologue issues.
         /// </summary>
-        private static bool IsInMainScene()
+        internal static bool IsInMainScene()
         {
             string sceneName = SceneManager.GetActiveScene().name;
             return string.Equals(sceneName, "Main", StringComparison.OrdinalIgnoreCase);
@@ -2228,15 +2399,15 @@ namespace S1API.Internal.Patches
                             // Get the array length/count
                             var countProp = overflowSlotsObj.GetType().GetProperty("Length") ?? 
                                            overflowSlotsObj.GetType().GetProperty("Count");
-                            int slotCount = countProp != null ? (int)countProp.GetValue(overflowSlotsObj) : 0;
+                            int slotCount = countProp?.GetValue(overflowSlotsObj) is int countValue
+                                ? countValue
+                                : 0;
                             
                             if (slotCount > 0)
                             {
                                 // Convert to ItemSlot array for LoadTo
                                 var slotsArray = new S1Items.ItemSlot[slotCount];
-                                bool hasNullSlots = false;
-                                
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                                 // For IL2CPP, cast to Il2CppReferenceArray and use direct indexing
                                 var il2cppArray = overflowSlotsObj as Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<S1Items.ItemSlot>;
                                 if (il2cppArray != null)
@@ -2246,7 +2417,6 @@ namespace S1API.Internal.Patches
                                         var slot = il2cppArray[i];
                                         if (slot == null)
                                         {
-                                            hasNullSlots = true;
                                             // Create a new slot if null
                                             slot = new S1Items.ItemSlot();
                                             slot.SetSlotOwner(__instance.Cast<S1Items.IItemSlotOwner>());
@@ -2266,7 +2436,6 @@ namespace S1API.Internal.Patches
                                         var slot = monoArray[i];
                                         if (slot == null)
                                         {
-                                            hasNullSlots = true;
                                             // Create a new slot if null
                                             slot = new S1Items.ItemSlot();
                                             slot.SetSlotOwner(__instance);
@@ -2328,7 +2497,7 @@ namespace S1API.Internal.Patches
             int min,
             int max,
             bool checkShouldStart,
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
             ref Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction> __result)
 #else
             ref System.Collections.Generic.List<S1NPCsSchedules.NPCAction> __result)
@@ -2346,7 +2515,7 @@ namespace S1API.Internal.Patches
 
                 // Handle both System.List and Il2CppList types
                 int actionCount = 0;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var il2cppList = actionListObj as Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>;
                 if (il2cppList != null)
                     actionCount = il2cppList.Count;
@@ -2360,7 +2529,7 @@ namespace S1API.Internal.Patches
                     return true; // Unexpected type, fall back to original
 #endif
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var list = new Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>();
 #else
                 var list = new List<S1NPCsSchedules.NPCAction>();
@@ -2369,8 +2538,8 @@ namespace S1API.Internal.Patches
                 // Iterate through actions, skipping null or inactive (pre-created) ones
                 for (int i = 0; i < actionCount; i++)
                 {
-                    S1NPCsSchedules.NPCAction action = null;
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+                    S1NPCsSchedules.NPCAction? action = null;
+#if IL2CPPMELON
                     action = il2cppList[i];
 #else
                     action = monoList[i];
@@ -2399,7 +2568,7 @@ namespace S1API.Internal.Patches
                     var orderByDescending = Utils.ReflectionUtils.TryGetFieldOrProperty(__instance, "orderByDescending");
                     if (orderByDescending != null)
                     {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         var comparer = orderByDescending as Il2CppSystem.Collections.Generic.IComparer<S1NPCsSchedules.NPCAction>;
                         if (comparer != null)
                             list.Sort(comparer);
@@ -2446,7 +2615,7 @@ namespace S1API.Internal.Patches
                 var actionsArray = __instance.gameObject.GetComponentsInChildren<S1NPCsSchedules.NPCAction>(includeInactive: true);
                 
                 // Create appropriate list type for the platform
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 var list = new Il2CppSystem.Collections.Generic.List<S1NPCsSchedules.NPCAction>();
 #else
                 var list = new List<S1NPCsSchedules.NPCAction>();
@@ -2461,7 +2630,7 @@ namespace S1API.Internal.Patches
                 
                 // Sort with fixed comparison function
                 // Use manual bubble sort for IL2CPP compatibility (can't use delegates or IComparer easily)
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                 // Manual sort for IL2CPP - convert to array, sort, rebuild list
                 var sortArray = new S1NPCsSchedules.NPCAction[list.Count];
                 for (int i = 0; i < list.Count; i++)
@@ -2516,7 +2685,7 @@ namespace S1API.Internal.Patches
                     // Try to get the property/field type to debug
                     try
                     {
-                        var prop = __instance.GetType().GetProperty("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+                        var prop = __instance!.GetType().GetProperty("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         var field = __instance.GetType().GetField("ActionList", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
                         var memberType = prop?.PropertyType ?? field?.FieldType;
                         Logger.Warning($"ActionList member type: {memberType?.FullName ?? "null"}, list type: {list.GetType().FullName}");
@@ -2563,7 +2732,7 @@ namespace S1API.Internal.Patches
                     continue;
 
                 // Try to find the customer NPC - retry a few times if not found
-                S1NPCs.NPC npc = null;
+                S1NPCs.NPC? npc = null;
                 for (int retry = 0; retry < 5 && npc == null; retry++)
                 {
                     try
@@ -2587,7 +2756,7 @@ namespace S1API.Internal.Patches
                     continue;
                 }
 
-                S1Economy.Customer customer = null;
+                S1Economy.Customer? customer = null;
                 try
                 {
                     customer = npc.GetComponent<S1Economy.Customer>();
@@ -2599,7 +2768,10 @@ namespace S1API.Internal.Patches
 
                 if (customer == null)
                 {
-                    Logger.Warning($"NPC {npc.fullName} (ID: {customerID}) is not a customer");
+                    string npcName = ReflectionUtils.TryGetFieldOrProperty(npc, "fullName") as string
+                        ?? ReflectionUtils.TryGetFieldOrProperty(npc, "FullName") as string
+                        ?? npc.name;
+                    Logger.Warning($"NPC {npcName} (ID: {customerID}) is not a customer");
                     continue;
                 }
 

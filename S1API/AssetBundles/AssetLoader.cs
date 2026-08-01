@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Reflection;
 
-#if IL2CPPBEPINEX || IL2CPPMELON
+#if IL2CPPMELON
 using System.IO;
 #endif
 
@@ -21,7 +21,7 @@ namespace S1API.AssetBundles
         private static readonly Log _logger = new Log("AssetLoader");
         private static readonly Dictionary<string, WrappedAssetBundle> _cachedAssetBundles = new Dictionary<string, WrappedAssetBundle>();
 
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
         /// <summary>
         /// Loads an Il2Cpp AssetBundle from an embedded resource stream by name.
         /// </summary>
@@ -30,13 +30,13 @@ namespace S1API.AssetBundles
         /// <returns>The loaded Il2CppAssetBundle, or throws on failure.</returns>
         public static WrappedAssetBundle GetAssetBundleFromStream(string fullResourceName, Assembly overrideAssembly)
         {
-            if (_cachedAssetBundles.TryGetValue(fullResourceName, out WrappedAssetBundle cachedWrappedAssetBundle))
+            if (_cachedAssetBundles.TryGetValue(fullResourceName, out WrappedAssetBundle? cachedWrappedAssetBundle))
                 return cachedWrappedAssetBundle;
 
             // Attempt to find the embedded resource in the executing assembly
             using Stream? stream = overrideAssembly.GetManifestResourceStream(fullResourceName);
             if (stream == null)
-                throw new Exception($"Embedded resource '{fullResourceName}' not found in {overrideAssembly.FullName}."); // hoping these throws will be melon/bepinex-agnostic
+                throw new Exception($"Embedded resource '{fullResourceName}' not found in {overrideAssembly.FullName}.");
 
             // Read the stream into a byte array
             byte[] data = new byte[stream.Length];
@@ -51,7 +51,7 @@ namespace S1API.AssetBundles
             _cachedAssetBundles.TryAdd(fullResourceName, wrappedAssetBundle);
             return wrappedAssetBundle;
         }
-#elif MONOMELON || MONOBEPINEX
+#elif MONOMELON
         /// <summary>
         /// Load a <see cref="WrappedAssetBundle"/> instance by <see cref="string"/> resource name.
         /// </summary>

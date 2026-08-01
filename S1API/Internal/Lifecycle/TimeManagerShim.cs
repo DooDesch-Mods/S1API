@@ -1,7 +1,7 @@
 ﻿#if (IL2CPPMELON)
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using Il2CppInterop.Runtime;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1GameTime = ScheduleOne.GameTime;
 #endif
 
@@ -16,15 +16,15 @@ namespace S1API.Internal.Lifecycle
     /// </summary>
     internal class TimeManagerShim
     {
-        private static TimeManagerShim _instance;
+        private static TimeManagerShim? _instance;
         internal static TimeManagerShim Instance => _instance ??= new TimeManagerShim();
 
         internal Action onSleepStart = delegate { };
         internal Action onHourPass = delegate { };
 
 #if IL2CPPMELON
-        private Il2CppSystem.Action il2cppOnSleepStart;
-        private Il2CppSystem.Action il2cppOnHourPass;
+        private Il2CppSystem.Action? il2cppOnSleepStart;
+        private Il2CppSystem.Action? il2cppOnHourPass;
         private readonly List<Il2CppSystem.Action> _addedSleepStart = new();
         private readonly List<Il2CppSystem.Action> _addedHourPass = new();
 #endif
@@ -59,21 +59,23 @@ namespace S1API.Internal.Lifecycle
                 }
 
 #if IL2CPPMELON
-                il2cppOnSleepStart ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onSleepStart);
-                il2cppOnHourPass ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onHourPass);
+                var sleepStart = il2cppOnSleepStart ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onSleepStart);
+                var hourPass = il2cppOnHourPass ??= DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(onHourPass);
+                if (sleepStart == null || hourPass == null)
+                    return;
 
-                if (!_addedSleepStart.Contains(il2cppOnSleepStart))
+                if (!_addedSleepStart.Contains(sleepStart))
                 {
-                    real.onSleepStart = Il2CppSystem.Delegate.Combine(real.onSleepStart, il2cppOnSleepStart)
+                    real.onSleepStart = Il2CppSystem.Delegate.Combine(real.onSleepStart, sleepStart)
                         .Cast<Il2CppSystem.Action>();
-                    _addedSleepStart.Add(il2cppOnSleepStart);
+                    _addedSleepStart.Add(sleepStart);
                 }
 
-                if (!_addedHourPass.Contains(il2cppOnHourPass))
+                if (!_addedHourPass.Contains(hourPass))
                 {
-                    real.onHourPass = Il2CppSystem.Delegate.Combine(real.onHourPass, il2cppOnHourPass)
+                    real.onHourPass = Il2CppSystem.Delegate.Combine(real.onHourPass, hourPass)
                         .Cast<Il2CppSystem.Action>();
-                    _addedHourPass.Add(il2cppOnHourPass);
+                    _addedHourPass.Add(hourPass);
                 }
 #else
             real.onSleepStart = (Action)Delegate.Combine(real.onSleepStart, onSleepStart);
@@ -116,12 +118,12 @@ namespace S1API.Internal.Lifecycle
         }
 
 #if IL2CPPMELON
-        private static Il2CppSystem.Action RemoveAll(Il2CppSystem.Action original, Il2CppSystem.Action toRemove)
+        private static Il2CppSystem.Action? RemoveAll(Il2CppSystem.Action? original, Il2CppSystem.Action toRemove)
         {
             if (original == null) return null;
 
             var list = original.GetInvocationList();
-            Il2CppSystem.Action result = null;
+            Il2CppSystem.Action? result = null;
 
             foreach (var d in list)
             {

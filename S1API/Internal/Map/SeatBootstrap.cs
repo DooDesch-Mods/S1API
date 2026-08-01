@@ -2,7 +2,7 @@ using System.Collections;
 using MelonLoader;
 #if (IL2CPPMELON)
 using S1AvatarAnimation = Il2CppScheduleOne.AvatarFramework.Animation;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1AvatarAnimation = ScheduleOne.AvatarFramework.Animation;
 #endif
 using S1API.Avatar;

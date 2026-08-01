@@ -1,7 +1,7 @@
 #if (IL2CPPMELON)
 using S1Equipping = Il2CppScheduleOne.Equipping;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Equipping = ScheduleOne.Equipping;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 #endif

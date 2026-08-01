@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Growing = Il2CppScheduleOne.Growing;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Growing = ScheduleOne.Growing;
 #endif
 

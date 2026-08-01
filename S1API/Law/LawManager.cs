@@ -3,7 +3,7 @@ using S1Law = Il2CppScheduleOne.Law;
 using S1PlayerScripts = Il2CppScheduleOne.PlayerScripts;
 using S1NPCBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1Police = Il2CppScheduleOne.Police;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Law = ScheduleOne.Law;
 using S1PlayerScripts = ScheduleOne.PlayerScripts;
 using S1NPCBehaviour = ScheduleOne.NPCs.Behaviour;
@@ -211,7 +211,7 @@ namespace S1API.Law
         /// If insufficient officers are available at the nearest police station, the patrol will not be created.
         /// Use <see cref="FindFootPatrolRoute"/> to locate existing patrol routes in the scene.
         /// </remarks>
-        public static PatrolGroup StartFootPatrol(FootPatrolRoute route, int requestedMembers = 2)
+        public static PatrolGroup? StartFootPatrol(FootPatrolRoute route, int requestedMembers = 2)
         {
             if (Internal == null || route?.S1Route == null) return null;
             var s1PatrolGroup = Internal.StartFootpatrol(route.S1Route, requestedMembers);
@@ -241,7 +241,7 @@ namespace S1API.Law
         /// </summary>
         /// <param name="routeName">The name of the patrol route to find.</param>
         /// <returns>The FootPatrolRoute wrapper, or null if not found.</returns>
-        public static FootPatrolRoute FindFootPatrolRoute(string routeName)
+        public static FootPatrolRoute? FindFootPatrolRoute(string routeName)
         {
             if (string.IsNullOrEmpty(routeName)) return null;
             var routes = Object.FindObjectsOfType<S1NPCBehaviour.FootPatrolRoute>();
@@ -258,7 +258,7 @@ namespace S1API.Law
         /// </summary>
         /// <param name="routeName">The name of the patrol route to find.</param>
         /// <returns>The VehiclePatrolRoute wrapper, or null if not found.</returns>
-        public static VehiclePatrolRoute FindVehiclePatrolRoute(string routeName)
+        public static VehiclePatrolRoute? FindVehiclePatrolRoute(string routeName)
         {
             if (string.IsNullOrEmpty(routeName)) return null;
             var routes = Object.FindObjectsOfType<S1NPCBehaviour.VehiclePatrolRoute>();

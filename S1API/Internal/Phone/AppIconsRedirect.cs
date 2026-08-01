@@ -30,7 +30,7 @@ namespace S1API.Internal.Phone
         public AppIconsRedirect(IntPtr ptr) : base(ptr) { }
 #endif
 
-        internal Transform _realAppIcons;
+        internal Transform? _realAppIcons;
         private bool _initialized;
         private int _lastMirroredRealCount = -1;
         private readonly HashSet<int> _stubMirrorIconIds = new HashSet<int>();

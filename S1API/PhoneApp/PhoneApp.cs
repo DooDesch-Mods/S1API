@@ -15,10 +15,7 @@ using Il2CppScheduleOne.DevUtilities;
 using MelonLoader.Utils;
 using Il2CppInterop.Runtime;
 using S1GameInput = Il2CppScheduleOne.GameInput;
-#elif MONOBEPINEX || IL2CPPBEPINEX
-using ScheduleOne.UI.Phone;
-using ScheduleOne;
-using S1GameInput = ScheduleOne.GameInput;
+using S1ExitAction = Il2CppScheduleOne.ExitAction;
 #elif MONOMELON
 using ScheduleOne.UI;
 using ScheduleOne.DevUtilities;
@@ -26,6 +23,7 @@ using ScheduleOne.UI.Phone;
 using ScheduleOne;
 using MelonLoader.Utils;
 using S1GameInput = ScheduleOne.GameInput;
+using S1ExitAction = ScheduleOne.ExitAction;
 #endif
 namespace S1API.PhoneApp
 {
@@ -51,18 +49,10 @@ namespace S1API.PhoneApp
         /// app canvas structure in the game's Unity hierarchy.
         /// </summary>
         private GameObject? _appPanel;
+        private GameObject? _appContainer;
         private bool _isDestroying;
 
         internal bool IsDestroying => _isDestroying;
-
-        /// <summary>
-        /// Indicates whether the application UI has been successfully created and initialized.
-        /// </summary>
-        /// <remarks>
-        /// This variable is used internally to track the state of the application's UI.
-        /// When set to true, it denotes that the app UI panel has been created and configured.
-        /// </remarks>
-        private bool _appCreated;
 
         /// <summary>
         /// Indicates whether the phone application icon has been modified.
@@ -154,7 +144,7 @@ namespace S1API.PhoneApp
 
         /// <summary>
         /// Gets the orientation of the phone app (Horizontal or Vertical).
-        /// Determines how the phone is rotated when the app is opened.
+        /// Determines both the phone rotation and the initial layout of the app panel.
         /// </summary>
         protected virtual EOrientation Orientation => EOrientation.Horizontal;
 
@@ -201,7 +191,8 @@ namespace S1API.PhoneApp
                 _appPanel = null;
             }
 
-            _appCreated = false;
+            _appContainer = null;
+
             _iconModified = false;
             _iconImage = null;
             _pendingIconSprite = null;
@@ -229,8 +220,10 @@ namespace S1API.PhoneApp
         }
 
         /// <summary>
-        /// Handles exit/home button functionality. Called when user presses escape or home.
+        /// Handles exit/home button functionality without exposing runtime-specific game types.
+        /// Called when the user presses escape or home.
         /// </summary>
+        /// <param name="exit">The cross-runtime exit request.</param>
         public virtual void Exit(ExitAction exit)
         {
             if (!exit.Used && IsOpen() && Phone.InstanceExists && Phone.Instance.IsOpen)
@@ -256,9 +249,8 @@ namespace S1API.PhoneApp
 
         /// <summary>
         /// Generates and initializes the UI panel for the application within the in-game phone system.
-        /// This method locates the parent container in the UI hierarchy, clones a template panel if needed,
-        /// clears its content, and then invokes the implementation-specific OnCreatedUI method
-        /// for further customization of the UI panel.
+        /// This method locates the parent container in the UI hierarchy, creates an independent app panel,
+        /// and then invokes the implementation-specific OnCreatedUI method for further customization.
         /// </summary>
         internal void SpawnUI(HomeScreen homeScreenInstance)
         {
@@ -279,35 +271,15 @@ namespace S1API.PhoneApp
             }
             else
             {
-                Transform templateApp = appsCanvas.transform.Find("ProductManagerApp");
-                if (templateApp == null)
-                {
-                    Logger.Error("Template ProductManagerApp not found.");
-                    return;
-                }
-
-                _appPanel = Object.Instantiate(templateApp.gameObject, appsCanvas.transform);
-                _appPanel.name = AppName;
-
-                Transform containerTransform = _appPanel.transform.Find("Container");
-                if (containerTransform != null)
-                {
-                    GameObject container = containerTransform.gameObject;
-                    ClearContainer(container);
-                    OnCreatedUI(container);
-                }
-
-                _appCreated = true;
+                _appPanel = CreateAppPanel(AppName, appsCanvas.transform);
+                _appContainer = CreateAppContainer(_appPanel.transform);
             }
 
             _appPanel.SetActive(true);
             
             // Add button handler component to detect physical button clicks
-            if (_appPanel.GetComponent<PhoneAppButtonHandler>() == null)
-            {
-                var buttonHandler = _appPanel.AddComponent<PhoneAppButtonHandler>();
-                buttonHandler.phoneApp = this;
-            }
+            var buttonHandler = _appPanel.GetComponent<PhoneAppButtonHandler>() ?? _appPanel.AddComponent<PhoneAppButtonHandler>();
+            buttonHandler.phoneApp = this;
             
             // Subscribe to phone close apps event and register exit handler like native apps
             if (Phone.InstanceExists)
@@ -317,9 +289,9 @@ namespace S1API.PhoneApp
                 
                 // Create IL2CPP-safe delegate instance
 #if IL2CPPMELON
-                _exitDelegate = DelegateSupport.ConvertDelegate<S1GameInput.ExitDelegate>(new System.Action<ExitAction>(Exit));
+                _exitDelegate = DelegateSupport.ConvertDelegate<S1GameInput.ExitDelegate>(new System.Action<S1ExitAction>(HandleNativeExit));
 #else
-                _exitDelegate = new S1GameInput.ExitDelegate(Exit);
+                _exitDelegate = new S1GameInput.ExitDelegate(HandleNativeExit);
 #endif
                 GameInput.RegisterExitListener(_exitDelegate, 1);
 
@@ -327,6 +299,13 @@ namespace S1API.PhoneApp
                 _onPhoneClosedAction = OnPhoneClosed;
                 Phone.Instance.onPhoneClosed += _onPhoneClosedAction;
             }
+        }
+
+        private void HandleNativeExit(S1ExitAction exit)
+        {
+            Exit(new ExitAction(
+                () => exit.Used,
+                used => exit.Used = used));
         }
 
         /// <summary>
@@ -392,7 +371,7 @@ namespace S1API.PhoneApp
             if (iconButton != null)
             {
                 iconButton.onClick.RemoveAllListeners();
-                EventHelper.AddListener(OpenApp, iconButton.onClick);
+                global::S1API.Utils.EventHelper.AddListener(OpenApp, iconButton.onClick);
             }
         }
 
@@ -412,7 +391,7 @@ namespace S1API.PhoneApp
                 // Set app state to open using the same pattern as native apps
                 SetAppOpen(true);
 
-                Logger.Msg($"Opened phone app: {AppName}");
+                Logger.Debug($"Opened phone app: {AppName}");
             }
             catch (Exception e)
             {
@@ -433,7 +412,7 @@ namespace S1API.PhoneApp
                     SetAppOpen(false);
                 }
 
-                Logger.Msg($"Closed phone app: {AppName}");
+                Logger.Debug($"Closed phone app: {AppName}");
             }
             catch (Exception e)
             {
@@ -482,13 +461,7 @@ namespace S1API.PhoneApp
 
                 // Set as active app and activate panel
                 Phone.ActiveApp = _appPanel;
-                if (_appPanel != null)
-                {
-                    var containerTransform = _appPanel.transform.Find("Container");
-                    var container = containerTransform != null ? containerTransform.gameObject : null;
-                    if (container != null)
-                        container.SetActive(true);
-                }
+                _appContainer?.SetActive(true);
             }
             else
             {
@@ -506,46 +479,102 @@ namespace S1API.PhoneApp
                 }
 
                 // Deactivate container
-                if (_appPanel != null)
-                {
-                    var containerTransform = _appPanel.transform.Find("Container");
-                    var container = containerTransform != null ? containerTransform.gameObject : null;
-                    if (container != null)
-                        container.SetActive(false);
-                }
+                _appContainer?.SetActive(false);
             }
         }
 
         /// <summary>
-        /// Configures an existing app panel by clearing and rebuilding its UI elements if necessary.
+        /// Configures an existing app panel by replacing its content with one S1API-owned container.
         /// </summary>
         /// <param name="panel">The app panel to configure, represented as a GameObject.</param>
         private void SetupExistingAppPanel(GameObject panel)
         {
-            Transform containerTransform = panel.transform.Find("Container");
-            if (containerTransform != null)
+            panel.SetActive(false);
+
+            for (int i = panel.transform.childCount - 1; i >= 0; i--)
             {
-                GameObject container = containerTransform.gameObject;
-                if (container.transform.childCount < 2)
-                {
-                    ClearContainer(container);
-                    OnCreatedUI(container);
-                }
+                Transform child = panel.transform.GetChild(i);
+                child.gameObject.SetActive(false);
+                child.SetParent(null, false);
+                Object.Destroy(child.gameObject);
             }
 
-            _appCreated = true;
+            ConfigureAppPanel(panel.GetComponent<RectTransform>() ?? panel.AddComponent<RectTransform>());
+            _appContainer = CreateAppContainer(panel.transform);
         }
 
         /// <summary>
-        /// Removes all child objects from the specified container to clear its contents.
+        /// Creates an app panel whose layout matches the configured phone orientation.
         /// </summary>
-        /// <param name="container">The parent GameObject whose child objects will be destroyed.</param>
-        private void ClearContainer(GameObject container)
+        private GameObject CreateAppPanel(string name, Transform parent)
         {
-            for (int i = container.transform.childCount - 1; i >= 0; i--)
-                Object.Destroy(container.transform.GetChild(i).gameObject);
+            GameObject panel = CreateFullStretchObject(name, parent);
+            ConfigureAppPanel(panel.GetComponent<RectTransform>());
+            return panel;
+        }
 
+        /// <summary>
+        /// Applies the native phone app layout for the configured orientation.
+        /// </summary>
+        private void ConfigureAppPanel(RectTransform rectTransform)
+        {
+            if (Orientation == EOrientation.Horizontal)
+            {
+                ConfigureFullStretch(rectTransform);
+                return;
+            }
+
+            RectTransform? parentRectTransform = rectTransform.parent?.GetComponent<RectTransform>();
+            if (parentRectTransform == null)
+            {
+                Logger.Warning($"Cannot configure vertical layout for {AppName}: parent is not a RectTransform.");
+                ConfigureFullStretch(rectTransform);
+                return;
+            }
+
+            Vector2 center = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMin = center;
+            rectTransform.anchorMax = center;
+            rectTransform.pivot = center;
+            rectTransform.anchoredPosition = Vector2.zero;
+            rectTransform.sizeDelta = new Vector2(parentRectTransform.rect.height, parentRectTransform.rect.width);
+            rectTransform.localRotation = Quaternion.Euler(0f, 0f, 90f);
+            rectTransform.localScale = Vector3.one;
+        }
+
+        /// <summary>
+        /// Creates the full-screen container exposed to custom phone apps.
+        /// </summary>
+        private GameObject CreateAppContainer(Transform parent)
+        {
+            GameObject container = CreateFullStretchObject("Container", parent);
+            OnCreatedUI(container);
             container.SetActive(false);
+            return container;
+        }
+
+        /// <summary>
+        /// Creates a UI object that fills its parent RectTransform.
+        /// </summary>
+        private static GameObject CreateFullStretchObject(string name, Transform parent)
+        {
+            GameObject gameObject = new GameObject(name);
+            RectTransform rectTransform = gameObject.AddComponent<RectTransform>();
+            rectTransform.SetParent(parent, false);
+            ConfigureFullStretch(rectTransform);
+            gameObject.layer = parent.gameObject.layer;
+            return gameObject;
+        }
+
+        private static void ConfigureFullStretch(RectTransform rectTransform)
+        {
+            rectTransform.anchorMin = Vector2.zero;
+            rectTransform.anchorMax = Vector2.one;
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            rectTransform.offsetMin = Vector2.zero;
+            rectTransform.offsetMax = Vector2.zero;
+            rectTransform.localRotation = Quaternion.identity;
+            rectTransform.localScale = Vector3.one;
         }
 
         /// <summary>
@@ -567,11 +596,7 @@ namespace S1API.PhoneApp
                 return false;
             }
 
-#if MONOMELON || IL2CPPMELON
             string path = Path.Combine(MelonEnvironment.ModsDirectory, filename);
-#elif MONOBEPINEX || IL2CPPBEPINEX
-            string path = Path.Combine(BepInEx.Paths.PluginPath, filename);
-#endif
             if (!File.Exists(path))
             {
                 Logger.Error("Icon file not found: " + path);
@@ -645,7 +670,7 @@ namespace S1API.PhoneApp
 #endif
     internal class PhoneAppButtonHandler : MonoBehaviour
     {
-        internal PhoneApp phoneApp;
+        internal PhoneApp? phoneApp;
 
         private void Update()
         {

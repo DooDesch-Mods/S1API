@@ -12,6 +12,7 @@ namespace S1API.Entities.Appearances.BodyLayerFields
         public const string Egg = "Avatar/Layers/Tattoos/chest/Chest_Egg";
         public const string LBC = "Avatar/Layers/Tattoos/chest/Chest_LBC";
         public const string Sword = "Avatar/Layers/Tattoos/chest/Chest_Sword";
+        public const string UpperBody = "Avatar/Layers/Tattoos/UpperBodyTattoos";
     }
 }
 

@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Dialogue = Il2CppScheduleOne.Dialogue;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Dialogue = ScheduleOne.Dialogue;
 #endif
 
@@ -10,6 +10,7 @@ using System.Reflection;
 using Object = UnityEngine.Object;
 using S1API.Entities.Dialogue;
 using S1API.Internal.Abstraction;
+using S1API.Internal.Utils;
 
 namespace S1API.Entities
 {
@@ -107,7 +108,7 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(containerName))
                 return;
             EnsureHandler();
-            Handler?.InitializeDialogue(containerName, enableBehaviour, entryNodeLabel);
+            StartDialogueCompat(containerName, enableBehaviour, entryNodeLabel);
         }
 
         /// <summary>
@@ -182,9 +183,9 @@ namespace S1API.Entities
                 return;
             _eventsHooked = true;
             // Handler events are invoked from DialogueHandler.ChoiceCallback and DialogueCallback
-            EventHelper.AddListener(Internal_OnChoice, Handler.onDialogueChoiceChosen);
-            EventHelper.AddListener(Internal_OnNode, Handler.onDialogueNodeDisplayed);
-            EventHelper.AddListener(Internal_OnConversationStart, Handler.onConversationStart);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnChoice, Handler.onDialogueChoiceChosen);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnNode, Handler.onDialogueNodeDisplayed);
+            global::S1API.Utils.EventHelper.AddListener(Internal_OnConversationStart, Handler.onConversationStart);
         }
 
         /// <summary>
@@ -202,7 +203,8 @@ namespace S1API.Entities
             EnsureRuntimeModulesList();
 
             // Reset and rebuild from DB
-            try { Handler.runtimeModules.Clear(); } catch { }
+            var runtimeModules = GetRuntimeModules();
+            try { runtimeModules?.Clear(); } catch { }
 
             // Remove any DialogueModule components attached locally (these are typically the generic module)
             var localModules = Handler.gameObject.GetComponents<S1Dialogue.DialogueModule>();
@@ -213,14 +215,14 @@ namespace S1API.Entities
             var generic = Handler.gameObject.AddComponent<S1Dialogue.DialogueModule>();
             generic.ModuleType = S1Dialogue.EDialogueModule.Generic;
             generic.Entries = db.GenericEntries;
-            Handler.runtimeModules.Add(generic);
+            runtimeModules?.Add(generic);
 
             // Append database-provided modules (scene/prefab modules)
             if (db.Modules != null)
             {
                 for (int i = 0; i < db.Modules.Count; i++)
                 {
-                    try { Handler.runtimeModules.Add(db.Modules[i]); } catch { }
+                    try { runtimeModules?.Add(db.Modules[i]); } catch { }
                 }
             }
         }
@@ -250,7 +252,7 @@ namespace S1API.Entities
             else
             {
                 // Assign database and build modules for first time
-                Handler.Database = built.Database;
+                ReflectionUtils.TrySetFieldOrProperty(Handler, "Database", built.Database);
                 RebuildRuntimeModules(built.Database);
             }
 
@@ -261,11 +263,11 @@ namespace S1API.Entities
                 {
                     var mod = Handler.gameObject.AddComponent<S1Dialogue.DialogueModule>();
                     // Try to map a known enum name; fallback keeps as custom
-                    if (System.Enum.TryParse(typeof(S1Dialogue.EDialogueModule), spec.ModuleName, true, out var enumVal))
-                        mod.ModuleType = (S1Dialogue.EDialogueModule)enumVal;
+                    if (System.Enum.TryParse(spec.ModuleName, true, out S1Dialogue.EDialogueModule moduleType))
+                        mod.ModuleType = moduleType;
                     mod.Entries = ToIl2CppEntryList(spec.Entries);
                     EnsureRuntimeModulesList();
-                    try { Handler.runtimeModules.Add(mod); } catch { }
+                    try { GetRuntimeModules()?.Add(mod); } catch { }
                 }
             }
 
@@ -277,12 +279,12 @@ namespace S1API.Entities
         {
             try
             {
-                if (Handler.runtimeModules == null)
+                if (GetRuntimeModules() == null)
                 {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
-                    Handler.runtimeModules = new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>();
+#if IL2CPPMELON
+                    ReflectionUtils.TrySetFieldOrProperty(Handler, "RuntimeModules", new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>());
 #else
-                    runtimeModulesProperty?.SetValue(Handler, new System.Collections.Generic.List<S1Dialogue.DialogueModule>());
+                    runtimeModulesProperty?.SetValue(Handler, new List<S1Dialogue.DialogueModule>());
 #endif
                 }
             }
@@ -313,7 +315,7 @@ namespace S1API.Entities
                     // Ensure target modules exists
                     if (target.Modules == null)
                     {
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
                         target.Modules = new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>();
 #else
                         target.Modules = new System.Collections.Generic.List<S1Dialogue.DialogueModule>();
@@ -333,6 +335,7 @@ namespace S1API.Entities
             if (Handler == null || db == null)
                 return;
             EnsureRuntimeModulesList();
+            var runtimeModules = GetRuntimeModules();
             try
             {
                 // Add a Generic module if DB has generic entries
@@ -341,7 +344,7 @@ namespace S1API.Entities
                     var generic = Handler.gameObject.AddComponent<S1Dialogue.DialogueModule>();
                     generic.ModuleType = S1Dialogue.EDialogueModule.Generic;
                     generic.Entries = db.GenericEntries;
-                    Handler.runtimeModules.Add(generic);
+                    runtimeModules?.Add(generic);
                 }
             }
             catch { }
@@ -350,7 +353,7 @@ namespace S1API.Entities
             {
                 for (int i = 0; i < db.Modules.Count; i++)
                 {
-                    try { Handler.runtimeModules.Add(db.Modules[i]); } catch { }
+                    try { runtimeModules?.Add(db.Modules[i]); } catch { }
                 }
             }
         }
@@ -417,7 +420,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -458,7 +461,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -481,9 +484,9 @@ namespace S1API.Entities
             void ClearOnce()
             {
                 try { controller.ClearOverrideContainer(); } catch { }
-                try { EventHelper.RemoveListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
+                try { global::S1API.Utils.EventHelper.RemoveListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
             }
-            try { EventHelper.AddListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
+            try { global::S1API.Utils.EventHelper.AddListener((System.Action)ClearOnce, Handler.onConversationStart); } catch { }
 
             return true;
         }
@@ -506,7 +509,7 @@ namespace S1API.Entities
 #endif
             if (list == null)
                 return false;
-            S1Dialogue.DialogueContainer container = null;
+            S1Dialogue.DialogueContainer? container = null;
             for (int i = 0; i < list.Count; i++)
             {
                 var item = list[i];
@@ -518,8 +521,7 @@ namespace S1API.Entities
             }
             if (container == null)
                 return false;
-            Handler.InitializeDialogue(container, enableBehaviour, entryNodeLabel);
-            return true;
+            return StartDialogueCompat(container, enableBehaviour, entryNodeLabel);
         }
 
         private void Internal_OnChoice(string choiceLabel)
@@ -567,7 +569,39 @@ namespace S1API.Entities
         private readonly List<Action> _conversationStartCallbacks = new List<Action>();
         private bool _eventsHooked;
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
+        private Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>? GetRuntimeModules()
+        {
+            return ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>
+                ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>;
+        }
+#else
+        private List<S1Dialogue.DialogueModule>? GetRuntimeModules()
+        {
+            return ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as List<S1Dialogue.DialogueModule>
+                ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as List<S1Dialogue.DialogueModule>;
+        }
+#endif
+
+        private bool StartDialogueCompat(string containerName, bool enableBehaviour = true, string entryNodeLabel = "ENTRY")
+        {
+            if (Handler == null || string.IsNullOrEmpty(containerName))
+                return false;
+
+            Handler.StartDialogue(containerName, enableBehaviour, entryNodeLabel);
+            return true;
+        }
+
+        private bool StartDialogueCompat(S1Dialogue.DialogueContainer container, bool enableBehaviour = true, string entryNodeLabel = "ENTRY")
+        {
+            if (Handler == null || container == null)
+                return false;
+
+            Handler.StartDialogue(container, enableBehaviour, entryNodeLabel);
+            return true;
+        }
+
+#if IL2CPPMELON
         private static Il2CppSystem.Collections.Generic.List<S1Dialogue.Entry> ToIl2CppEntryList(System.Collections.Generic.List<S1Dialogue.Entry> source)
         {
             var list = new Il2CppSystem.Collections.Generic.List<S1Dialogue.Entry>();

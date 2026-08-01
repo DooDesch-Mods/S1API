@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-#if (IL2CPPMELON || MONOMELON)
 using MelonLoader;
-#endif
 
 #if IL2CPPMELON
 using Il2CppScheduleOne.Dialogue;
@@ -75,11 +73,7 @@ namespace S1API.Dialogues
             _isHooked = true;
 
             // @TODO: Check whether coroutines can be started with this.
-#if (IL2CPPMELON || MONOMELON)
             MelonCoroutines.Start(WaitForNPCsAndInject());
-#elif (IL2CPPBEPINEX || MONOBEPINEX)
-            InstanceFinder.TimeManager.StartCoroutine("WaitForNPCsAndInject");
-#endif
         }
 
         /// <summary>
@@ -134,7 +128,7 @@ namespace S1API.Dialogues
             if (handler == null)
                 return;
 
-            DialogueContainer container = ResolveContainer(handler, injection.ContainerName);
+            DialogueContainer? container = ResolveContainer(handler, injection.ContainerName);
             if (container == null)
                 return;
 
@@ -176,7 +170,7 @@ namespace S1API.Dialogues
                 TargetNodeGuid = injection.ToNodeGuid
             };
 
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
             container.NodeLinks ??= new Il2CppSystem.Collections.Generic.List<NodeLinkData>();
 #else
             container.NodeLinks ??= new List<NodeLinkData>();
@@ -190,7 +184,7 @@ namespace S1API.Dialogues
             // MelonLogger.Msg($"[DialogueInjector] Injected '{injection.ChoiceLabel}' into NPC '{npc.name}'");
         }
 
-        private static DialogueContainer ResolveContainer(DialogueHandler handler, string containerName)
+        private static DialogueContainer? ResolveContainer(DialogueHandler handler, string containerName)
         {
             if (handler == null || string.IsNullOrEmpty(containerName))
                 return null;
@@ -205,11 +199,11 @@ namespace S1API.Dialogues
                     return controller.OverrideContainer;
             }
 
-            NPCEvent_LocationDialogue dialogueEvent = handler.GetComponentInParent<S1NPC>()?.GetComponentInChildren<NPCEvent_LocationDialogue>(true);
+            NPCEvent_LocationDialogue? dialogueEvent = handler.GetComponentInParent<S1NPC>()?.GetComponentInChildren<NPCEvent_LocationDialogue>(true);
             if (dialogueEvent != null && dialogueEvent.DialogueOverride != null && dialogueEvent.DialogueOverride.name == containerName)
                 return dialogueEvent.DialogueOverride;
 
-#if IL2CPPMELON || IL2CPPBEPINEX
+#if IL2CPPMELON
             var containers = handler.dialogueContainers;
 #else
             var field = typeof(DialogueHandler).GetField("dialogueContainers", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);

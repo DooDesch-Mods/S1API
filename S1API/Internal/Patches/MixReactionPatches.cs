@@ -1,20 +1,22 @@
 #if (IL2CPPMELON)
 using S1Effects = Il2CppScheduleOne.Effects;
 using S1Product = Il2CppScheduleOne.Product;
+using S1Registry = Il2CppScheduleOne.Registry;
+using S1Packaging = Il2CppScheduleOne.Product.Packaging;
 using EffectList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Effects.Effect>;
-#elif (IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Effects = ScheduleOne.Effects;
 using S1Product = ScheduleOne.Product;
-using EffectList = Il2CppSystem.Collections.Generic.List<ScheduleOne.Effects.Effect>;
-#elif (MONOMELON || MONOBEPINEX)
-using S1Effects = ScheduleOne.Effects;
-using S1Product = ScheduleOne.Product;
+using S1Registry = ScheduleOne.Registry;
+using S1Packaging = ScheduleOne.Product.Packaging;
 using EffectList = System.Collections.Generic.List<ScheduleOne.Effects.Effect>;
 #endif
 using System;
+using System.Linq;
 using HarmonyLib;
 using S1API.Logging;
 using S1API.Products;
+using S1API.Internal.Products;
 
 namespace S1API.Internal.Patches
 {
@@ -53,7 +55,7 @@ namespace S1API.Internal.Patches
 
                 // The game can return a shared list (e.g. a product definition's Properties for a named recipe),
                 // so never mutate __result directly. Clone once, only if a rule actually fires.
-                EffectList working = null;
+            EffectList? working = null;
 
                 foreach (var rule in rules)
                 {
@@ -131,6 +133,182 @@ namespace S1API.Internal.Patches
                 var effect = list[i];
                 if (effect != null && string.Equals(effect.ID, id, StringComparison.OrdinalIgnoreCase))
                     list.RemoveAt(i);
+            }
+        }
+    }
+
+    /// <summary>
+    /// INTERNAL: Replaces only registered generic-product mix outputs before the native family switch.
+    /// </summary>
+    [HarmonyPatch(typeof(S1Product.ProductManager), "RpcLogic___FinishAndNameMix_4237212381")]
+    internal static class CustomProductMixingPatches
+    {
+        private static readonly Log Logger = new Log("CustomProductMixingPatches");
+
+        [HarmonyPrefix]
+        private static bool FinishAndNameMix_Prefix(
+            string productID,
+            string ingredientID,
+            string mixName,
+            ref string mixID)
+        {
+            try
+            {
+                S1Product.ProductDefinition? source =
+                    S1Registry.GetItem(productID) as S1Product.ProductDefinition;
+                if (source == null || !CustomProductDefinitionRegistry.TryGetMetadata(source, out CustomProductDefinitionMetadata? metadata))
+                    return true;
+
+                if (!ProductMixingProfiles.TryGet(metadata!.ProductKind.Id, out ProductMixingProfile? profile))
+                {
+                    Logger.Error("Custom product '" + productID + "' has logical kind '" + metadata.ProductKind.Id + "' but no ProductMixingProfile is registered. The mix was rejected before the unsupported native output switch.");
+                    return false;
+                }
+
+                if (!CustomProductMixingIdentity.IsGeneratedIdForSource(productID, mixID))
+                    mixID = CustomProductMixingIdentity.CreateGeneratedProductId(productID, mixID);
+
+                // FishNet can execute the same observer RPC after a local host path. Preserve
+                // the native first-wins behavior and do not allocate a second definition.
+                if (CustomProductDefinitionRegistry.IsRegistered(mixID))
+                    return false;
+
+                S1Product.PropertyItemDefinition? ingredient =
+                    S1Registry.GetItem(ingredientID) as S1Product.PropertyItemDefinition;
+                if (ingredient == null || ingredient.Properties == null || ingredient.Properties.Count != 1)
+                {
+                    Logger.Error("Custom product mix '" + productID + "' has no valid single-property ingredient '" + ingredientID + "'.");
+                    return false;
+                }
+
+                EffectList properties = S1Effects.EffectMixCalculator.MixProperties(
+                    source.Properties,
+                    ingredient.Properties[0],
+                    source.DrugType);
+                var resolvedProperties =
+                    new System.Collections.Generic.List<S1Effects.Effect>(properties.Count);
+                for (int i = 0; i < properties.Count; i++)
+                    resolvedProperties.Add(properties[i]);
+                var outputInput = new ProductMixingOutput(
+                    mixID,
+                    mixName,
+                    productID,
+                    metadata.ProductKind,
+                    source.BasePrice);
+                ProductMixingOutputDefinition output = profile!.OutputFactory(outputInput)
+                    ?? throw new InvalidOperationException("The mixing output factory returned null.");
+                DrugType nativeDrugType = ProductMixingMapContract.GetNativeDrugType(profile.MixerMap);
+                if ((int)source.DrugType != (int)nativeDrugType)
+                {
+                    throw new InvalidOperationException(
+                        "Custom product '" + productID + "' uses native drug type '" +
+                        source.DrugType + "' but its ProductMixingProfile selects mixer map '" +
+                        profile.MixerMap + "'. Configure the product's explicit native mixer map to match the profile.");
+                }
+
+                var packaging = new System.Collections.Generic.List<S1Packaging.PackagingDefinition>();
+                for (int i = 0; i < metadata.ValidPackaging.Count; i++)
+                    packaging.Add(metadata.ValidPackaging[i].S1PackagingDefinition);
+
+                S1Product.ProductDefinition template = metadata.RepresentationTemplate ?? source;
+                S1Product.ProductDefinition generated = CustomProductDefinitionFactory.Create(
+                    mixID,
+                    output.Name,
+                    source.Description,
+                    output.Price,
+                    (global::S1API.Items.LegalStatus)(int)source.legalStatus,
+                    source.BaseAddictiveness,
+                    source.PlayerEffectDuration,
+                    source.NPCEffectDuration,
+                    nativeDrugType,
+                    resolvedProperties,
+                    packaging,
+                    template);
+                var generatedMetadata = new CustomProductDefinitionMetadata(
+                    output.ProductKind,
+                    metadata.DefaultQuality,
+                    metadata.ValidPackaging,
+                    template);
+                var saveDescriptor = new CustomProductSaveDescriptorData
+                {
+                    ProductId = mixID,
+                    OwnerId = CustomProductDefinitionBuilderContract.GetOwnerId(mixID),
+                    ProductName = output.Name,
+                    Description = source.Description,
+                    InitialPrice = output.Price,
+                    LegalStatus = (int)source.legalStatus,
+                    BaseAddictiveness = source.BaseAddictiveness,
+                    DefaultQuality = (int)metadata.DefaultQuality,
+                    ProductKindId = output.ProductKind.Id,
+                    CompatibilityDrugType = (int)nativeDrugType,
+                    RepresentationTemplateId = template.ID,
+                    PlayerEffectDurationSeconds = source.PlayerEffectDuration,
+                    NpcEffectDurationSeconds = source.NPCEffectDuration,
+                    PropertyIds = resolvedProperties.ConvertAll(property => property.ID).ToArray(),
+                    PackagingIds = metadata.ValidPackaging.Select(packagingDefinition => packagingDefinition.ID).ToArray(),
+                    IsGeneratedMix = true
+                };
+                try
+                {
+                    CustomProductDefinitionRegistry.Register(
+                        CustomProductDefinitionBuilderContract.GetOwnerId(mixID),
+                        mixID,
+                        output.Name,
+                        output.Price,
+                        generated,
+                        generatedMetadata,
+                        saveDescriptor);
+                }
+                catch
+                {
+                    CustomProductDefinitionFactory.Destroy(generated);
+                    throw;
+                }
+
+                return false;
+            }
+            catch (Exception exception)
+            {
+                Logger.Error("Custom product mixing output failed for '" + productID + "': " + exception);
+                return false;
+            }
+        }
+    }
+
+    /// <summary>
+    /// INTERNAL: Replaces the fully sanitized native ID at the RPC seams.
+    /// </summary>
+    [HarmonyPatch(typeof(S1Product.ProductManager), "FinishAndNameMix", new[] { typeof(string), typeof(string), typeof(string), typeof(string) })]
+    internal static class CustomProductMixingIdPatches
+    {
+        [HarmonyPrefix]
+        private static void FinishAndNameMix_Prefix(string productID, ref string mixID)
+        {
+            S1Product.ProductDefinition? source = S1Registry.GetItem(productID) as S1Product.ProductDefinition;
+            if (source == null || !CustomProductDefinitionRegistry.TryGetMetadata(source, out CustomProductDefinitionMetadata? metadata))
+                return;
+            if (ProductMixingProfiles.TryGet(metadata!.ProductKind.Id, out _) &&
+                !CustomProductMixingIdentity.IsGeneratedIdForSource(productID, mixID))
+            {
+                mixID = CustomProductMixingIdentity.CreateGeneratedProductId(productID, mixID);
+            }
+        }
+    }
+
+    /// <summary>INTERNAL: Uses the same generated ID on client-to-server mix requests.</summary>
+    [HarmonyPatch(typeof(S1Product.ProductManager), "SendFinishAndNameMix", new[] { typeof(string), typeof(string), typeof(string), typeof(string) })]
+    internal static class CustomProductMixingClientRpcPatches
+    {
+        [HarmonyPrefix]
+        private static void SendFinishAndNameMix_Prefix(string productID, ref string mixID)
+        {
+            S1Product.ProductDefinition? source = S1Registry.GetItem(productID) as S1Product.ProductDefinition;
+            if (source == null || !CustomProductDefinitionRegistry.TryGetMetadata(source, out CustomProductDefinitionMetadata? metadata))
+                return;
+            if (ProductMixingProfiles.TryGet(metadata!.ProductKind.Id, out _) &&
+                !CustomProductMixingIdentity.IsGeneratedIdForSource(productID, mixID))
+            {
+                mixID = CustomProductMixingIdentity.CreateGeneratedProductId(productID, mixID);
             }
         }
     }

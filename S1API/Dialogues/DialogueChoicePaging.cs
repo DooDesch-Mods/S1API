@@ -7,11 +7,7 @@ using S1API.Logging;
 using Il2CppScheduleOne.Dialogue;
 using Il2CppScheduleOne.UI;
 using Il2CppSystem.Collections.Generic;
-#elif IL2CPPBEPINEX
-using ScheduleOne.Dialogue;
-using ScheduleOne.UI;
-using Il2CppSystem.Collections.Generic;
-#elif MONOMELON || MONOBEPINEX
+#elif MONOMELON
 using ScheduleOne.Dialogue;
 using ScheduleOne.UI;
 using System.Collections.Generic;
@@ -32,12 +28,12 @@ namespace S1API.Dialogues
         private static bool _patched;
         private static DialogueChoicePagingOptions _options = new DialogueChoicePagingOptions();
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static DialogueHandler? _handler;
         private static DialogueNodeData? _node;
         private static string? _text;
         private static Il2CppSystem.Collections.Generic.List<DialogueChoiceData>? _fullChoices;
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
         private static DialogueHandler? _handler;
         private static DialogueNodeData? _node;
         private static string? _text;
@@ -193,7 +189,7 @@ namespace S1API.Dialogues
             return choiceIndex == moreIndex;
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static void DisplayDialogueNodePrefix(DialogueHandler diag, DialogueNodeData node, string dialogueText, ref Il2CppSystem.Collections.Generic.List<DialogueChoiceData> choices)
         {
             try
@@ -279,7 +275,7 @@ namespace S1API.Dialogues
             }
         }
 
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
         private static void DisplayDialogueNodePrefix(DialogueHandler diag, DialogueNodeData node, string dialogueText, ref System.Collections.Generic.List<DialogueChoiceData> choices)
         {
             try
@@ -401,7 +397,7 @@ namespace S1API.Dialogues
             return (totalChoices + _options.ChoicesPerPage - 1) / _options.ChoicesPerPage;
         }
 
-#if (IL2CPPMELON || IL2CPPBEPINEX)
+#if IL2CPPMELON
         private static Il2CppSystem.Collections.Generic.List<DialogueChoiceData> CopyList(Il2CppSystem.Collections.Generic.List<DialogueChoiceData> src)
         {
             var dst = new Il2CppSystem.Collections.Generic.List<DialogueChoiceData>();
@@ -458,7 +454,7 @@ namespace S1API.Dialogues
 
             return page;
         }
-#elif (MONOMELON || MONOBEPINEX)
+#elif MONOMELON
         private static System.Collections.Generic.List<DialogueChoiceData> BuildPageChoices(System.Collections.Generic.List<DialogueChoiceData> full, int pageIndex, int pageCount)
         {
             var page = new System.Collections.Generic.List<DialogueChoiceData>();

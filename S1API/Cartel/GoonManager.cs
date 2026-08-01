@@ -1,6 +1,6 @@
 #if (IL2CPPMELON)
 using S1Cartel = Il2CppScheduleOne.Cartel;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Cartel = ScheduleOne.Cartel;
 #endif
 

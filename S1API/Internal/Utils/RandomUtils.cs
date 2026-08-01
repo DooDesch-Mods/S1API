@@ -5,7 +5,7 @@ namespace S1API.Internal.Utils
 {
     /// <summary>
     /// INTERNAL: A utility class providing random selection functionality for lists and numeric ranges.
-    /// This class is intended for internal API use only. Mod developers should use <see cref="S1API.Utils.RandomUtils"/> instead.
+    /// This class is intended for internal API use only. Mod developers should use <c>S1API.Utils.RandomUtils</c> instead.
     /// </summary>
     internal static class RandomUtils
     {

@@ -22,6 +22,8 @@
           href: custom-npcs.md
         - name: Basic NPC Creation
           href: basic-npc-creation.md
+        - name: NPC Workbench
+          href: npc-workbench.md
         - name: Prefab Configuration
           href: prefab-configuration.md
         - name: NPC Runtime Management
@@ -40,20 +42,36 @@
           href: dialogue-system.md
         - name: Customer Behavior
           href: customer-behavior.md
+        - name: Supplier NPCs
+          href: supplier-system.md
         - name: Relationship Management
           href: relationship-management.md
     - name: Dealers
       href: dealer-system.md
+    - name: Deliveries
+      href: delivery-system.md
     - name: Dialogue Injection
       href: dialogue-injection.md
     - name: Quests
       href: quests-system.md
+    - name: Map POIs
+      href: map-pois.md
+    - name: Cutscenes
+      href: cutscenes.md
     - name: Products
       items:
         - name: Overview
           href: products-system.md
         - name: Products API
           href: products-api.md
+        - name: Native Weed Variants
+          href: weed-variants.md
+        - name: Logical Product Kinds
+          href: product-kinds.md
+        - name: Generic Custom Products
+          href: generic-custom-products.md
+        - name: Presentation Workbench
+          href: presentation-workbench.md
         - name: ProductPopulator
           href: products-populator.md
         - name: Runtime Additives

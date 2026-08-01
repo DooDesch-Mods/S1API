@@ -3,7 +3,7 @@ using S1Calling = Il2CppScheduleOne.Calling;
 using S1UIPhone = Il2CppScheduleOne.UI.Phone;
 using S1ScriptableObjects = Il2CppScheduleOne.ScriptableObjects;
 using ActionPhoneCall = Il2CppSystem.Action<Il2CppScheduleOne.ScriptableObjects.PhoneCallData>;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1Calling = ScheduleOne.Calling;
 using S1UIPhone = ScheduleOne.UI.Phone;
 using S1ScriptableObjects = ScheduleOne.ScriptableObjects;
@@ -67,7 +67,7 @@ namespace S1API.PhoneCalls
             PendingCalls.Clear();
         }
 
-        private static S1ScriptableObjects.PhoneCallData GetQueuedCallData(S1Calling.CallManager manager)
+        private static S1ScriptableObjects.PhoneCallData? GetQueuedCallData(S1Calling.CallManager manager)
         {
             return ReflectionUtils.TryGetFieldOrProperty(manager, "QueuedCallData") as S1ScriptableObjects.PhoneCallData;
         }
@@ -103,7 +103,7 @@ namespace S1API.PhoneCalls
                 return;
             }
 
-            S1ScriptableObjects.PhoneCallData next = null;
+            S1ScriptableObjects.PhoneCallData? next = null;
             // Pull until we find a valid call or run out
             while (PendingCalls.Count > 0)
             {

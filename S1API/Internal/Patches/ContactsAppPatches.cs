@@ -5,7 +5,7 @@ using S1Map = Il2CppScheduleOne.Map;
 using S1Relations = Il2CppScheduleOne.UI.Relations;
 using Il2CppSystem.Collections.Generic;
 using Il2CppSystem;
-#elif (MONOMELON || MONOBEPINEX || IL2CPPBEPINEX)
+#elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1ContactsApp = ScheduleOne.UI.Phone.ContactsApp;
 using S1Map = ScheduleOne.Map;
@@ -19,6 +19,7 @@ using System.Reflection;
 using HarmonyLib;
 using MelonLoader;
 using S1API.Entities;
+using S1API.Internal.Entities;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using UnityEngine;
@@ -37,6 +38,29 @@ namespace S1API.Internal.Patches
         private static readonly Log Logger = new Log("ContactsAppPatches");
         private static bool _startCalled;
         private static bool? _hasCustomNpcTypesCache;
+
+        private static string? GetAssignedNpcId(S1Relations.RelationCircle circle)
+        {
+            if (circle == null)
+                return null;
+
+            return (ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC") as S1NPCs.NPC)?.ID
+                   ?? ReflectionUtils.TryGetFieldOrProperty(circle, "AssignedNPC_ID") as string
+                   ?? ReflectionUtils.TryGetFieldOrProperty(circle, "NPCId") as string;
+        }
+
+        private static void SetAssignedNpc(S1Relations.RelationCircle circle, S1NPCs.NPC npc)
+        {
+            if (circle == null || npc == null)
+                return;
+
+            var dataObject = NPCDataAccess.GetDataObject(npc);
+            if (dataObject != null)
+                ReflectionUtils.TrySetFieldOrProperty(circle, "NPC", dataObject);
+
+            ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC_ID", npc.ID);
+            ReflectionUtils.TrySetFieldOrProperty(circle, "AssignedNPC", npc);
+        }
 
         /// <summary>
         /// Resets static state so the contacts app initializes correctly across save loads.
@@ -78,39 +102,24 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Intercepts ContactsApp.Start to wait for custom NPCs before initialization.
+        /// Schedules custom Contacts app initialization after the native app lifecycle has completed.
         /// </summary>
-        [HarmonyPrefix]
+        [HarmonyPostfix]
         [HarmonyPatch(typeof(S1ContactsApp.ContactsApp), "Start")]
-        private static bool ContactsApp_Start_Prefix(S1ContactsApp.ContactsApp __instance)
+        private static void ContactsApp_Start_Postfix(S1ContactsApp.ContactsApp __instance)
         {
             // skip patch if in the tutorial
             if (SceneManager.GetActiveScene().name == "Tutorial")
-                return true;
+                return;
 
-            // If no custom NPCs exist, allow original Start to run normally
-            var hasCustomTypes = HasCustomNpcTypes();
-
-            if (!hasCustomTypes)
-                return true;
-
-            if (NPCPatches.CustomNpcsReady)
-            {
-                var allNPCs = NPC.All.ToList();
-                var customNPCs = allNPCs.Where(n => n.IsCustomNPC).ToList();
-                var physicalCustomNPCs = customNPCs.Where(n => n.IsPhysical).ToList();
-                if (physicalCustomNPCs.Count == 0)
-                    return true;
-            }
+            if (!HasCustomNpcTypes())
+                return;
 
             if (!_startCalled)
             {
                 _startCalled = true;
                 MelonCoroutines.Start(WaitForNPCs(__instance));
-                return false;
             }
-            
-            return true;
         }
 
         /// <summary>
@@ -129,28 +138,10 @@ namespace S1API.Internal.Patches
             var allNPCs = NPC.All.ToList();
             var customNPCs = allNPCs.Where(n => n.IsCustomNPC && n.IsPhysical).ToList();
 
-            var startMethod = typeof(S1ContactsApp.ContactsApp)
-                .GetMethod("Start", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.FlattenHierarchy);
-
-            if (startMethod == null)
-            {
-                Logger.Error("Couldn't find ContactsApp.Start method via reflection");
-                yield break;
-            }
-            
-            // Safety check: if no physical custom NPCs exist after waiting, skip relation circles logic
+            // Safety check: if no physical custom NPCs exist after waiting, skip relation circles logic.
+            // Native Start has already completed in the postfix, so no lifecycle work is deferred here.
             if (customNPCs.Count == 0)
-            {
-                try
-                {
-                    startMethod.Invoke(contactsApp, null);
-                }
-                catch (System.Exception ex)
-                {
-                    Logger.Error($"Error invoking Start: {ex}");
-                }
                 yield break;
-            }
             
             yield return new WaitUntil((Func<bool>)(() =>
             {
@@ -179,17 +170,7 @@ namespace S1API.Internal.Patches
             // This ensures HeadshotImg.sprite gets the correct mugshot, not the default icon
             yield return new WaitUntil((Func<bool>)(() => NPCAppearance.MugshotsProcessingComplete));
 
-            // Run Start() FIRST so it doesn't call LoadNPCData() on our custom circles
-            try
-            {
-                startMethod.Invoke(contactsApp, null);
-            }
-            catch (System.Exception ex)
-            {
-                Logger.Error($"Error invoking Start: {ex}");
-            }
-
-            // Add our circles AFTER Start() so they aren't processed by LoadNPCData()
+            // Add circles after native Start so they are not processed as serialized native circles.
             AddRelationCircles(contactsApp);
         }
 
@@ -199,8 +180,7 @@ namespace S1API.Internal.Patches
         private static void AddRelationCircles(S1ContactsApp.ContactsApp contactsApp)
         {
             var customNPCs = NPC.All
-                .Where(n => n.IsCustomNPC &&
-                            (NPC.IsCustomerType(n.GetType()) || NPC.IsDealerType(n.GetType())))
+                .Where(n => n.IsCustomNPC && IsContactRole(n.GetType()))
                 .ToList();
 
             var regionUIs = contactsApp.RegionUIs.ToDictionary(r => r.Region, r => r);
@@ -225,7 +205,7 @@ namespace S1API.Internal.Patches
                 }
 
                 var existing = regionUI.Container.GetComponentsInChildren<S1Relations.RelationCircle>(true)
-                    .FirstOrDefault(c => c.AssignedNPC_ID == npc.S1NPC.ID);
+                    .FirstOrDefault(c => GetAssignedNpcId(c) == npc.S1NPC.ID);
                 if (existing != null)
                     continue;
 
@@ -233,7 +213,7 @@ namespace S1API.Internal.Patches
                 var allCirclesInRegion = regionUI.Container.GetComponentsInChildren<S1Relations.RelationCircle>(true);
 
                 var template = allCirclesInRegion
-                    .FirstOrDefault(c => !createdCircleIds.Contains(c.AssignedNPC_ID))
+                    .FirstOrDefault(c => !createdCircleIds.Contains(GetAssignedNpcId(c) ?? string.Empty))
                     ?? contactsApp.CirclesContainer.GetComponentInChildren<S1Relations.RelationCircle>(true);
 
                 if (template == null)
@@ -245,7 +225,7 @@ namespace S1API.Internal.Patches
 
                 // Set ID first, then call AssignNPC to properly set up everything
                 // AssignNPC handles: UnassignNPC (cleanup), event handlers, HeadshotImg, display refresh
-                circle.AssignedNPC_ID = npc.S1NPC.ID;
+                SetAssignedNpc(circle, npc.S1NPC);
                 circle.AssignNPC(npc.S1NPC);
 
                 // Track this circle so we don't use it as a template
@@ -269,7 +249,7 @@ namespace S1API.Internal.Patches
                     contactsApp.SelectionIndicator.position = cachedCircle.Rect.position;
                 };
 
-                EnableDealerIndicator(circle, npc);
+                ApplyRoleIndicators(circle, npc.GetType());
             }
 
             var regionCircles =
@@ -291,7 +271,11 @@ namespace S1API.Internal.Patches
             foreach (var kv in regionCircles)
             {
                 var nativePositions = kv.Value
-                    .Where(c => !string.IsNullOrEmpty(c.AssignedNPC_ID) && !customNpcIds.Contains(c.AssignedNPC_ID))
+                    .Where(c =>
+                    {
+                        var assignedNpcId = GetAssignedNpcId(c);
+                        return !string.IsNullOrEmpty(assignedNpcId) && !customNpcIds.Contains(assignedNpcId);
+                    })
                     .Select(c => c.GetComponent<RectTransform>().anchoredPosition)
                     .ToList();
                 if (nativePositions.Count >= 2)
@@ -321,8 +305,11 @@ namespace S1API.Internal.Patches
                 var nativeIds = new System.Collections.Generic.HashSet<string>();
                 foreach (var kv in regionCircles)
                 foreach (var circ in kv.Value)
-                    if (!string.IsNullOrEmpty(circ.AssignedNPC_ID) && !customNpcIds.Contains(circ.AssignedNPC_ID))
-                        nativeIds.Add(circ.AssignedNPC_ID);
+                {
+                    var assignedNpcId = GetAssignedNpcId(circ);
+                    if (!string.IsNullOrEmpty(assignedNpcId) && !customNpcIds.Contains(assignedNpcId))
+                        nativeIds.Add(assignedNpcId);
+                }
 
                 var order = ComputeInsertionOrder(customNPCs, graph, nativeIds);
 
@@ -333,9 +320,9 @@ namespace S1API.Internal.Patches
 
                     var circlesInRegion = regionUI.Container.GetComponentsInChildren<S1Relations.RelationCircle>(true);
                     var circleById = circlesInRegion
-                        .Where(c => !string.IsNullOrEmpty(c.AssignedNPC_ID))
-                        .GroupBy(c => c.AssignedNPC_ID)
-                        .ToDictionary(g => g.Key, g => g.First());
+                        .Where(c => !string.IsNullOrEmpty(GetAssignedNpcId(c)))
+                        .GroupBy(c => GetAssignedNpcId(c))
+                        .ToDictionary(g => g.Key!, g => g.First());
 
                     var rectTransforms = new System.Collections.Generic.Dictionary<S1Relations.RelationCircle, RectTransform>();
                     foreach (var c in circlesInRegion)
@@ -347,17 +334,24 @@ namespace S1API.Internal.Patches
                     var placedIds = new System.Collections.Generic.HashSet<string>();
                     // All native circles are already placed
                     foreach (var c in circlesInRegion)
-                        if (!string.IsNullOrEmpty(c.AssignedNPC_ID) && !customNpcIds.Contains(c.AssignedNPC_ID))
-                            placedIds.Add(c.AssignedNPC_ID);
+                    {
+                        var assignedNpcId = GetAssignedNpcId(c);
+                        if (!string.IsNullOrEmpty(assignedNpcId) && !customNpcIds.Contains(assignedNpcId))
+                            placedIds.Add(assignedNpcId);
+                    }
 
                     foreach (var npc in regionGroup)
                     {
                         try
                         {
-                            var circle = circlesInRegion.FirstOrDefault(c => c.AssignedNPC_ID == npc.S1NPC.ID);
+                            var s1Npc = npc.S1NPC;
+                            if (s1Npc == null)
+                                continue;
+
+                            var circle = circlesInRegion.FirstOrDefault(c => GetAssignedNpcId(c) == s1Npc.ID);
                             if (circle == null)
                             {
-                                Logger.Warning($"  No circle found for {npc.S1NPC.ID}");
+                                Logger.Warning($"  No circle found for {s1Npc.ID}");
                                 continue;
                             }
 
@@ -366,7 +360,7 @@ namespace S1API.Internal.Patches
                             var newPos = ComputePlacement(circle, circlesInRegion, circleById, rectTransforms, existingEdges,
                                 gp.spacing, gp.center, gp.right, gp.up, gp.nativeBounds, placedIds);
                             rectTransforms[circle].anchoredPosition = newPos;
-                            placedIds.Add(npc.S1NPC.ID);
+                            placedIds.Add(s1Npc.ID);
                         }
                         catch (System.Exception ex)
                         {
@@ -382,6 +376,13 @@ namespace S1API.Internal.Patches
 
             // Create connection lines for custom NPCs
             CreateConnectionLines(contactsApp, customNPCs, regionUIs);
+        }
+
+        internal static bool IsContactRole(System.Type npcType)
+        {
+            return NPC.IsCustomerType(npcType)
+                   || NPC.IsDealerType(npcType)
+                   || NPC.IsSupplierType(npcType);
         }
 
         /// <summary>
@@ -410,7 +411,7 @@ namespace S1API.Internal.Patches
                     continue;
 
                 var circlesInRegion = regionUI.Container.GetComponentsInChildren<S1Relations.RelationCircle>(true);
-                var npcCircle = circlesInRegion.FirstOrDefault(c => c.AssignedNPC_ID == npc.S1NPC.ID);
+                var npcCircle = circlesInRegion.FirstOrDefault(c => GetAssignedNpcId(c) == npc.S1NPC.ID);
                 if (npcCircle == null)
                     continue;
 
@@ -441,7 +442,7 @@ namespace S1API.Internal.Patches
                         continue;
 
                     // Find circle for connected NPC
-                    var otherCircle = circlesInRegion.FirstOrDefault(c => c.AssignedNPC_ID == connectedNPC.ID);
+                    var otherCircle = circlesInRegion.FirstOrDefault(c => GetAssignedNpcId(c) == connectedNPC.ID);
                     if (otherCircle == null)
                         continue;
 
@@ -595,7 +596,7 @@ namespace S1API.Internal.Patches
             System.Collections.Generic.List<(Vector2, Vector2)> existingEdges,
             float spacing, Vector2 gridCenter, Vector2 right, Vector2 up,
             Vector4 nativeBounds,
-            System.Collections.Generic.HashSet<string> placedIds = null)
+            System.Collections.Generic.HashSet<string>? placedIds = null)
         {
             var anchors = GetConnectionPositions(circle, circleById, rectTransforms, placedIds);
 
@@ -727,7 +728,7 @@ namespace S1API.Internal.Patches
                     .ToList();
 
                 // Use a deterministic seed based on circle ID so placement is stable per-NPC
-                var hash = circle.AssignedNPC_ID?.GetHashCode() ?? 0;
+                var hash = GetAssignedNpcId(circle)?.GetHashCode() ?? 0;
                 var idx = Mathf.Abs(hash) % topCandidates.Count;
                 return topCandidates[idx];
             }
@@ -742,11 +743,11 @@ namespace S1API.Internal.Patches
             S1Relations.RelationCircle circle,
             System.Collections.Generic.Dictionary<string, S1Relations.RelationCircle> circleById,
             System.Collections.Generic.Dictionary<S1Relations.RelationCircle, RectTransform> rectTransforms,
-            System.Collections.Generic.HashSet<string> placedIds = null)
+            System.Collections.Generic.HashSet<string>? placedIds = null)
         {
             var positions = new System.Collections.Generic.List<Vector2>();
             var seen = new System.Collections.Generic.HashSet<string>();
-            var myId = circle.AssignedNPC_ID;
+            var myId = GetAssignedNpcId(circle);
 
             // Outgoing connections: NPCs this circle connects to (only if already placed)
             var conns = circle.AssignedNPC?.RelationData?.Connections;
@@ -869,8 +870,8 @@ namespace S1API.Internal.Patches
         {
             var edges = new System.Collections.Generic.List<(Vector2, Vector2)>();
             var byId = regionCircles
-                .Where(c => !string.IsNullOrEmpty(c.AssignedNPC_ID))
-                .ToDictionary(c => c.AssignedNPC_ID, c => c);
+                .Where(c => !string.IsNullOrEmpty(GetAssignedNpcId(c)))
+                .ToDictionary(c => GetAssignedNpcId(c)!, c => c);
 
             foreach (var circle in regionCircles)
             {
@@ -1074,19 +1075,49 @@ namespace S1API.Internal.Patches
         }
 
         /// <summary>
-        /// Enables the dealer indicator for dealer NPCs if a matching child exists on the relation circle.
+        /// Applies the dealer and supplier indicators when matching children exist on the relation circle.
         /// </summary>
-        private static void EnableDealerIndicator(S1Relations.RelationCircle circle, NPC npc)
+        private static void ApplyRoleIndicators(S1Relations.RelationCircle circle, System.Type npcType)
         {
-            if (circle == null || npc == null)
+            if (circle == null || npcType == null)
                 return;
 
-            var indicator = circle.transform?.Find("DealerIndicator");
+            ApplyRoleIndicators(
+                npcType,
+                (indicatorName, isActive) =>
+                    SetRoleIndicator(circle, indicatorName, isActive));
+        }
+
+        internal static void ApplyRoleIndicators(
+            System.Type npcType,
+            System.Action<string, bool> setRoleIndicator)
+        {
+            if (npcType == null || setRoleIndicator == null)
+                return;
+
+            var indicators = GetRoleIndicators(npcType);
+            setRoleIndicator("DealerIndicator", indicators.IsDealer);
+            setRoleIndicator("SupplierIndicator", indicators.IsSupplier);
+        }
+
+        internal static (bool IsDealer, bool IsSupplier) GetRoleIndicators(System.Type npcType)
+        {
+            if (npcType == null)
+                return (false, false);
+
+            return (NPC.IsDealerType(npcType), NPC.IsSupplierType(npcType));
+        }
+
+        private static void SetRoleIndicator(
+            S1Relations.RelationCircle circle,
+            string indicatorName,
+            bool isActive)
+        {
+            var indicator = circle.transform?.Find(indicatorName);
             if (indicator == null)
                 return;
 
-            var isDealer = NPC.IsDealerType(npc.GetType());
-            indicator.gameObject.SetActive(isDealer);
+            indicator.gameObject.SetActive(isActive);
         }
 
     }
