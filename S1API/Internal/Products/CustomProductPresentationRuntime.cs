@@ -498,6 +498,7 @@ namespace S1API.Internal.Products
                 }
 
                 CustomProductPresentationState state = request.State;
+                ProductIconRenderRigArbiter.CaptureLease? renderLease = null;
                 try
                 {
                     if (!state.IsGeneratedIconPending ||
@@ -524,6 +525,25 @@ namespace S1API.Internal.Products
                             "the native item-icon rendering rig did not become ready");
                         continue;
                     }
+
+                    renderLease = ProductIconRenderRigArbiter.Enqueue();
+                    while (!ProductIconRenderRigArbiter.TryAcquire(renderLease))
+                    {
+                        if (!state.IsGeneratedIconPending ||
+                            !ReferenceEquals(
+                                state.AppliedRegistration,
+                                request.Registration))
+                        {
+                            ProductIconRenderRigArbiter.Cancel(renderLease);
+                            renderLease = null;
+                            break;
+                        }
+
+                        yield return null;
+                    }
+
+                    if (renderLease == null)
+                        continue;
 
                     const int maxRetries = 30;
                     string lastError = "the native renderer returned no visible pixels";
@@ -556,9 +576,19 @@ namespace S1API.Internal.Products
 
                     if (state.IsGeneratedIconPending)
                         LogGeneratedIconFailure(request, lastError);
+
+                    // IconFactory restores the shared rig synchronously. Keep
+                    // ownership through a full settled frame so another subject
+                    // cannot capture a transition between the outgoing model and
+                    // the next queued model.
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
                 }
                 finally
                 {
+                    if (renderLease != null)
+                        ProductIconRenderRigArbiter.Release(renderLease);
+
                     state.IsGeneratedIconQueued = false;
                     if (state.IsGeneratedIconPending &&
                         state.AppliedRegistration != null &&
