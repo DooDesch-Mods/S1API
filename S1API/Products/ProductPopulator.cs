@@ -22,9 +22,10 @@ namespace S1API.Products
     /// Creates product instances and adds them to storage for mod-owned setup flows.
     /// </summary>
     /// <remarks>
-    /// These helpers read products discovered in the active save. They do not register,
-    /// discover, list, or stock products in a shop. Use explicit custom-product lifecycle APIs
-    /// before calling them for mod-owned definitions.
+    /// Discovery-based helpers read products discovered in the active save. ID-based helpers
+    /// resolve registered definitions through the item registry, while direct-creation helpers
+    /// use the supplied definition. These APIs do not register products or stock shops. Use
+    /// explicit custom-product lifecycle APIs before calling them for mod-owned definitions.
     /// </remarks>
     public static class ProductPopulator
     {
@@ -405,7 +406,7 @@ namespace S1API.Products
         /// Fills available storage slots with discovered products in native jar packaging.
         /// </summary>
         /// <param name="storage">The storage instance to populate.</param>
-        /// <returns>The number of items successfully added.</returns>
+        /// <returns>The number of stacks successfully added.</returns>
         public static int PopulateWithWeedProducts(StorageInstance storage)
         {
             return PopulateWithPackagedProducts(storage, "jar", 20);

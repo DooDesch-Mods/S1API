@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using S1API.Lifecycle;
+using S1API.Logging;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -18,6 +19,7 @@ namespace S1API.Trash
     /// </summary>
     public static class TrashManager
     {
+        private static readonly Log Logger = new Log("TrashManager");
         private static readonly object RegistrationGate = new object();
         private static readonly Dictionary<string, S1Trash.TrashItem>
             RegisteredPrefabs =
@@ -68,7 +70,8 @@ namespace S1API.Trash
 
             lock (RegistrationGate)
             {
-                return RegisteredPrefabs.TryGetValue(id, out var registered)
+                return RegisteredPrefabs.TryGetValue(id, out var registered) &&
+                    registered != null
                     ? registered.gameObject
                     : null;
             }
@@ -111,7 +114,14 @@ namespace S1API.Trash
                     existing != null)
                 {
                     if (!replaceExisting)
+                    {
+                        Logger.Warning(
+                            $"Trash ID '{id}' is already registered. " +
+                            $"Keeping '{existing.gameObject.name}' and ignoring " +
+                            $"'{trashPrefab.name}'. Set replaceExisting to true " +
+                            "to replace the existing prefab.");
                         return existing.gameObject;
+                    }
 
                     Object.Destroy(existing.gameObject);
                 }

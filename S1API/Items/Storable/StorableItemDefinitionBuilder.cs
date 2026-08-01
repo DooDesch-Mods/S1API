@@ -356,6 +356,13 @@ namespace S1API.Items.Storable
         /// </remarks>
         /// <param name="trashPrefab">Prefab containing a native TrashItem component.</param>
         /// <param name="replaceExisting">Whether an existing trash registration may be replaced.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="trashPrefab"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="trashPrefab"/> has no native TrashItem component.
+        /// </exception>
         public TSelf WithTrashPrefab(
             GameObject trashPrefab,
             bool replaceExisting = false)
@@ -372,6 +379,14 @@ namespace S1API.Items.Storable
         /// <param name="trashId">Stable trash ID used for spawning and persistence.</param>
         /// <param name="trashPrefab">Prefab containing a native TrashItem component.</param>
         /// <param name="replaceExisting">Whether an existing trash registration may be replaced.</param>
+        /// <returns>The builder instance for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// Thrown when <paramref name="trashPrefab"/> is <see langword="null"/>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        /// Thrown when <paramref name="trashPrefab"/> has no native TrashItem component, or
+        /// <paramref name="trashId"/> is empty or whitespace.
+        /// </exception>
         public TSelf WithTrashPrefab(
             string? trashId,
             GameObject trashPrefab,
@@ -466,13 +481,27 @@ namespace S1API.Items.Storable
                     "A station item is required before configuring its trash prefab.");
             }
 
-            string trashId = _trashId ?? $"{Definition.ID}_trash";
+            string trashId = ResolveTrashId(Definition.ID, _trashId);
+            GameObject? existing =
+                global::S1API.Trash.TrashManager.GetTrashPrefab(trashId);
+            if (!_replaceExistingTrash && existing != null)
+            {
+                Logger.Warning(
+                    $"Item '{Definition.ID}' requested trash ID '{trashId}', " +
+                    $"but '{existing.name}' is already registered and will be reused.");
+            }
+
             GameObject registered = global::S1API.Trash.TrashManager.RegisterTrashPrefab(
                 trashId,
                 _trashPrefab,
                 _replaceExistingTrash);
             Definition.StationItem.TrashPrefab =
                 registered.GetComponent<S1Trash.TrashItem>();
+        }
+
+        internal static string ResolveTrashId(string itemId, string? trashId)
+        {
+            return trashId ?? $"{itemId}_trash";
         }
 
         /// <summary>

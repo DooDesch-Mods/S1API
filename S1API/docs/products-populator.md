@@ -47,6 +47,9 @@ if (packaging != null && products.Count > 0)
 
 ## Populate storage
 
+In this example, `storage` already refers to the target
+`S1API.Storages.StorageInstance`.
+
 ```csharp
 int added = ProductPopulator.PopulateWithPackagedProducts(
     storage,
