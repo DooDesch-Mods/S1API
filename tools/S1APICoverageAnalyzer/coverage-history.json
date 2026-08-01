@@ -309,34 +309,46 @@
       "note": null
     },
     {
-      "timestamp": "2026-07-06T04:06:17.7808193Z",
-      "classCoveragePercentage": 31.610337972166995,
+      "timestamp": "2026-08-01T06:38:06.4190254Z",
+      "classCoveragePercentage": 32.01376936316696,
       "memberCoveragePercentage": 0,
-      "totalClasses": 1006,
-      "coveredClasses": 318,
-      "totalMembers": 25377,
+      "totalClasses": 1162,
+      "coveredClasses": 372,
+      "totalMembers": 25992,
       "coveredMembers": 0,
-      "excludedClasses": 1176,
+      "excludedClasses": 1207,
       "gameAssemblyVersion": "Assembly-CSharp.dll:0.0.0.0, ScheduleOne.Core.dll:0.0.0.0",
-      "gameAssemblyHash": "AF680F5F4219D455D790B33773AA471BA9797157BFEF71252D016F5EDBE0FC7D",
+      "gameAssemblyHash": "5689194244A2C00DA4D78EB5B010AADB85F7BF4D51CB5A6918162E7598860B62",
       "analyzerVersion": "1.0.0.0",
-      "events": [],
+      "events": [
+        {
+          "type": 1,
+          "description": "Game updated: \u002B156 types (\u002B15.5%)",
+          "details": "Hash: AF680F5F \u2192 56891942"
+        }
+      ],
       "note": null
     }
   ],
   "latestEntry": {
-    "timestamp": "2026-07-06T04:06:17.7808193Z",
-    "classCoveragePercentage": 31.610337972166995,
+    "timestamp": "2026-08-01T06:38:06.4190254Z",
+    "classCoveragePercentage": 32.01376936316696,
     "memberCoveragePercentage": 0,
-    "totalClasses": 1006,
-    "coveredClasses": 318,
-    "totalMembers": 25377,
+    "totalClasses": 1162,
+    "coveredClasses": 372,
+    "totalMembers": 25992,
     "coveredMembers": 0,
-    "excludedClasses": 1176,
+    "excludedClasses": 1207,
     "gameAssemblyVersion": "Assembly-CSharp.dll:0.0.0.0, ScheduleOne.Core.dll:0.0.0.0",
-    "gameAssemblyHash": "AF680F5F4219D455D790B33773AA471BA9797157BFEF71252D016F5EDBE0FC7D",
+    "gameAssemblyHash": "5689194244A2C00DA4D78EB5B010AADB85F7BF4D51CB5A6918162E7598860B62",
     "analyzerVersion": "1.0.0.0",
-    "events": [],
+    "events": [
+      {
+        "type": 1,
+        "description": "Game updated: \u002B156 types (\u002B15.5%)",
+        "details": "Hash: AF680F5F \u2192 56891942"
+      }
+    ],
     "note": null
   }
 }
