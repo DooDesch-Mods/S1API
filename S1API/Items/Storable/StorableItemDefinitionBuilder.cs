@@ -5,6 +5,7 @@ using S1Levelling = Il2CppScheduleOne.Levelling;
 using S1Registry = Il2CppScheduleOne.Registry;
 using S1StationFramework = Il2CppScheduleOne.StationFramework;
 using S1Storage = Il2CppScheduleOne.Storage;
+using S1Trash = Il2CppScheduleOne.Trash;
 #elif MONOMELON
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1CoreItemFramework = ScheduleOne.Core.Items.Framework;
@@ -12,6 +13,7 @@ using S1Levelling = ScheduleOne.Levelling;
 using S1Registry = ScheduleOne.Registry;
 using S1StationFramework = ScheduleOne.StationFramework;
 using S1Storage = ScheduleOne.Storage;
+using S1Trash = ScheduleOne.Trash;
 #endif
 using System;
 using System.Collections.Generic;
@@ -99,6 +101,9 @@ namespace S1API.Items.Storable
         protected readonly S1ItemFramework.StorableItemDefinition Definition;
         private readonly GameObject _storedItemPlaceholder;
         private bool _hasCustomStoredItem;
+        private GameObject? _trashPrefab;
+        private string? _trashId;
+        private bool _replaceExistingTrash;
 
         /// <summary>
         /// INTERNAL: Whether a custom StoredItem was assigned via <see cref="WithStoredItem"/>.
@@ -342,6 +347,54 @@ namespace S1API.Items.Storable
         }
 
         /// <summary>
+        /// Assigns and registers the trash prefab spawned after this station item is consumed.
+        /// </summary>
+        /// <remarks>
+        /// The station item must be configured before <see cref="Build"/>. If no explicit trash ID is
+        /// supplied, S1API uses <c>&lt;item ID&gt;_trash</c>. All multiplayer clients must build the
+        /// same registration.
+        /// </remarks>
+        /// <param name="trashPrefab">Prefab containing a native TrashItem component.</param>
+        /// <param name="replaceExisting">Whether an existing trash registration may be replaced.</param>
+        public TSelf WithTrashPrefab(
+            GameObject trashPrefab,
+            bool replaceExisting = false)
+        {
+            return WithTrashPrefab(
+                trashId: null,
+                trashPrefab,
+                replaceExisting);
+        }
+
+        /// <summary>
+        /// Assigns and registers the trash prefab spawned after this station item is consumed.
+        /// </summary>
+        /// <param name="trashId">Stable trash ID used for spawning and persistence.</param>
+        /// <param name="trashPrefab">Prefab containing a native TrashItem component.</param>
+        /// <param name="replaceExisting">Whether an existing trash registration may be replaced.</param>
+        public TSelf WithTrashPrefab(
+            string? trashId,
+            GameObject trashPrefab,
+            bool replaceExisting = false)
+        {
+            if (trashPrefab == null)
+                throw new ArgumentNullException(nameof(trashPrefab));
+            if (trashPrefab.GetComponent<S1Trash.TrashItem>() == null)
+            {
+                throw new ArgumentException(
+                    "Trash prefab must have a TrashItem component.",
+                    nameof(trashPrefab));
+            }
+            if (trashId != null && string.IsNullOrWhiteSpace(trashId))
+                throw new ArgumentException("Trash ID cannot be empty.", nameof(trashId));
+
+            _trashId = trashId;
+            _trashPrefab = trashPrefab;
+            _replaceExistingTrash = replaceExisting;
+            return Self;
+        }
+
+        /// <summary>
         /// Sets whether this item is available in the demo version of the game.
         /// </summary>
         /// <param name="available">True if available in demo, false otherwise.</param>
@@ -393,12 +446,33 @@ namespace S1API.Items.Storable
                 }
             }
 
+            ApplyTrashPrefab();
+
             // Register with the game's registry
             S1Registry.Instance.AddToRegistry(Definition);
             RuntimeItemDefinitionRegistry.Retain(Definition.ID, Definition);
 
             // Return wrapper
             return CreateWrapper(Definition);
+        }
+
+        private void ApplyTrashPrefab()
+        {
+            if (_trashPrefab == null)
+                return;
+            if (Definition.StationItem == null)
+            {
+                throw new InvalidOperationException(
+                    "A station item is required before configuring its trash prefab.");
+            }
+
+            string trashId = _trashId ?? $"{Definition.ID}_trash";
+            GameObject registered = global::S1API.Trash.TrashManager.RegisterTrashPrefab(
+                trashId,
+                _trashPrefab,
+                _replaceExistingTrash);
+            Definition.StationItem.TrashPrefab =
+                registered.GetComponent<S1Trash.TrashItem>();
         }
 
         /// <summary>
