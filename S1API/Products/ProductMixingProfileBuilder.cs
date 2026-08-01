@@ -14,7 +14,9 @@ namespace S1API.Products
         private string? _outputFactoryIdentity;
         private int _outputFactoryVersion;
 
-        /// <summary>Creates a profile builder for a registered logical product kind.</summary>
+        /// <summary>Creates a mixing-profile builder for a registered logical product kind.</summary>
+        /// <param name="productKind">The stable logical kind that opts into mixing.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="productKind"/> is <see langword="null"/>.</exception>
         public ProductMixingProfileBuilder(ProductKind productKind)
         {
             _productKind = productKind ?? throw new ArgumentNullException(nameof(productKind));
@@ -35,7 +37,10 @@ namespace S1API.Products
             return this;
         }
 
-        /// <summary>Sets the deterministic factory used to name, price, and optionally transform generated outputs.</summary>
+        /// <summary>Sets the deterministic factory that names, prices, and optionally transforms generated outputs.</summary>
+        /// <param name="outputFactory">A deterministic factory invoked for each native mixing output.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="outputFactory"/> is <see langword="null"/>.</exception>
         public ProductMixingProfileBuilder WithOutputFactory(Func<ProductMixingOutput, ProductMixingOutputDefinition> outputFactory)
         {
             _outputFactory = outputFactory ?? throw new ArgumentNullException(nameof(outputFactory));
@@ -63,7 +68,9 @@ namespace S1API.Products
             return this;
         }
 
-        /// <summary>Registers this immutable profile.</summary>
+        /// <summary>Builds and registers this immutable mixing profile.</summary>
+        /// <returns>The registered profile, or the existing equivalent profile.</returns>
+        /// <exception cref="InvalidOperationException">Thrown when no output factory was configured.</exception>
         public ProductMixingProfile Build()
         {
             if (_outputFactory == null)
