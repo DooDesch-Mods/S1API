@@ -120,7 +120,8 @@ The GitHub release workflow packages public mod archives and can publish the sam
 - The Thunderstore archive is `S1API-TS-x.y.z.zip` and contains `icon.png`, `README.md`, `manifest.json`, `Mods/`, and `Plugins/` at the archive root, but it is only used for Thunderstore publishing.
 - The uppercase `Mods/` and `Plugins/` paths are intentional so case-sensitive filesystems do not create parallel lowercase install folders.
 - The GitHub release asset is always uploaded by the workflow.
-- Nexus Mods upload runs when `NEXUSMODS_API_KEY` and `NEXUSMODS_FILE_GROUP_ID` are configured.
+- Nexus Mods upload runs when `NEXUSMODS_API_KEY`, `NEXUSMODS_FILE_GROUP_ID`, and `NEXUSMODS_MOD_ID` are configured.
+- The first tag-triggered attempt sends the generated GitHub release notes as the Nexus Mods changelog. Manual dispatches and reruns leave the changelog empty so the additive Nexus endpoint does not append the same notes twice.
 - Thunderstore upload runs when `THUNDERSTORE_TOKEN` is configured.
 - `workflow_dispatch` exposes `publish_nexus` and `publish_thunderstore` toggles for refreshing GitHub assets without re-publishing external platforms.
 
