@@ -343,6 +343,8 @@ namespace S1API.Internal.Entities.Suppliers
                 }
             }
 
+            RemoveGeneratedPrefabStash(supplier);
+
             S1Economy.SupplierStash stash =
                 nativeDeadDrop.GetComponent<S1Economy.SupplierStash>() ??
                 nativeDeadDrop.gameObject.AddComponent<S1Economy.SupplierStash>();
@@ -362,6 +364,19 @@ namespace S1API.Internal.Entities.Suppliers
 
             ConfiguredStashes.Add(stash.GetInstanceID());
             ConfiguredStashGuids[supplierKey] = deadDrop.GUID;
+        }
+
+        private static void RemoveGeneratedPrefabStash(S1Economy.Supplier supplier)
+        {
+            S1Economy.SupplierStash? generatedStash = FindInHierarchy(supplier.gameObject);
+            if (generatedStash == null)
+                return;
+
+            if (generatedStash.IntObj != null)
+                generatedStash.IntObj.enabled = false;
+
+            generatedStash.gameObject.SetActive(false);
+            Destroy(generatedStash.gameObject);
         }
 
         internal static bool IsReservedDeadDrop(S1Economy.DeadDrop deadDrop)
