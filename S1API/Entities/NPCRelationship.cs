@@ -250,6 +250,14 @@ namespace S1API.Entities
                 if (value == null)
                     return;
 
+                if (_relationshipUnlockedHandlers != null &&
+                    Array.IndexOf(
+                        _relationshipUnlockedHandlers.GetInvocationList(),
+                        value) >= 0)
+                {
+                    return;
+                }
+
                 _relationshipUnlockedHandlers += value;
                 EnsureUnlockedHook();
             }
@@ -277,7 +285,7 @@ namespace S1API.Entities
 
         #region Private Helpers
 
-        private void EnsureUnlockedHook()
+        internal void EnsureUnlockedHook()
         {
             if (_relationshipUnlockedHandlers == null)
                 return;
@@ -286,21 +294,29 @@ namespace S1API.Entities
             if (relationship == null || ReferenceEquals(relationship, _subscribedRelationship))
                 return;
 
-            RemoveUnlockedHook();
-            NativeRelationshipUnlockedAction dispatcher =
-                GetOrCreateNativeUnlockedDispatcher();
+            try
+            {
+                RemoveUnlockedHook();
+                NativeRelationshipUnlockedAction dispatcher =
+                    GetOrCreateNativeUnlockedDispatcher();
 
 #if IL2CPPMELON
-            relationship.OnUnlocked = relationship.OnUnlocked == null
-                ? dispatcher
-                : Il2CppSystem.Delegate.Combine(
-                        relationship.OnUnlocked,
-                        dispatcher)
-                    .Cast<NativeRelationshipUnlockedAction>();
+                relationship.OnUnlocked = relationship.OnUnlocked == null
+                    ? dispatcher
+                    : Il2CppSystem.Delegate.Combine(
+                            relationship.OnUnlocked,
+                            dispatcher)
+                        .Cast<NativeRelationshipUnlockedAction>();
 #else
-            relationship.OnUnlocked += dispatcher;
+                relationship.OnUnlocked += dispatcher;
 #endif
-            _subscribedRelationship = relationship;
+                _subscribedRelationship = relationship;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"Could not attach the native relationship-unlocked hook: {ex}");
+            }
         }
 
         private NativeRelationshipUnlockedAction GetOrCreateNativeUnlockedDispatcher()
@@ -330,17 +346,28 @@ namespace S1API.Entities
                 return;
             }
 
+            try
+            {
 #if IL2CPPMELON
-            Il2CppSystem.Delegate? remaining = Il2CppSystem.Delegate.Remove(
-                _subscribedRelationship.OnUnlocked,
-                _nativeRelationshipUnlockedDispatcher);
-            _subscribedRelationship.OnUnlocked =
-                remaining?.Cast<NativeRelationshipUnlockedAction>();
+                Il2CppSystem.Delegate? remaining = Il2CppSystem.Delegate.Remove(
+                    _subscribedRelationship.OnUnlocked,
+                    _nativeRelationshipUnlockedDispatcher);
+                _subscribedRelationship.OnUnlocked =
+                    remaining?.Cast<NativeRelationshipUnlockedAction>();
 #else
-            _subscribedRelationship.OnUnlocked -=
-                _nativeRelationshipUnlockedDispatcher;
+                _subscribedRelationship.OnUnlocked -=
+                    _nativeRelationshipUnlockedDispatcher;
 #endif
-            _subscribedRelationship = null;
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"Could not remove the native relationship-unlocked hook: {ex}");
+            }
+            finally
+            {
+                _subscribedRelationship = null;
+            }
         }
 
         private void DispatchUnlocked(
@@ -360,7 +387,9 @@ namespace S1API.Entities
                 catch (Exception ex)
                 {
                     Logger.Warning(
-                        $"An NPCRelationship.OnUnlocked subscriber failed: {ex.Message}");
+                        $"NPCRelationship.OnUnlocked subscriber " +
+                        $"'{handler.Method.DeclaringType?.FullName}.{handler.Method.Name}' " +
+                        $"failed: {ex}");
                 }
             }
         }

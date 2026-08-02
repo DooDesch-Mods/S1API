@@ -3616,6 +3616,8 @@ namespace S1API.Entities
                 Logger.Error($"[NPC] InitializeRelationshipData: Stack trace: {ex.StackTrace}");
                 /* ignore: base game will handle in its own lifecycle if not ready */
             }
+
+            _relationship?.EnsureUnlockedHook();
         }
 
         private void ApplyRandomInventoryDefaults()
@@ -4195,6 +4197,8 @@ namespace S1API.Entities
                     // NPC was loaded from save, relationship data is already initialized, mark as complete
                     _relationshipDataAppliedFromPrefab = true;
                 }
+
+                _relationship?.EnsureUnlockedHook();
 
                 // Note: Random inventory defaults are applied in InitializeInventoryComponent, not here
                 // to avoid duplicate item insertion when StartupItems is processed by NPCInventory.Awake
