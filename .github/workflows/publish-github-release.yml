@@ -435,7 +435,10 @@ jobs:
           version: ${{ steps.metadata.outputs.release_version }}
           display_name: S1API Forked ${{ steps.metadata.outputs.release_version }}
           description: ${{ env.RELEASE_DESCRIPTION }}
-          changelog: ${{ github.event_name == 'push' && github.run_attempt == 1 && steps.github-release.outputs.release_notes || '' }}
+          # Nexus file publishing and changelog publishing use separate API resources.
+          # The changelog endpoint currently rejects this mod even after creating the
+          # file version, which turns a successful upload into a failed release run.
+          # Keep release notes on GitHub and omit the optional Nexus changelog input.
           category: main
           archive_existing_version: true
           update_mod_version: true
