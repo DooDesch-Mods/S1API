@@ -1,4 +1,5 @@
 using S1API.Entities.Supplier;
+using S1API.Internal.Entities.Suppliers;
 using System.Reflection;
 
 namespace S1API.Tests.Entities;
@@ -45,4 +46,61 @@ public sealed class SupplierPersistentIdentityTests
         Assert.Throws<ArgumentException>(() =>
             builder.WithPersistentId(persistentId));
     }
+
+    [Fact]
+    public void PersistentIdRejectsNullValue()
+    {
+        var builder = new SupplierDataBuilder();
+
+        Assert.Throws<ArgumentException>(() =>
+            builder.WithPersistentId(null!));
+    }
+
+    [Fact]
+    public void PersistentIdKeepsSupplierInfrastructureIdentitiesStable()
+    {
+        const string runtimeId = "disco_davey";
+        const string persistentId = "ifbars.moredrugs:npcs/disco-davey";
+        var configured = new SupplierDataBuilder()
+            .WithPersistentId(persistentId)
+            .BuildInternal();
+
+        SupplierInfrastructureIdentity migrated = GetInfrastructureIdentity(
+            configured.PersistentId ?? runtimeId);
+        SupplierInfrastructureIdentity legacy = GetInfrastructureIdentity(persistentId);
+        SupplierInfrastructureIdentity currentRuntime = GetInfrastructureIdentity(runtimeId);
+
+        Assert.Equal(legacy, migrated);
+        Assert.NotEqual(currentRuntime, migrated);
+        Assert.Equal(migrated, GetInfrastructureIdentity(configured.PersistentId ?? runtimeId));
+    }
+
+    [Fact]
+    public void OmittedPersistentIdFallsBackToRuntimeInfrastructureIdentities()
+    {
+        const string runtimeId = "disco_davey";
+        var configured = new SupplierDataBuilder().BuildInternal();
+
+        Assert.Null(configured.PersistentId);
+        SupplierInfrastructureIdentity fallback = GetInfrastructureIdentity(
+            configured.PersistentId ?? runtimeId);
+
+        Assert.Equal(GetInfrastructureIdentity(runtimeId), fallback);
+        Assert.Equal(fallback, GetInfrastructureIdentity(configured.PersistentId ?? runtimeId));
+    }
+
+    private static SupplierInfrastructureIdentity GetInfrastructureIdentity(string stableId)
+    {
+        return new SupplierInfrastructureIdentity(
+            SupplierRuntimeIds.GetShopName(stableId),
+            SupplierRuntimeIds.GetDeliveryVehiclePrefabName(stableId),
+            SupplierRuntimeIds.GetDeliveryVehicleGuid(stableId),
+            SupplierRuntimeIds.GetStashGuid(stableId));
+    }
+
+    private readonly record struct SupplierInfrastructureIdentity(
+        string ShopName,
+        string DeliveryVehiclePrefabName,
+        Guid DeliveryVehicleGuid,
+        Guid StashGuid);
 }
