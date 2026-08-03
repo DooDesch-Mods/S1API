@@ -17,6 +17,7 @@ using HarmonyLib;
 using S1API.Logging;
 using S1API.Products;
 using S1API.Internal.Products;
+using S1API.Internal.Utils;
 
 namespace S1API.Internal.Patches
 {
@@ -55,7 +56,7 @@ namespace S1API.Internal.Patches
 
                 // The game can return a shared list (e.g. a product definition's Properties for a named recipe),
                 // so never mutate __result directly. Clone once, only if a rule actually fires.
-            EffectList? working = null;
+                EffectList? working = null;
 
                 foreach (var rule in rules)
                 {
@@ -173,14 +174,26 @@ namespace S1API.Internal.Patches
                 if (CustomProductDefinitionRegistry.IsRegistered(mixID))
                     return false;
 
-                S1Product.PropertyItemDefinition? ingredient =
-                    S1Registry.GetItem(ingredientID) as S1Product.PropertyItemDefinition;
-                if (ingredient == null || ingredient.Properties == null || ingredient.Properties.Count != 1)
+                object? ingredientItem = S1Registry.GetItem(ingredientID);
+                if (ingredientItem == null ||
+                    !CrossType.Is(
+                        ingredientItem,
+                        out S1Product.PropertyItemDefinition ingredient))
                 {
-                    Logger.Error("Custom product mix '" + productID + "' has no valid single-property ingredient '" + ingredientID + "'.");
+                    Logger.Error("Custom product mix '" + productID + "' could not resolve ingredient '" + ingredientID + "' as a property item.");
                     return false;
                 }
 
+                if (ingredient.Properties == null ||
+                    !CustomProductMixingIngredientContract.HasUsableProperty(
+                        ingredient.Properties.Count))
+                {
+                    Logger.Error("Custom product mix '" + productID + "' resolved ingredient '" + ingredientID + "' without any properties.");
+                    return false;
+                }
+
+                // Match the native ProductManager contract: mixing ingredients only need
+                // one usable property, and the first property drives the calculation.
                 EffectList properties = S1Effects.EffectMixCalculator.MixProperties(
                     source.Properties,
                     ingredient.Properties[0],
@@ -272,6 +285,14 @@ namespace S1API.Internal.Patches
                 Logger.Error("Custom product mixing output failed for '" + productID + "': " + exception);
                 return false;
             }
+        }
+    }
+
+    internal static class CustomProductMixingIngredientContract
+    {
+        internal static bool HasUsableProperty(int propertyCount)
+        {
+            return propertyCount > 0;
         }
     }
 
