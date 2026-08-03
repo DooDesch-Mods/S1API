@@ -4,6 +4,7 @@ using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
 using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 using S1Dialogue = Il2CppScheduleOne.Dialogue;
 using S1Economy = Il2CppScheduleOne.Economy;
+using S1Employees = Il2CppScheduleOne.Employees;
 using S1ItemFramework = Il2CppScheduleOne.ItemFramework;
 using S1Messaging = Il2CppScheduleOne.Messaging;
 using S1NPCFramework = Il2CppScheduleOne.NPCs.Framework;
@@ -14,6 +15,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1DevUtilities = ScheduleOne.DevUtilities;
 using S1Dialogue = ScheduleOne.Dialogue;
 using S1Economy = ScheduleOne.Economy;
+using S1Employees = ScheduleOne.Employees;
 using S1ItemFramework = ScheduleOne.ItemFramework;
 using S1Messaging = ScheduleOne.Messaging;
 using S1NPCFramework = ScheduleOne.NPCs.Framework;
@@ -33,6 +35,7 @@ namespace S1API.Internal.Entities
 {
     internal static class NPCDataAccess
     {
+        private static readonly Logging.Log Logger = new Logging.Log("NPCDataAccess");
 #if !IL2CPPMELON
         private static readonly FieldInfo NpcDataObjectField =
             typeof(S1NPCs.NPC).GetField("_npcData", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -387,8 +390,12 @@ namespace S1API.Internal.Entities
                 return;
 
             S1NPCFramework.NPCData? sourceData = GetOriginalData(sourceNpc) ?? GetCurrentData(sourceNpc);
-            if (sourceData?.Dialogue?.DialogueDatabase != null)
+            bool sourceIsEmployee = sourceNpc is S1Employees.Employee;
+            if (ShouldReuseSourceDialogueDatabase(sourceIsEmployee)
+                && sourceData?.Dialogue?.DialogueDatabase != null)
+            {
                 data.Dialogue.DialogueDatabase = sourceData.Dialogue.DialogueDatabase;
+            }
 
             if (data.Dialogue.DialogueDatabase == null)
             {
@@ -408,7 +415,22 @@ namespace S1API.Internal.Entities
 
             if (data.Dialogue.DialogueDatabase == null)
                 throw new InvalidOperationException("No 0.4.6 dialogue database is loaded for the custom NPC.");
+
+            if (sourceIsEmployee)
+            {
+                Logger.Debug(
+                    $"[S1API][BaseEmployeeFallback][Dialogue] Rebased employee source dialogue " +
+                    $"'{sourceData?.Dialogue?.DialogueDatabase?.name ?? "<null>"}' to " +
+                    $"'{data.Dialogue.DialogueDatabase.name}' for the replacement NPC data.");
+            }
         }
+
+        /// <summary>
+        /// Determines whether a source NPC's dialogue database may be inherited by a rebuilt custom NPC.
+        /// Employee databases contain employee-only greeting and transfer content, so the BaseEmployee
+        /// fallback must instead resolve the native default database for the replacement NPC role.
+        /// </summary>
+        internal static bool ShouldReuseSourceDialogueDatabase(bool sourceIsEmployee) => !sourceIsEmployee;
 
         private static void EnsureSupplierDialogueDatabase(
             S1NPCFramework.NPCData data,

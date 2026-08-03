@@ -533,6 +533,7 @@ namespace S1API.Entities
                 }
 
                 RemoveEmployeeComponentsFromBaseEmployeeFallback(prefabRoot);
+                NormalizeBaseEmployeeDialogueComponents(prefabRoot, rootRole);
                 LogBaseEmployeeComponentState("after employee cleanup", prefabRoot);
                 RewireChildNpcReferences(prefabRoot, replacementNpc);
                 RepairNpcPrefabReferences(prefabRoot, replacementNpc);
@@ -819,6 +820,49 @@ namespace S1API.Entities
             catch (Exception ex)
             {
                 Logger.Warning($"[S1API] Failed to remove Employee component(s) from {BaseEmployeePrefabName} fallback prefab: {ex.Message}");
+            }
+        }
+
+        private static void NormalizeBaseEmployeeDialogueComponents(
+            GameObject prefabRoot,
+            NpcRootRole rootRole)
+        {
+            if (prefabRoot == null || rootRole != NpcRootRole.Plain)
+                return;
+
+            try
+            {
+                var employeeControllers =
+                    prefabRoot.GetComponentsInChildren<S1Dialogue.DialogueController_Employee>(true);
+                foreach (S1Dialogue.DialogueController_Employee employeeController in employeeControllers)
+                {
+                    if (employeeController == null)
+                        continue;
+
+                    GameObject controllerObject = employeeController.gameObject;
+                    var civilianController = controllerObject.GetComponent<S1Dialogue.DialogueController>();
+                    if (civilianController == null || civilianController == employeeController)
+                    {
+                        civilianController = controllerObject.AddComponent<S1Dialogue.DialogueController>();
+                        civilianController.IntObj = employeeController.IntObj;
+                        civilianController.GenericDialogue = employeeController.GenericDialogue;
+                        civilianController.DialogueEnabled = employeeController.DialogueEnabled;
+                        civilianController.UseDialogueBehaviour = employeeController.UseDialogueBehaviour;
+                        civilianController.Choices = employeeController.Choices;
+                        civilianController.GreetingOverrides = employeeController.GreetingOverrides;
+                        civilianController.OverrideContainer = employeeController.OverrideContainer;
+                    }
+
+                    RemoveComponentImmediate(employeeController);
+                    Logger.Debug(
+                        $"[S1API][BaseEmployeeFallback][Dialogue] Replaced employee dialogue controller on " +
+                        $"'{controllerObject.name}' with the base civilian controller.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"[S1API][BaseEmployeeFallback][Dialogue] Failed to normalize employee dialogue components: {ex.Message}");
             }
         }
 
