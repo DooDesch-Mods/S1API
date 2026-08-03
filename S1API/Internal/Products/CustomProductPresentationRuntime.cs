@@ -1,15 +1,19 @@
 #if IL2CPPMELON
 using S1AvatarEquipping = Il2CppScheduleOne.AvatarFramework.Equipping;
+using S1Effects = Il2CppScheduleOne.Effects;
 using S1Equipping = Il2CppScheduleOne.Equipping;
 using S1Product = Il2CppScheduleOne.Product;
 using S1Station = Il2CppScheduleOne.StationFramework;
 using S1Storage = Il2CppScheduleOne.Storage;
+using EffectList = Il2CppSystem.Collections.Generic.List<Il2CppScheduleOne.Effects.Effect>;
 #elif MONOMELON
 using S1AvatarEquipping = ScheduleOne.AvatarFramework.Equipping;
+using S1Effects = ScheduleOne.Effects;
 using S1Equipping = ScheduleOne.Equipping;
 using S1Product = ScheduleOne.Product;
 using S1Station = ScheduleOne.StationFramework;
 using S1Storage = ScheduleOne.Storage;
+using EffectList = System.Collections.Generic.List<ScheduleOne.Effects.Effect>;
 #endif
 
 using System;
@@ -38,6 +42,8 @@ namespace S1API.Internal.Products
         private static readonly Queue<GeneratedIconRequest> GeneratedIconQueue =
             new Queue<GeneratedIconRequest>();
         private static bool _isProcessingGeneratedIcons;
+        private const string DiscoveryVisualRootName =
+            "S1API_CustomProductDiscoveryVisual";
 
         private sealed class GeneratedIconRequest
         {
@@ -96,6 +102,174 @@ namespace S1API.Internal.Products
             }
 
             BuildAndCommit(product, profile);
+        }
+
+        internal static void ApplyDiscoveryVisual(
+            S1Product.MultiTypeVisualsSetter setter,
+            S1Product.ProductDefinition product,
+            EffectList properties)
+        {
+            if (setter == null)
+                return;
+
+            RemoveDiscoveryVisual(setter.transform);
+            if (product == null ||
+                properties == null ||
+                !CustomProductDefinitionRegistry.TryGetMetadata(
+                    product,
+                    out CustomProductDefinitionMetadata? metadata) ||
+                metadata == null ||
+                !ProductPresentationProfileRegistry.TryResolve(
+                    product.ID,
+                    metadata.ProductKind.Id,
+                    out ProductPresentationProfileRegistration? registration) ||
+                registration == null)
+            {
+                return;
+            }
+
+            ProductPresentationProfile profile = registration.Profile;
+            if (!profile.TryGetVisualProvider(
+                    ProductPresentationContext.FunctionalProduct,
+                    out Func<GameObject?>? provider) ||
+                provider == null)
+            {
+                return;
+            }
+
+            GameObject? source;
+            try
+            {
+                source = provider();
+            }
+            catch (Exception exception)
+            {
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Discovery visual provider for " +
+                    $"'{product.ID}' failed: {exception.Message}");
+                return;
+            }
+
+            if (source == null)
+                return;
+
+            GameObject? root = null;
+            try
+            {
+                root = new GameObject(DiscoveryVisualRootName);
+                root.transform.SetParent(setter.transform, false);
+                root.SetActive(false);
+                GameObject visual = Object.Instantiate(source);
+                visual.transform.SetParent(root.transform, false);
+                ApplyVisualTransform(
+                    visual.transform,
+                    profile,
+                    ProductPresentationContext.FunctionalProduct);
+                ApplyDiscoveryMixColor(
+                    visual,
+                    metadata,
+                    properties);
+                visual.SetActive(true);
+
+                ResetMultiTypeVisuals(setter);
+                root.SetActive(true);
+            }
+            catch (Exception exception)
+            {
+                if (root != null)
+                    Object.Destroy(root);
+                MelonLogger.Warning(
+                    $"[ProductPresentationProfile] Could not show the discovery " +
+                    $"visual for '{product.ID}'; retaining the native fallback: " +
+                    exception.Message);
+            }
+        }
+
+        private static void ApplyDiscoveryMixColor(
+            GameObject visual,
+            CustomProductDefinitionMetadata metadata,
+            EffectList properties)
+        {
+            if (!ProductMixingProfiles.TryGet(
+                    metadata.ProductKind.Id,
+                    out ProductMixingProfile? mixingProfile) ||
+                mixingProfile == null ||
+                !mixingProfile.UsePropertyColorMixing)
+            {
+                return;
+            }
+
+            var samples =
+                new List<ProductMixingColorSample>(properties.Count);
+            for (int i = 0; i < properties.Count; i++)
+            {
+                S1Effects.Effect property = properties[i];
+                if (property == null)
+                    continue;
+                Color32 color = property.ProductColor;
+                samples.Add(
+                    new ProductMixingColorSample(
+                        (int)property.Tier,
+                        new ProductMixingColorValue(
+                            color.r,
+                            color.g,
+                            color.b,
+                            color.a)));
+            }
+
+            Color mixedColor =
+                ProductMixingColorContract.CalculatePrimaryColor(
+                    mixingProfile.MixerMap,
+                    samples).ToColor32();
+            Renderer[] renderers =
+                visual.GetComponentsInChildren<Renderer>(true);
+            var propertyBlock = new MaterialPropertyBlock();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                renderer.GetPropertyBlock(propertyBlock);
+                Material[] materials = renderer.sharedMaterials;
+                for (int materialIndex = 0;
+                     materialIndex < materials.Length;
+                     materialIndex++)
+                {
+                    Material material = materials[materialIndex];
+                    if (material == null)
+                        continue;
+                    if (material.HasProperty("_BaseColor"))
+                        propertyBlock.SetColor("_BaseColor", mixedColor);
+                    if (material.HasProperty("_Color"))
+                        propertyBlock.SetColor("_Color", mixedColor);
+                }
+
+                renderer.SetPropertyBlock(propertyBlock);
+                propertyBlock.Clear();
+            }
+        }
+
+        private static void ResetMultiTypeVisuals(
+            S1Product.MultiTypeVisualsSetter setter)
+        {
+            setter.WeedVisuals?.ResetVisuals();
+            setter.MethVisuals?.ResetVisuals();
+            setter.CocaineVisuals?.ResetVisuals();
+            setter.ShroomVisuals?.ResetVisuals();
+        }
+
+        private static void RemoveDiscoveryVisual(Transform parent)
+        {
+            for (int i = parent.childCount - 1; i >= 0; i--)
+            {
+                Transform child = parent.GetChild(i);
+                if (string.Equals(
+                        child.name,
+                        DiscoveryVisualRootName,
+                        StringComparison.Ordinal))
+                {
+                    child.gameObject.SetActive(false);
+                    Object.Destroy(child.gameObject);
+                }
+            }
         }
 
         private static void BuildAndCommit(
