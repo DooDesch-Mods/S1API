@@ -975,7 +975,9 @@ namespace S1API.Entities
                         var supplierDefaults = BuildSupplierDefaultsForType(npcType);
                         if (supplierComponent != null && supplierDefaults != null)
                             TryApplySupplierDefaults(supplierComponent, supplierDefaults);
-                        SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabNO.gameObject);
+                        SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(
+                            prefabNO.gameObject,
+                            supplierDefaults?.PersistentId);
                         break;
                     }
                 }
@@ -1062,7 +1064,9 @@ namespace S1API.Entities
             if (prefabRoot == null || GetDeclaredRootRole(npcType) != NpcRootRole.Supplier)
                 return;
 
-            SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabRoot);
+            SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(
+                prefabRoot,
+                BuildSupplierDefaultsForType(npcType)?.PersistentId);
         }
 
         private static NpcRootRole GetDeclaredRootRole(System.Type npcType)
