@@ -227,6 +227,10 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     ProductPresentationContext.Stored);
+            ApplyGeneratedMixColor(
+                stored.Visuals.VisualsContainer.gameObject,
+                product,
+                created);
             return clone;
         }
 
@@ -273,6 +277,10 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     ProductPresentationContext.Held);
+            ApplyGeneratedMixColor(
+                held.Visuals.VisualsContainer.gameObject,
+                product,
+                created);
             held.ModelContainer = held.Visuals.VisualsContainer;
             GameObject avatarSource =
                 ResolveAvatarHeldSource(product, profile, source, sources);
@@ -327,6 +335,10 @@ namespace S1API.Internal.Products
                     station.Visuals,
                     source,
                     profile);
+            ApplyGeneratedMixColor(
+                station.Visuals.VisualsContainer.gameObject,
+                product,
+                created);
             return clone;
         }
 
@@ -377,6 +389,10 @@ namespace S1API.Internal.Products
                     source,
                     profile,
                     ProductPresentationContext.FunctionalProduct);
+            ApplyGeneratedMixColor(
+                functional.Visuals.VisualsContainer.gameObject,
+                product,
+                created);
             if (profile.UseFunctionalProductConvexMeshColliders)
             {
                 ReplaceWithConvexMeshColliders(
@@ -640,8 +656,13 @@ namespace S1API.Internal.Products
             }
 
             GameObject model = Object.Instantiate(source);
+            var generatedMaterials = new List<Object>();
             try
             {
+                ApplyGeneratedMixColor(
+                    model,
+                    request.Product,
+                    generatedMaterials);
                 if (profile.GeneratedIconTransform != null)
                 {
                     profile.GeneratedIconTransform.ApplyTo(model.transform);
@@ -680,6 +701,7 @@ namespace S1API.Internal.Products
             finally
             {
                 Object.Destroy(model);
+                DestroyAll(generatedMaterials);
             }
 
             icon = global::S1API.Utils.ImageUtils.TextureToSprite(texture);
@@ -1020,6 +1042,7 @@ namespace S1API.Internal.Products
             created.Add(root);
             GameObject visual = Object.Instantiate(source);
             visual.transform.SetParent(root.transform, false);
+            ApplyGeneratedMixColor(visual, product, created);
             if (profile.TryGetAvatarHeldTransform(
                     out ProductPresentationTransform? avatarTransform))
             {
@@ -1097,6 +1120,48 @@ namespace S1API.Internal.Products
                     out ProductPresentationTransform? presentationTransform))
             {
                 presentationTransform?.ApplyTo(target);
+            }
+        }
+
+        private static void ApplyGeneratedMixColor(
+            GameObject visual,
+            CustomProductDefinitionRegistration product,
+            List<Object> created)
+        {
+            Color32? generatedMixColor = product.Metadata?.GeneratedMixColor;
+            if (!generatedMixColor.HasValue)
+                return;
+
+            Color color = generatedMixColor.Value;
+            Renderer[] renderers = visual.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0;
+                 rendererIndex < renderers.Length;
+                 rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                Material[] sourceMaterials = renderer.sharedMaterials;
+                var coloredMaterials = new Material[sourceMaterials.Length];
+                for (int materialIndex = 0;
+                     materialIndex < sourceMaterials.Length;
+                     materialIndex++)
+                {
+                    Material sourceMaterial = sourceMaterials[materialIndex];
+                    if (sourceMaterial == null)
+                        continue;
+
+                    var coloredMaterial = new Material(sourceMaterial)
+                    {
+                        name = sourceMaterial.name + "_S1API_MixedColor"
+                    };
+                    if (coloredMaterial.HasProperty("_BaseColor"))
+                        coloredMaterial.SetColor("_BaseColor", color);
+                    if (coloredMaterial.HasProperty("_Color"))
+                        coloredMaterial.SetColor("_Color", color);
+                    coloredMaterials[materialIndex] = coloredMaterial;
+                    created.Add(coloredMaterial);
+                }
+
+                renderer.sharedMaterials = coloredMaterials;
             }
         }
 

@@ -224,6 +224,31 @@ namespace S1API.Internal.Patches
                     packaging.Add(metadata.ValidPackaging[i].S1PackagingDefinition);
 
                 S1Product.ProductDefinition template = metadata.RepresentationTemplate ?? source;
+                UnityEngine.Color32? generatedMixColor = null;
+                if (profile.UsePropertyColorMixing)
+                {
+                    var colorSamples =
+                        new System.Collections.Generic.List<
+                            ProductMixingColorSample>(resolvedProperties.Count);
+                    for (int i = 0; i < resolvedProperties.Count; i++)
+                    {
+                        UnityEngine.Color32 propertyColor =
+                            resolvedProperties[i].ProductColor;
+                        colorSamples.Add(
+                            new ProductMixingColorSample(
+                                (int)resolvedProperties[i].Tier,
+                                new ProductMixingColorValue(
+                                    propertyColor.r,
+                                    propertyColor.g,
+                                    propertyColor.b,
+                                    propertyColor.a)));
+                    }
+
+                    generatedMixColor =
+                        ProductMixingColorContract.CalculatePrimaryColor(
+                            profile.MixerMap,
+                            colorSamples).ToColor32();
+                }
                 S1Product.ProductDefinition generated = CustomProductDefinitionFactory.Create(
                     mixID,
                     output.Name,
@@ -241,7 +266,8 @@ namespace S1API.Internal.Patches
                     output.ProductKind,
                     metadata.DefaultQuality,
                     metadata.ValidPackaging,
-                    template);
+                    template,
+                    generatedMixColor);
                 var saveDescriptor = new CustomProductSaveDescriptorData
                 {
                     ProductId = mixID,
@@ -259,7 +285,12 @@ namespace S1API.Internal.Patches
                     NpcEffectDurationSeconds = source.NPCEffectDuration,
                     PropertyIds = resolvedProperties.ConvertAll(property => property.ID).ToArray(),
                     PackagingIds = metadata.ValidPackaging.Select(packagingDefinition => packagingDefinition.ID).ToArray(),
-                    IsGeneratedMix = true
+                    IsGeneratedMix = true,
+                    HasGeneratedMixColor = generatedMixColor.HasValue,
+                    GeneratedMixColorR = generatedMixColor?.r ?? 0,
+                    GeneratedMixColorG = generatedMixColor?.g ?? 0,
+                    GeneratedMixColorB = generatedMixColor?.b ?? 0,
+                    GeneratedMixColorA = generatedMixColor?.a ?? 0
                 };
                 try
                 {
@@ -271,6 +302,8 @@ namespace S1API.Internal.Patches
                         generated,
                         generatedMetadata,
                         saveDescriptor);
+
+                    CompleteGeneratedMixCreation(generated);
                 }
                 catch
                 {
@@ -285,6 +318,24 @@ namespace S1API.Internal.Patches
                 Logger.Error("Custom product mixing output failed for '" + productID + "': " + exception);
                 return false;
             }
+        }
+
+        private static void CompleteGeneratedMixCreation(
+            S1Product.ProductDefinition generated)
+        {
+            S1Product.ProductManager productManager =
+                S1Product.ProductManager.Instance
+                ?? throw new InvalidOperationException(
+                    "Cannot complete custom product mixing before ProductManager is available.");
+
+            // Match the native Create* lifecycle after the definition has entered the
+            // registry. Discovery makes the output listable, while this event creates
+            // its Product Manager entry and lets S1API route it to the logical kind.
+            productManager.SetProductDiscovered(
+                null,
+                generated.ID,
+                autoList: false);
+            productManager.onNewProductCreated?.Invoke(generated);
         }
     }
 
