@@ -5,6 +5,7 @@ using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1NPCsBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1NPCsActions = Il2CppScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
+using S1Doors = Il2CppScheduleOne.Doors;
 using S1Map = Il2CppScheduleOne.Map;
 using S1Money = Il2CppScheduleOne.Money;
 using S1Economy = Il2CppScheduleOne.Economy;
@@ -24,6 +25,7 @@ using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
 using S1NPCsActions = ScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
+using S1Doors = ScheduleOne.Doors;
 using FishNet;
 using FishNet.Object;
 using ScheduleOne.DevUtilities;
@@ -90,6 +92,29 @@ namespace S1API.Internal.Patches
         private static bool SetInventoryMember(S1NPCs.NPCInventory inventory, string memberName, object? value)
         {
             return ReflectionUtils.TrySetFieldOrProperty(inventory, memberName, value);
+        }
+
+        internal static bool ShouldExitCustomNpcAfterDoorSelection(
+            bool isServer,
+            bool isCustomNpc,
+            bool isInsideBuilding) =>
+            isServer && isCustomNpc && isInsideBuilding;
+
+        [HarmonyPatch(typeof(S1Doors.StaticDoor), "NPCSelected")]
+        [HarmonyPostfix]
+        private static void StaticDoor_NPCSelected_Postfix(S1NPCs.NPC npc)
+        {
+            if (npc == null)
+                return;
+
+            bool isCustomNpc = NPC.All.Any(wrapper => wrapper != null && wrapper.S1NPC == npc);
+            var building = npc.CurrentBuilding;
+            bool isInsideBuilding = building != null;
+            if (!ShouldExitCustomNpcAfterDoorSelection(InstanceFinder.IsServer, isCustomNpc, isInsideBuilding))
+                return;
+
+            Logger.Debug($"[NPCDoorKnock] Exiting selected custom NPC '{npc.ID}' from '{building!.BuildingName}'.");
+            npc.ExitBuilding();
         }
 
         private static bool GetInventoryBool(S1NPCs.NPCInventory inventory, string memberName)
