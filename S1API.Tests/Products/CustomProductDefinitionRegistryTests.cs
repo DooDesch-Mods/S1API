@@ -76,7 +76,12 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
                 RepresentationTemplateId = "weed",
                 ProviderId = "examplemod:provider",
                 ProviderVersion = 1,
-                ProviderData = "v1"
+                ProviderData = "v1",
+                HasGeneratedMixColor = true,
+                GeneratedMixColorR = 0x12,
+                GeneratedMixColorG = 0x34,
+                GeneratedMixColorB = 0x56,
+                GeneratedMixColorA = 0xFF
             });
         CustomProductDefinitionRegistry.Register(
             "examplemod", firstId, "Alpha", 50f, CreateDefinition(), metadata,
@@ -97,6 +102,11 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         Assert.Equal(new[] { firstId, secondId }, descriptors.Select(item => item.ProductId));
         Assert.Equal("examplemod:provider", descriptors[1].ProviderId);
         Assert.Equal("v1", descriptors[1].ProviderData);
+        Assert.True(descriptors[1].HasGeneratedMixColor);
+        Assert.Equal(0x12, descriptors[1].GeneratedMixColorR);
+        Assert.Equal(0x34, descriptors[1].GeneratedMixColorG);
+        Assert.Equal(0x56, descriptors[1].GeneratedMixColorB);
+        Assert.Equal(0xFF, descriptors[1].GeneratedMixColorA);
         Assert.DoesNotContain(descriptors, item => item.GetType().GetFields()
             .Any(field => typeof(UnityEngine.Object).IsAssignableFrom(field.FieldType)));
     }
