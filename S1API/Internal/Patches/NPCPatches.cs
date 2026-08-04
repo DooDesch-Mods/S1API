@@ -145,7 +145,8 @@ namespace S1API.Internal.Patches
                 if (npc == null)
                     return;
 
-                bool isCustomNpc = NPC.All.Any(wrapper => wrapper != null && wrapper.S1NPC == npc);
+                bool isCustomNpc = NPC.All.Any(
+                    wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
                 var building = npc.CurrentBuilding;
                 bool isInsideBuilding = building != null;
                 if (!ShouldExitCustomNpcAfterSummon(InstanceFinder.IsServer, isCustomNpc, isInsideBuilding))
@@ -187,7 +188,8 @@ namespace S1API.Internal.Patches
             if (!isSummonBehaviourEnabled)
                 return false;
 
-            bool isCustomNpc = NPC.All.Any(wrapper => wrapper != null && wrapper.S1NPC == npc);
+            bool isCustomNpc = NPC.All.Any(
+                wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
             return ShouldSuppressResidenceReentry(
                 InstanceFinder.IsServer,
                 isCustomNpc,
