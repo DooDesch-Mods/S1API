@@ -37,7 +37,7 @@ namespace S1API.Internal.Patches
                     BindingFlags.Public | BindingFlags.Instance);
             }
 
-            static void Prefix(
+            private static void Prefix(
                 S1AvatarFramework.Avatar __instance,
                 S1AvatarFramework.AvatarSettings __0)
             {

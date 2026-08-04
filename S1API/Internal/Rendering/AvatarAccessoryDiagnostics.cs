@@ -1,9 +1,9 @@
-#if (IL2CPPMELON)
-using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-using S1NPCs = Il2CppScheduleOne.NPCs;
-#elif MONOMELON
+#if MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
 using S1NPCs = ScheduleOne.NPCs;
+#elif IL2CPPMELON
+using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
+using S1NPCs = Il2CppScheduleOne.NPCs;
 #endif
 
 using System;
