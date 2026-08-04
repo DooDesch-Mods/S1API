@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace S1API.Console
 {
@@ -13,7 +14,13 @@ namespace S1API.Console
 
         private static readonly Dictionary<string, BaseConsoleCommand> registry = new Dictionary<string, BaseConsoleCommand>(StringComparer.OrdinalIgnoreCase);
 
-        internal static IReadOnlyDictionary<string, BaseConsoleCommand> RegisteredCommands => registry;
+        // Wrapped once, not handed out raw: IReadOnlyDictionary<,> on a Dictionary<,> can be cast straight back to
+        // IDictionary<,>, so a caller could add or drop another mod's commands. ReadOnlyDictionary is a live view of
+        // the same storage, so registrations that happen later still show up.
+        private static readonly ReadOnlyDictionary<string, BaseConsoleCommand> readOnlyRegistry =
+            new ReadOnlyDictionary<string, BaseConsoleCommand>(registry);
+
+        internal static IReadOnlyDictionary<string, BaseConsoleCommand> RegisteredCommands => readOnlyRegistry;
 
         internal static void Register(BaseConsoleCommand command)
         {
