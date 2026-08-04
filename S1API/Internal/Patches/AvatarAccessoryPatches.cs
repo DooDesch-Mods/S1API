@@ -5,6 +5,7 @@ using S1AvatarFramework = ScheduleOne.AvatarFramework;
 #endif
 
 using HarmonyLib;
+using S1API.Internal.Rendering;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using S1API.Rendering;
@@ -34,6 +35,13 @@ namespace S1API.Internal.Patches
             {
                 return typeof(S1AvatarFramework.Avatar).GetMethod("ApplyAccessorySettings",
                     BindingFlags.Public | BindingFlags.Instance);
+            }
+
+            private static void Prefix(
+                S1AvatarFramework.Avatar __instance,
+                S1AvatarFramework.AvatarSettings __0)
+            {
+                AvatarAccessoryDiagnostics.Validate(__instance, __0);
             }
 
             static void Postfix(S1AvatarFramework.Avatar __instance)

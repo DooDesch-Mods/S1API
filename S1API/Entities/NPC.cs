@@ -185,6 +185,10 @@ namespace S1API.Entities
         };
         private static volatile bool _prefabsConfiguredForLocalProcess;
         private static bool _loggedBaseEmployeeNormalization;
+        private static bool _loggedExternalPreRegisterAllCall;
+        private static bool _loggedExternalPreRegisterTypeCall;
+        private static readonly System.Collections.Generic.HashSet<string> WarnedUnsupportedDealerSettings =
+            new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         private static int _clientNetworkSpawnHydrationDepth;
 #if MONOMELON
         private static readonly FieldInfo BehaviourOwnerField =
@@ -1462,10 +1466,25 @@ namespace S1API.Entities
         }
 
         /// <summary>
-        /// Pre-registers a per-type NPC prefab into FishNet spawnables without creating a live instance.
-        /// Should be called on both server and client before any NPC instances are spawned.
+        /// Compatibility shim for manually pre-registering a per-type NPC prefab.
         /// </summary>
+        /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        /// <param name="npcType">The custom NPC type whose prefab S1API will pre-register.</param>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterPrefabForType(System.Type npcType)
+        {
+            if (!_loggedExternalPreRegisterTypeCall)
+            {
+                _loggedExternalPreRegisterTypeCall = true;
+                Logger.Warning(
+                    "[S1API][NPCPrefabRegistration] A mod called the legacy NPC.PreRegisterPrefabForType API. " +
+                    "S1API already owns prefab registration and retry timing; remove this call from mod initialization.");
+            }
+
+            PreRegisterPrefabForTypeInternal(npcType);
+        }
+
+        internal static void PreRegisterPrefabForTypeInternal(System.Type npcType)
         {
             try
             {
@@ -1484,9 +1503,24 @@ namespace S1API.Entities
         }
 
         /// <summary>
-        /// Scans loaded assemblies for subclasses of S1API.Entities.NPC and pre-registers their prefabs.
+        /// Compatibility shim for manually scanning and pre-registering NPC prefabs.
         /// </summary>
+        /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterAllNpcPrefabs()
+        {
+            if (!_loggedExternalPreRegisterAllCall)
+            {
+                _loggedExternalPreRegisterAllCall = true;
+                Logger.Warning(
+                    "[S1API][NPCPrefabRegistration] A mod called the legacy NPC.PreRegisterAllNpcPrefabs API. " +
+                    "S1API already scans and registers NPC prefabs when FishNet is ready; remove this call from mod initialization.");
+            }
+
+            PreRegisterAllNpcPrefabsInternal();
+        }
+
+        internal static void PreRegisterAllNpcPrefabsInternal()
         {
             try
             {
@@ -1524,7 +1558,7 @@ namespace S1API.Entities
                              candidate => candidate.FullName,
                              StringComparer.Ordinal))
                 {
-                    PreRegisterPrefabForType(type);
+                    PreRegisterPrefabForTypeInternal(type);
                 }
 
                 SupplierRuntimeCoordinator.EnsureAllDeliveryPrefabsRegistered();
@@ -1718,13 +1752,69 @@ namespace S1API.Entities
             {
                 var builder = new DealerDataBuilder();
                 configure(builder);
-                TypeToBuiltDealerDefaults[npcType] = builder.BuildInternal();
+                var built = builder.BuildInternal();
+                TypeToBuiltDealerDefaults[npcType] = built;
+                WarnForUnsupportedDealerSettings(DescribeNpcTypeOwner(npcType), built);
             }
             catch (Exception ex)
             {
                 TypeToBuiltDealerDefaults.Remove(npcType);
                 Logger.Warning($"[S1API] Failed to cache dealer defaults for '{npcType.Name}': {ex.Message}");
             }
+        }
+
+        private static void WarnForUnsupportedDealerSettings(
+            string dealerOwner,
+            DealerDataBuilder.DealerConfigData data)
+        {
+            if (data.InsufficientQualityConfigured || data.ExcessQualityConfigured)
+            {
+                var configuredOptions = new System.Collections.Generic.List<string>();
+                if (data.InsufficientQualityConfigured)
+                    configuredOptions.Add("AllowInsufficientQuality");
+                if (data.ExcessQualityConfigured)
+                    configuredOptions.Add("AllowExcessQuality");
+
+                WarnUnsupportedDealerSettingOnce(
+                    dealerOwner,
+                    "quality",
+                    $"{string.Join(" and ", configuredOptions)} cannot be applied because the native dealer quality fields were removed. " +
+                    "Remove these calls; S1API has preserved them as compatibility no-ops.");
+            }
+
+            if (data.CompletedDealsVariableConfigured)
+            {
+                WarnUnsupportedDealerSettingOnce(
+                    dealerOwner,
+                    "completed-deals-variable",
+                    $"WithCompletedDealsVariable('{data.CompletedDealsVariable}') is not supported for custom dealers and is not applied. " +
+                    "Remove this call or track completed deals in the mod's own save data.");
+            }
+        }
+
+        private static void WarnUnsupportedDealerSettingOnce(
+            string dealerOwner,
+            string settingKey,
+            string guidance)
+        {
+            string normalizedOwner = string.IsNullOrWhiteSpace(dealerOwner)
+                ? "<unknown-dealer>"
+                : dealerOwner;
+            string warningKey = normalizedOwner + "|" + settingKey;
+            lock (WarnedUnsupportedDealerSettings)
+            {
+                if (!WarnedUnsupportedDealerSettings.Add(warningKey))
+                    return;
+            }
+
+            Logger.Warning($"[S1API][DealerConfiguration] Dealer '{normalizedOwner}': {guidance}");
+        }
+
+        private static string DescribeNpcTypeOwner(System.Type npcType)
+        {
+            string typeName = npcType.FullName ?? npcType.Name;
+            string assemblyName = npcType.Assembly.GetName().Name ?? "<unknown-assembly>";
+            return $"{typeName} (assembly={assemblyName})";
         }
 
         internal static void RegisterDealerType(System.Type npcType)
