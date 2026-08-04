@@ -23,12 +23,8 @@ namespace S1API.Console
         private static bool _setPlayerEnergyUnavailableWarningLogged;
 
         /// <summary>
-        /// Every command registered through <see cref="BaseConsoleCommand"/>, keyed by its command word.
-        ///
-        /// These are routed from a prefix on SubmitCommand rather than added to the game's own command list, which
-        /// is what keeps one source compiling for Mono and IL2CPP. The side effect is that they are invisible to
-        /// anything reading <c>Console.Commands</c>: they run when typed, and a mod that lists, completes or
-        /// documents commands cannot tell they exist. This is that list.
+        /// The custom commands registered through <see cref="BaseConsoleCommand"/>, keyed by command word.
+        /// They are routed by patches instead of the game's command list, so this is the only way to enumerate them.
         /// </summary>
         public static System.Collections.Generic.IReadOnlyDictionary<string, BaseConsoleCommand> RegisteredCommands
             => CustomConsoleRegistry.RegisteredCommands;

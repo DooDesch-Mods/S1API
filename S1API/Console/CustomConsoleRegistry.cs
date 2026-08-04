@@ -14,9 +14,7 @@ namespace S1API.Console
 
         private static readonly Dictionary<string, BaseConsoleCommand> registry = new Dictionary<string, BaseConsoleCommand>(StringComparer.OrdinalIgnoreCase);
 
-        // Wrapped once, not handed out raw: IReadOnlyDictionary<,> on a Dictionary<,> can be cast straight back to
-        // IDictionary<,>, so a caller could add or drop another mod's commands. ReadOnlyDictionary is a live view of
-        // the same storage, so registrations that happen later still show up.
+        // Live view of the same storage; blocks the cast back to IDictionary<,>
         private static readonly ReadOnlyDictionary<string, BaseConsoleCommand> readOnlyRegistry =
             new ReadOnlyDictionary<string, BaseConsoleCommand>(registry);
 
