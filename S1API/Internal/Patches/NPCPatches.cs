@@ -5,7 +5,6 @@ using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1NPCsBehaviour = Il2CppScheduleOne.NPCs.Behaviour;
 using S1NPCsActions = Il2CppScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
-using S1Doors = Il2CppScheduleOne.Doors;
 using S1Map = Il2CppScheduleOne.Map;
 using S1Money = Il2CppScheduleOne.Money;
 using S1Economy = Il2CppScheduleOne.Economy;
@@ -25,7 +24,6 @@ using S1NPCs = ScheduleOne.NPCs;
 using S1NPCsBehaviour = ScheduleOne.NPCs.Behaviour;
 using S1NPCsActions = ScheduleOne.NPCs.Actions;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
-using S1Doors = ScheduleOne.Doors;
 using FishNet;
 using FishNet.Object;
 using ScheduleOne.DevUtilities;
@@ -66,6 +64,10 @@ namespace S1API.Internal.Patches
     {
         private static readonly Logging.Log Logger = new Logging.Log("NPCPatches");
         private static readonly HashSet<string> _loadingDealers = new HashSet<string>();
+        private static readonly FieldInfo? ScheduleActionNpcField =
+            AccessTools.Field(typeof(S1NPCsSchedules.NPCAction), "npc");
+        private static readonly PropertyInfo? ScheduleActionNpcProperty =
+            AccessTools.Property(typeof(S1NPCsSchedules.NPCAction), "npc");
         private const float DefaultRelationDelta = 2f;
         public static bool CustomNpcsReady = false;
         // Pending custom NPC types to instantiate when using consolidated NPCs.json saves (non-physical/custom contacts).
@@ -94,27 +96,104 @@ namespace S1API.Internal.Patches
             return ReflectionUtils.TrySetFieldOrProperty(inventory, memberName, value);
         }
 
-        internal static bool ShouldExitCustomNpcAfterDoorSelection(
+        internal static bool ShouldExitCustomNpcAfterSummon(
             bool isServer,
             bool isCustomNpc,
             bool isInsideBuilding) =>
             isServer && isCustomNpc && isInsideBuilding;
 
-        [HarmonyPatch(typeof(S1Doors.StaticDoor), "NPCSelected")]
-        [HarmonyPostfix]
-        private static void StaticDoor_NPCSelected_Postfix(S1NPCs.NPC npc)
+        internal static bool ShouldSuppressResidenceReentry(
+            bool isServer,
+            bool isCustomNpc,
+            bool isSummonBehaviourEnabled) =>
+            isServer && isCustomNpc && isSummonBehaviourEnabled;
+
+        internal static MethodBase? FindSummonLogicMethod(Type behaviourType)
         {
+            return behaviourType
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(method =>
+                {
+                    if (!method.Name.StartsWith("RpcLogic___Summon_", StringComparison.Ordinal))
+                        return false;
+
+                    ParameterInfo[] parameters = method.GetParameters();
+                    return method.ReturnType == typeof(void)
+                        && parameters.Length == 3
+                        && parameters[0].ParameterType == typeof(string)
+                        && parameters[1].ParameterType == typeof(int)
+                        && parameters[2].ParameterType == typeof(float);
+                });
+        }
+
+        internal static S1NPCs.NPC? GetScheduleActionNpc(S1NPCsSchedules.NPCAction action)
+        {
+            return ScheduleActionNpcField?.GetValue(action) as S1NPCs.NPC
+                ?? ScheduleActionNpcProperty?.GetValue(action) as S1NPCs.NPC;
+        }
+
+        [HarmonyPatch]
+        private static class NpcBehaviourSummonLogicPatch
+        {
+            private static MethodBase? TargetMethod() =>
+                FindSummonLogicMethod(typeof(S1NPCsBehaviour.NPCBehaviour));
+
+            [HarmonyPostfix]
+            private static void Postfix(S1NPCsBehaviour.NPCBehaviour __instance)
+            {
+                S1NPCs.NPC? npc = __instance?.Npc;
+                if (npc == null)
+                    return;
+
+                bool isCustomNpc = NPC.All.Any(
+                    wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
+                var building = npc.CurrentBuilding;
+                bool isInsideBuilding = building != null;
+                if (!ShouldExitCustomNpcAfterSummon(InstanceFinder.IsServer, isCustomNpc, isInsideBuilding))
+                    return;
+
+                Logger.Debug(
+                    $"[NPCDoorKnock] Exiting summoned custom NPC '{npc.ID}' from " +
+                    $"'{building!.BuildingName}' after native summon behaviour activation.");
+                npc.ExitBuilding();
+            }
+        }
+
+        [HarmonyPatch(typeof(S1NPCsSchedules.NPCEvent_StayInBuilding), nameof(S1NPCsSchedules.NPCEvent_StayInBuilding.OnActiveTick))]
+        [HarmonyPrefix]
+        private static bool StayInBuilding_OnActiveTick_Prefix(
+            S1NPCsSchedules.NPCEvent_StayInBuilding __instance)
+        {
+            // Prevent the residence action from scheduling a new entrance during native summon dwell.
+            return !IsCustomNpcSummonedDuringResidence(__instance);
+        }
+
+        [HarmonyPatch(typeof(S1NPCsSchedules.NPCEvent_StayInBuilding), "PlayEnterAnimation")]
+        [HarmonyPrefix]
+        private static bool StayInBuilding_PlayEnterAnimation_Prefix(
+            S1NPCsSchedules.NPCEvent_StayInBuilding __instance)
+        {
+            // Guard callbacks already queued before the NPC was summoned out of the building.
+            return !IsCustomNpcSummonedDuringResidence(__instance);
+        }
+
+        private static bool IsCustomNpcSummonedDuringResidence(
+            S1NPCsSchedules.NPCEvent_StayInBuilding action)
+        {
+            var npc = GetScheduleActionNpc(action);
             if (npc == null)
-                return;
+                return false;
 
-            bool isCustomNpc = NPC.All.Any(wrapper => wrapper != null && wrapper.S1NPC == npc);
-            var building = npc.CurrentBuilding;
-            bool isInsideBuilding = building != null;
-            if (!ShouldExitCustomNpcAfterDoorSelection(InstanceFinder.IsServer, isCustomNpc, isInsideBuilding))
-                return;
+            bool isSummonBehaviourEnabled = npc.Behaviour?.SummonBehaviour?.Enabled == true;
+            if (!isSummonBehaviourEnabled)
+                return false;
 
-            Logger.Debug($"[NPCDoorKnock] Exiting selected custom NPC '{npc.ID}' from '{building!.BuildingName}'.");
-            npc.ExitBuilding();
+            bool isCustomNpc = NPC.All.Any(
+                wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
+            return ShouldSuppressResidenceReentry(
+                InstanceFinder.IsServer,
+                isCustomNpc,
+                isSummonBehaviourEnabled);
         }
 
         private static bool GetInventoryBool(S1NPCs.NPCInventory inventory, string memberName)
