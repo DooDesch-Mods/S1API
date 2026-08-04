@@ -848,9 +848,10 @@ namespace S1API.Entities
                         civilianController.GenericDialogue = employeeController.GenericDialogue;
                         civilianController.DialogueEnabled = employeeController.DialogueEnabled;
                         civilianController.UseDialogueBehaviour = employeeController.UseDialogueBehaviour;
-                        civilianController.Choices = employeeController.Choices;
-                        civilianController.GreetingOverrides = employeeController.GreetingOverrides;
-                        civilianController.OverrideContainer = employeeController.OverrideContainer;
+                        // Customer and other runtime components rebuild their own role-specific dialogue state.
+                        civilianController.Choices = new List<S1Dialogue.DialogueController.DialogueChoice>();
+                        civilianController.GreetingOverrides = new List<S1Dialogue.DialogueController.GreetingOverride>();
+                        civilianController.OverrideContainer = null;
                     }
 
                     RemoveComponentImmediate(employeeController);
