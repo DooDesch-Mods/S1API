@@ -6,6 +6,9 @@ namespace S1API.Tests.Entities;
 
 public sealed class NPCDiagnosticCompatibilityTests
 {
+    private const string RegistrationObsoleteMessage =
+        "S1API automatically pre-registers NPC prefabs. Remove this call.";
+
     [Theory]
     [InlineData("PreRegisterAllNpcPrefabs")]
     [InlineData("PreRegisterPrefabForType")]
@@ -16,6 +19,9 @@ public sealed class NPCDiagnosticCompatibilityTests
         Assert.NotNull(method);
         Assert.True(method.IsStatic);
         Assert.Equal(typeof(void), method.ReturnType);
+        ObsoleteAttribute obsolete = Assert.Single(method.GetCustomAttributes<ObsoleteAttribute>());
+        Assert.Equal(RegistrationObsoleteMessage, obsolete.Message);
+        Assert.False(obsolete.IsError);
 
         ParameterInfo[] parameters = method.GetParameters();
         if (methodName == "PreRegisterAllNpcPrefabs")

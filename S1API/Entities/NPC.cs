@@ -1469,6 +1469,8 @@ namespace S1API.Entities
         /// Compatibility shim for manually pre-registering a per-type NPC prefab.
         /// </summary>
         /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        /// <param name="npcType">The custom NPC type whose prefab S1API will pre-register.</param>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterPrefabForType(System.Type npcType)
         {
             if (!_loggedExternalPreRegisterTypeCall)
@@ -1504,6 +1506,7 @@ namespace S1API.Entities
         /// Compatibility shim for manually scanning and pre-registering NPC prefabs.
         /// </summary>
         /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterAllNpcPrefabs()
         {
             if (!_loggedExternalPreRegisterAllCall)
