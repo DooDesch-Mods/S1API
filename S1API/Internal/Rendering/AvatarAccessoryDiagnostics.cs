@@ -1,13 +1,13 @@
 #if MONOMELON
 using S1AvatarFramework = ScheduleOne.AvatarFramework;
-using S1NPCs = ScheduleOne.NPCs;
 #elif IL2CPPMELON
 using S1AvatarFramework = Il2CppScheduleOne.AvatarFramework;
-using S1NPCs = Il2CppScheduleOne.NPCs;
 #endif
 
 using System;
 using System.Collections.Generic;
+using S1API.Internal.Entities;
+using S1API.Internal.Patches;
 using S1API.Internal.Utils;
 using S1API.Logging;
 using UnityEngine;
@@ -25,21 +25,25 @@ namespace S1API.Internal.Rendering
             S1AvatarFramework.Avatar avatar,
             S1AvatarFramework.AvatarSettings settings)
         {
+            if (avatar == null || !NPCPatches.IsS1ApiCustomNpcComponent(avatar))
+                return;
+
+            OwnerContext owner = ResolveOwner(avatar);
             try
             {
-                ValidateCore(avatar, settings);
+                ValidateCore(settings, owner);
             }
             catch (Exception ex)
             {
                 Logger.Warning(
                     $"[S1API][AvatarAccessoryValidation] Could not validate accessory settings for " +
-                    $"avatar '{DescribeAvatar(avatar)}': {ex.GetType().Name}: {ex.Message}");
+                    $"S1API NPC {owner.Description}: {ex.GetType().Name}: {ex.Message}");
             }
         }
 
         private static void ValidateCore(
-            S1AvatarFramework.Avatar avatar,
-            S1AvatarFramework.AvatarSettings settings)
+            S1AvatarFramework.AvatarSettings settings,
+            OwnerContext owner)
         {
             if (settings?.AccessorySettings == null)
                 return;
@@ -52,34 +56,33 @@ namespace S1API.Internal.Rendering
                 if (string.IsNullOrWhiteSpace(path))
                     continue;
 
-                // Match the native ApplyAccessorySettings lookup exactly. This also honors assets
-                // registered through RuntimeResourceRegistry/AccessoryFactory at runtime.
+                // Match the native untyped Resources.Load lookup while using CrossType so the
+                // underlying IL2CPP object type is checked instead of its managed wrapper type.
                 UnityEngine.Object? resource = Resources.Load(path);
                 if (resource == null)
                 {
                     WarnInvalidAccessoryOnce(
-                        avatar,
+                        owner,
                         index,
                         path,
                         "Resources.Load returned null at runtime");
                     continue;
                 }
 
-                GameObject? accessoryObject = resource as GameObject;
-                if (accessoryObject == null)
+                if (!CrossType.Is(resource, out GameObject accessoryObject) || accessoryObject == null)
                 {
                     WarnInvalidAccessoryOnce(
-                        avatar,
+                        owner,
                         index,
                         path,
-                        $"Resources.Load returned {resource.GetType().FullName}, not a GameObject");
+                        "Resources.Load resolved an asset that is not a GameObject at runtime");
                     continue;
                 }
 
                 if (accessoryObject.GetComponent<S1AvatarFramework.Accessory>() == null)
                 {
                     WarnInvalidAccessoryOnce(
-                        avatar,
+                        owner,
                         index,
                         path,
                         $"the loaded GameObject '{accessoryObject.name}' has no AvatarFramework.Accessory component");
@@ -88,13 +91,12 @@ namespace S1API.Internal.Rendering
         }
 
         private static void WarnInvalidAccessoryOnce(
-            S1AvatarFramework.Avatar avatar,
+            OwnerContext owner,
             int index,
             string path,
             string reason)
         {
-            string avatarDescription = DescribeAvatar(avatar);
-            string warningKey = avatarDescription + "|" + index + "|" + path + "|" + reason;
+            string warningKey = owner.StableKey + "|" + index + "|" + path + "|" + reason;
             lock (WarnedInvalidResources)
             {
                 if (!WarnedInvalidResources.Add(warningKey))
@@ -102,42 +104,144 @@ namespace S1API.Internal.Rendering
             }
 
             Logger.Warning(
-                $"[S1API][AvatarAccessoryValidation] Avatar '{avatarDescription}' has an invalid accessory " +
+                $"[S1API][AvatarAccessoryValidation] S1API NPC {owner.Description} has an invalid accessory " +
                 $"at index {index}: path='{path}'; {reason}. Correct or remove the accessory path in " +
                 "WithAppearanceDefaults/AddAccessory, or register the custom accessory with " +
                 "AccessoryFactory before the appearance is applied. S1API left the settings unchanged; " +
                 "the native ApplyAccessorySettings call may throw.");
         }
 
-        private static string DescribeAvatar(S1AvatarFramework.Avatar? avatar)
+        private static OwnerContext ResolveOwner(S1AvatarFramework.Avatar avatar)
         {
-            if (avatar == null)
-                return "<null-avatar>";
+            NPCPrefabIdentity? identity = null;
+            try { identity = FindIdentity(avatar); }
+            catch { }
 
+            string? prefabName = null;
             try
             {
-                var npc = avatar.GetComponentInParent<S1NPCs.NPC>(true);
-                if (npc != null)
-                {
-                    string id = string.IsNullOrWhiteSpace(npc.ID) ? "<unknown-id>" : npc.ID;
-                    string? name = ReflectionUtils.TryGetFieldOrProperty(npc, "fullName") as string;
-                    if (string.IsNullOrWhiteSpace(name))
-                    {
-                        string? firstName = ReflectionUtils.TryGetFieldOrProperty(npc, "FirstName") as string;
-                        string? lastName = ReflectionUtils.TryGetFieldOrProperty(npc, "LastName") as string;
-                        name = $"{firstName} {lastName}".Trim();
-                    }
-                    if (string.IsNullOrWhiteSpace(name))
-                        name = npc.name;
-                    return $"{name} (ID={id})";
-                }
+                prefabName = identity?.PrefabName
+                             ?? identity?.gameObject?.name
+                             ?? FindS1ApiRootName(avatar);
             }
             catch
             {
-                // Fall back to the avatar object name below.
             }
 
-            return avatar.gameObject?.name ?? avatar.name ?? "<unknown-avatar>";
+            string? id = identity?.Id;
+            string? name = JoinName(identity?.FirstName, identity?.LastName);
+            if ((string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(name))
+                && !string.IsNullOrWhiteSpace(prefabName))
+            {
+                try
+                {
+                    if (NPCPrefabIdentity.TryGetIdentityFromRegistry(
+                            prefabName,
+                            out string? registryId,
+                            out string? firstName,
+                            out string? lastName,
+                            out _))
+                    {
+                        id = string.IsNullOrWhiteSpace(id) ? registryId : id;
+                        name = string.IsNullOrWhiteSpace(name) ? JoinName(firstName, lastName) : name;
+                    }
+                }
+                catch
+                {
+                }
+            }
+
+            string gameObjectName = NormalizeGameObjectName(prefabName)
+                                    ?? avatar.gameObject?.name
+                                    ?? avatar.name
+                                    ?? "<unknown-avatar>";
+            if (string.IsNullOrWhiteSpace(name))
+                name = !string.IsNullOrWhiteSpace(id) ? id : gameObjectName;
+
+            string description = FormatOwnerDescription(name, id, gameObjectName);
+            string stableKey = SelectStableOwnerKey(id, prefabName, description);
+            return new OwnerContext(description, stableKey);
+        }
+
+        private static NPCPrefabIdentity? FindIdentity(Component component)
+        {
+            for (Transform? current = component.transform; current != null; current = current.parent)
+            {
+                NPCPrefabIdentity? identity = current.gameObject?.GetComponent<NPCPrefabIdentity>();
+                if (identity != null)
+                    return identity;
+            }
+
+            return component.GetComponentInParent<NPCPrefabIdentity>(true);
+        }
+
+        private static string? FindS1ApiRootName(Component component)
+        {
+            for (Transform? current = component.transform; current != null; current = current.parent)
+            {
+                string? name = current.gameObject?.name;
+                if (!string.IsNullOrWhiteSpace(name)
+                    && name.StartsWith("S1API_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return name;
+                }
+            }
+
+            return null;
+        }
+
+        private static string? JoinName(string? firstName, string? lastName)
+        {
+            string name = $"{firstName} {lastName}".Trim();
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+
+        private static string? NormalizeGameObjectName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return null;
+
+            const string cloneSuffix = "(Clone)";
+            return name.EndsWith(cloneSuffix, StringComparison.Ordinal)
+                ? name.Substring(0, name.Length - cloneSuffix.Length)
+                : name;
+        }
+
+        internal static string FormatOwnerDescription(
+            string? name,
+            string? id,
+            string? gameObjectName)
+        {
+            string safeName = string.IsNullOrWhiteSpace(name) ? "<unknown>" : name;
+            string safeId = string.IsNullOrWhiteSpace(id) ? "<unknown-id>" : id;
+            string safeGameObjectName = NormalizeGameObjectName(gameObjectName) ?? "<unknown-object>";
+            return $"'{safeName}' (ID='{safeId}', GameObject='{safeGameObjectName}')";
+        }
+
+        internal static string SelectStableOwnerKey(
+            string? id,
+            string? prefabName,
+            string fallbackDescription)
+        {
+            if (!string.IsNullOrWhiteSpace(id))
+                return "id:" + id;
+
+            string? normalizedPrefabName = NormalizeGameObjectName(prefabName);
+            return !string.IsNullOrWhiteSpace(normalizedPrefabName)
+                ? "prefab:" + normalizedPrefabName
+                : "description:" + fallbackDescription;
+        }
+
+        private readonly struct OwnerContext
+        {
+            internal OwnerContext(string description, string stableKey)
+            {
+                Description = description;
+                StableKey = stableKey;
+            }
+
+            internal string Description { get; }
+            internal string StableKey { get; }
         }
     }
 }
