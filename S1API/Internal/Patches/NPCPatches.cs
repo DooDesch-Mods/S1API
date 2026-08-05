@@ -1450,10 +1450,13 @@ namespace S1API.Internal.Patches
                         }
                     }
 
-                    // SetVisible(false) deactivates the Avatar GameObject. Custom suppliers
-                    // must remain active through FishNet spawn so native NPC.Awake can find
-                    // the Avatar reference; FinalizeNetworkSpawn applies idle visibility.
-                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(wrap.IsSupplier))
+                    // SetVisible(false) deactivates the Avatar GameObject. Invisible NPCs and
+                    // custom suppliers must remain active through FishNet spawn so native
+                    // NPC.Awake can find the Avatar reference; FinalizeNetworkSpawn applies
+                    // their intended visibility.
+                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(
+                        wrap.IsPhysical,
+                        wrap.IsSupplier))
                     {
                         s1BaseNpc.SetVisible(
                             wrap.ShouldBeVisibleAfterSpawn(),

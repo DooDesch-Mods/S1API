@@ -4557,8 +4557,9 @@ namespace S1API.Entities
             isPhysical && (!isSupplier || isSupplierMeeting);
 
         internal static bool ShouldApplyLoadedVisibilityBeforeSpawn(
+            bool isPhysical,
             bool isSupplier) =>
-            !isSupplier;
+            isPhysical && !isSupplier;
 
         private IEnumerator DelayedVisibilityRPC()
         {
