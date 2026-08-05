@@ -148,7 +148,9 @@ Supported identifiers are `cold`, `crackhead`, `female-1`, `female-2`, `goblin`,
 
 These identifiers name reusable voice databases, not individual NPCs. For example, Ray's native configuration combines the `tyler` database with a character-specific pitch; use the pitch overload when reproducing that kind of voice profile.
 
-The pitch overload accepts values from `0.1` through `4.0`. Omitting the pitch preserves the selected base prefab's inherited pitch. Omitting `WithVoice(...)` entirely preserves both the inherited voice database and pitch. Invalid identifiers, unavailable databases, and out-of-range pitch values throw an actionable configuration error.
+The pitch overload accepts values from `0.1` through `4.0`. Omitting the pitch preserves the selected base prefab's inherited pitch. Omitting `WithVoice(...)` entirely preserves both the inherited voice database and pitch.
+
+Call `WithVoice(...)` when the NPC should keep a specific voice across game updates. Inherited voices depend on S1API's current donor prefab and may change when the game changes that prefab. A missing donor voice also leaves the NPC silent. Invalid identifiers, unavailable databases, and out-of-range pitch values throw an actionable configuration error.
 
 Voice selection controls which clips normal NPC dialogue and reactions play. It does not play an individual voice line.
 
