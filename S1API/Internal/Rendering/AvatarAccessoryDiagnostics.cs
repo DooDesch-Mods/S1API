@@ -10,6 +10,7 @@ using S1API.Internal.Entities;
 using S1API.Internal.Patches;
 using S1API.Internal.Utils;
 using S1API.Logging;
+using S1API.Rendering;
 using UnityEngine;
 
 namespace S1API.Internal.Rendering
@@ -56,8 +57,12 @@ namespace S1API.Internal.Rendering
                 if (string.IsNullOrWhiteSpace(path))
                     continue;
 
-                // Match the native untyped Resources.Load lookup while using CrossType so the
-                // underlying IL2CPP object type is checked instead of its managed wrapper type.
+                // Runtime-registered accessories have already passed AccessoryFactory's
+                // registration contract. In particular, an IL2CPP wrapper can compare null
+                // after registration even while the native Resources patch can still serve it.
+                if (RuntimeResourceRegistry.IsRegistered(path))
+                    continue;
+
                 UnityEngine.Object? resource = Resources.Load(path);
                 if (resource == null)
                 {
