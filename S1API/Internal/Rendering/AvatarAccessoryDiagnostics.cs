@@ -140,8 +140,10 @@ namespace S1API.Internal.Rendering
             {
                 try
                 {
+                    string registryPrefabName =
+                        NormalizeGameObjectName(prefabName) ?? prefabName;
                     if (NPCPrefabIdentity.TryGetIdentityFromRegistry(
-                            prefabName,
+                            registryPrefabName,
                             out string? registryId,
                             out string? firstName,
                             out string? lastName,
