@@ -2,10 +2,12 @@
 using S1NPCs = Il2CppScheduleOne.NPCs;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1NPCsSchedules = Il2CppScheduleOne.NPCs.Schedules;
+using S1Behaviour = Il2CppScheduleOne.NPCs.Behaviour;
 #elif MONOMELON
 using S1NPCs = ScheduleOne.NPCs;
 using S1GameTime = ScheduleOne.GameTime;
 using S1NPCsSchedules = ScheduleOne.NPCs.Schedules;
+using S1Behaviour = ScheduleOne.NPCs.Behaviour;
 #endif
 
 using System;
@@ -51,6 +53,11 @@ namespace S1API.Entities
         {
             EnsureManager();
             Manager?.EnableSchedule();
+
+            // Also flag the paired ScheduleBehaviour as enabled so the Behaviour priority
+            // system (dialogue, combat, flee, etc.) can pause/resume the schedule instead of
+            // it running independently. See NPC.InitializeBehaviourComponents.
+            ScheduleBehaviour?.Enable_Server();
         }
 
         /// <summary>
@@ -59,7 +66,11 @@ namespace S1API.Entities
         public void Disable()
         {
             Manager?.DisableSchedule();
+            ScheduleBehaviour?.Disable_Server();
         }
+
+        private S1Behaviour.ScheduleBehaviour? ScheduleBehaviour =>
+            NPC.gameObject.GetComponentInChildren<S1Behaviour.ScheduleBehaviour>(true);
 
         /// <summary>
         /// Initializes/sorts the order of the schedules on this NPC.
