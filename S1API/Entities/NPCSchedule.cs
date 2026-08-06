@@ -53,10 +53,6 @@ namespace S1API.Entities
         {
             EnsureManager();
             Manager?.EnableSchedule();
-
-            // Also flag the paired ScheduleBehaviour as enabled so the Behaviour priority
-            // system (dialogue, combat, flee, etc.) can pause/resume the schedule instead of
-            // it running independently. See NPC.InitializeBehaviourComponents.
             ScheduleBehaviour?.Enable_Server();
         }
 
