@@ -377,6 +377,30 @@ namespace S1API.Internal.Entities
             if (CrossType.Is(data, out S1NPCFramework.SupplierNPCData supplierData))
                 supplierData.DeliveryShopListings ??= Array.Empty<ScheduleOne.UI.Phone.PhoneShopInterface.Listing>();
 #endif
+
+            EnsureMovementDefaults(data);
+        }
+
+        /// <summary>
+        /// A freshly created NPCDataObject has no MovementPreset assigned, so
+        /// NPCData.Movement falls back to the hardcoded class default (WalkSpeed 1.8),
+        /// which is noticeably faster than every vanilla NPC archetype - they're all tuned
+        /// to a slower shared preset (observed: WalkSpeed 1.2). Source the real value from
+        /// any loaded preset so custom NPCs match vanilla walking pace.
+        /// </summary>
+        private static void EnsureMovementDefaults(S1NPCFramework.NPCData data)
+        {
+            S1NPCFramework.Movement movement = data.Movement;
+            if (movement == null)
+                return;
+
+            S1NPCFramework.Movement? donor = Resources
+                .FindObjectsOfTypeAll<S1NPCFramework.MovementPreset>()
+                .Select(preset => preset?.GetValue())
+                .FirstOrDefault(value => value != null);
+
+            movement.WalkSpeed = donor?.WalkSpeed ?? 1.2f;
+            movement.SprintSpeed = donor?.SprintSpeed ?? movement.SprintSpeed;
         }
 
         private static void EnsureDialogueDatabase(

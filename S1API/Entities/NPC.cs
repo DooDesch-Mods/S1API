@@ -3573,6 +3573,27 @@ namespace S1API.Entities
                 npcBehaviour.DeadBehaviour = existing;
             }
 
+            // Bridge NPCScheduleManager into the Behaviour priority stack. Without this,
+            // custom NPCs' schedules run entirely outside the priority system: nothing ever
+            // pauses NPCScheduleManager when a higher-priority behaviour (dialogue, combat,
+            // flee, etc.) activates, so e.g. NPCs keep walking their schedule while a
+            // conversation is in progress. ScheduleBehaviour.Priority is left at the lowest
+            // value so every other behaviour preempts it, matching vanilla NPC prefabs where
+            // the schedule is the baseline/fallback activity.
+            var scheduleManager = gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
+            if (scheduleManager != null)
+            {
+                var scheduleBehaviour = npcBehaviour.GetComponentInChildren<S1Behaviour.ScheduleBehaviour>(true);
+                if (scheduleBehaviour == null)
+                {
+                    GameObject go = new GameObject("ScheduleBehaviour");
+                    go.transform.SetParent(npcBehaviour.transform, false);
+                    scheduleBehaviour = go.AddComponent<S1Behaviour.ScheduleBehaviour>();
+                }
+                scheduleBehaviour.schedule = scheduleManager;
+                scheduleBehaviour.Priority = -1;
+            }
+
             RepairBehaviourOwnership(gameObject, S1NPC);
 
             foreach (S1Behaviour.Behaviour behaviour in
