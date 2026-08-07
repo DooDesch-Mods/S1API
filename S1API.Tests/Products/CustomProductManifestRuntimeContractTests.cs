@@ -5,6 +5,23 @@ namespace S1API.Tests.Products;
 public sealed class CustomProductManifestRuntimeContractTests
 {
     [Fact]
+    public void QueuedManifestExemptsClientFromMissingManifestTimeout()
+    {
+        DateTime deadline = DateTime.UtcNow;
+
+        Assert.False(CustomProductManifestRuntime.ShouldRejectClientForMissingManifest(
+            isWaiting: true,
+            manifestReceived: true,
+            now: deadline,
+            deadline: deadline));
+        Assert.True(CustomProductManifestRuntime.ShouldRejectClientForMissingManifest(
+            isWaiting: true,
+            manifestReceived: false,
+            now: deadline,
+            deadline: deadline));
+    }
+
+    [Fact]
     public void EmptyManifestDoesNotRequireValidation()
     {
         Assert.False(CustomProductManifestRuntime.RequiresValidation(

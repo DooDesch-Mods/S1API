@@ -47,6 +47,7 @@ namespace S1API.Internal.Products
         private static bool _clientLifecycleSubscribed;
         private static bool _clientSessionActive;
         private static bool _clientDefinitionsReady;
+        private static bool _clientManifestReceived;
         private static bool _hostActive;
         private static bool _hostManifestReady;
         private static bool _hostRequiresValidation;
@@ -214,6 +215,7 @@ namespace S1API.Internal.Products
             {
                 _clientSessionActive = true;
                 _clientDefinitionsReady = false;
+                _clientManifestReceived = false;
                 _pendingClientManifest = null;
                 _localClientManifest = null;
                 ClientGate.Begin(requiresValidation: true);
@@ -303,6 +305,7 @@ namespace S1API.Internal.Products
             {
                 _clientSessionActive = false;
                 _clientDefinitionsReady = false;
+                _clientManifestReceived = false;
                 _pendingClientManifest = null;
                 _localClientManifest = null;
                 ClientGate.End();
@@ -342,7 +345,11 @@ namespace S1API.Internal.Products
             var rejectedConnections = new List<PendingConnection>();
             lock (Gate)
             {
-                rejectClient = ClientGate.IsWaiting && now >= _clientDeadline;
+                rejectClient = ShouldRejectClientForMissingManifest(
+                    ClientGate.IsWaiting,
+                    _clientManifestReceived,
+                    now,
+                    _clientDeadline);
                 if (rejectClient)
                     ClientGate.End();
 
@@ -395,6 +402,13 @@ namespace S1API.Internal.Products
                 return authorized;
             }
         }
+
+        internal static bool ShouldRejectClientForMissingManifest(
+            bool isWaiting,
+            bool manifestReceived,
+            DateTime now,
+            DateTime deadline) =>
+            isWaiting && !manifestReceived && now >= deadline;
 
         internal static bool AuthorizeHostPlayerData(
             object player,
@@ -695,6 +709,7 @@ namespace S1API.Internal.Products
             {
                 if (!_clientSessionActive)
                     return;
+                _clientManifestReceived = true;
                 if (!_clientDefinitionsReady)
                 {
                     if (_pendingClientManifest != null &&
