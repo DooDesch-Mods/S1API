@@ -946,6 +946,26 @@ namespace S1API.Internal.Patches
             return true;
         }
 
+        [HarmonyPatch(typeof(S1Economy.Dealer), "SetUpDialogue")]
+        [HarmonyPrefix]
+        [HarmonyPriority(Priority.First)]
+        private static void Dealer_SetUpDialogue_Prefix(S1Economy.Dealer __instance)
+        {
+            if (!IsS1ApiCustomNpcComponent(__instance))
+                return;
+
+            try
+            {
+                NPCDataAccess.EnsureDealerDialogueDefaults(__instance);
+            }
+            catch (Exception ex)
+            {
+                Logger.Error(
+                    $"Dealer_SetUpDialogue_Prefix: Failed to repair dealer dialogue for " +
+                    $"'{__instance?.ID ?? "<unknown>"}': {ex.Message}");
+            }
+        }
+
         internal static bool IsS1ApiCustomNpcComponent(Component component)
         {
             if (component == null)

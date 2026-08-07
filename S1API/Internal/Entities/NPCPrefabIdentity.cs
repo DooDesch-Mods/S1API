@@ -941,6 +941,17 @@ namespace S1API.Internal.Entities
             }
         }
 
+#if IL2CPPMELON
+        [HideFromIl2Cpp]
+#endif
+        internal IReadOnlyList<string> GetConfiguredConnectionIds()
+        {
+            EnsureRelationshipDataFromRegistry();
+            return _connectionIds == null
+                ? Array.Empty<string>()
+                : new List<string>(_connectionIds);
+        }
+
         internal bool ApplyAppearanceTo(S1NPCs.NPC npc, S1AvatarFramework.Avatar avatar)
         {
             if (npc == null || avatar == null)

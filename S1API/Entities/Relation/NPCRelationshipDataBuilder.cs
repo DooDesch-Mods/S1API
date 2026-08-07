@@ -82,24 +82,30 @@ namespace S1API.Entities.Relation
         public NPCRelationshipDataBuilder WithConnectionsById(IEnumerable<string> ids)
         {
             _connectionIDs.Clear();
-            if (ids == null)
-            {
-                return this;
-            }
-            
-            int addedCount = 0;
-            foreach (var id in ids)
-            {
-                if (string.IsNullOrEmpty(id))
-                    continue;
-                if (!_connectionIDs.Contains(id, StringComparer.OrdinalIgnoreCase))
-                {
-                    _connectionIDs.Add(id);
-                    addedCount++;
-                }
-            }
-            
+            _connectionIDs.AddRange(NormalizeConnectionIds(ids));
+
             return this;
+        }
+
+        internal static IReadOnlyList<string> NormalizeConnectionIds(IEnumerable<string>? ids)
+        {
+            if (ids == null)
+                return Array.Empty<string>();
+
+            var normalized = new List<string>();
+            foreach (string? id in ids)
+            {
+                string value = id?.Trim() ?? string.Empty;
+                if (value.Length == 0
+                    || normalized.Contains(value, StringComparer.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                normalized.Add(value);
+            }
+
+            return normalized;
         }
 
         /// <summary>

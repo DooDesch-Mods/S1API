@@ -35,6 +35,7 @@ using S1API.Entities.Voices;
 using S1API.Entities.Relation;
 using S1API.Entities.Appearances.Base;
 using System.Collections.Generic;
+using System.Linq;
 using S1API.Internal.Entities;
 using S1API.Internal.Utils;
 using S1API.Logging;
@@ -363,19 +364,38 @@ namespace S1API.Entities
             }
             var baseNpcForDealer = prefabRoot.GetComponent<S1NPCs.NPC>();
             SetBehaviourRefs(attendDeal, npcBehaviour, baseNpcForDealer);
+            attendDeal.Name = "Attend deal";
+            attendDeal.Priority = DealerAttendDealPriority;
 
-            // Ensure NPCEvent_StayInBuilding exists for home behavior
-            var stayInBuilding = prefabRoot.GetComponentInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true);
-            if (stayInBuilding != null) return this;
+            // Keep the dealer's HomeEvent separate from mod-defined schedule actions. Dealer.OnTick
+            // toggles this object directly, so reusing an arbitrary StayInBuilding action makes the
+            // schedule and contract behaviour fight over the same doorway.
+            var stayInBuilding = prefabRoot
+                .GetComponentsInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true)
+                .FirstOrDefault(action => IsDealerHomeEventName(action?.gameObject?.name));
+            if (stayInBuilding == null)
             {
-                var go = new GameObject("StayInBuilding");
+                var go = new GameObject(DealerHomeEventName);
                 go.transform.SetParent(mgr.transform, false);
                 stayInBuilding = go.AddComponent<S1NPCsSchedules.NPCEvent_StayInBuilding>();
                 go.SetActive(false);
             }
 
+            ReflectionUtils.TrySetFieldOrProperty(stayInBuilding, "npc", baseNpcForDealer);
+            ReflectionUtils.TrySetFieldOrProperty(stayInBuilding, "schedule", mgr);
+            if (baseNpcForDealer != null
+                && CrossType.Is(baseNpcForDealer, out S1Economy.Dealer dealer))
+                dealer.HomeEvent = stayInBuilding;
+
             return this;
         }
+
+        internal const int DealerAttendDealPriority = 5;
+        internal const string DealerHomeEventName = "DealerHomeEvent";
+
+        internal static bool IsDealerHomeEventName(string? name) =>
+            string.Equals(name, DealerHomeEventName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "HomeEvent", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Selects a supported base-game voice while preserving the prefab's inherited pitch.

@@ -49,6 +49,7 @@
         <Reference Include="$(Il2CppAssembliesPath)\Il2Cppmscorlib.dll" />
         <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.dll" />
         <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.CoreModule.dll" />
+        <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.AnimationModule.dll" />
         <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.UI.dll" />
         <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.InputLegacyModule.dll" />
         <Reference Include="$(Il2CppAssembliesPath)\UnityEngine.IMGUIModule.dll" />
@@ -79,6 +80,9 @@
         </Reference>
         <Reference Include="UnityEngine.CoreModule">
             <HintPath>$(MonoAssembliesPath)/UnityEngine.CoreModule.dll</HintPath>
+        </Reference>
+        <Reference Include="UnityEngine.AnimationModule">
+            <HintPath>$(MonoAssembliesPath)/UnityEngine.AnimationModule.dll</HintPath>
         </Reference>
         <Reference Include="FishNet.Runtime">
             <HintPath>$(MonoAssembliesPath)/FishNet.Runtime.dll</HintPath>

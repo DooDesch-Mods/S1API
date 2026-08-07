@@ -218,14 +218,21 @@ namespace S1API.Internal.Entities
             if (dealer == null || data == null)
                 return false;
 
-            if (GetOriginalData(dealer) is not S1NPCFramework.DealerNPCData dealerData)
+            S1NPCFramework.NPCData? originalData = GetOriginalData(dealer);
+            if (originalData == null
+                || !CrossType.Is(originalData, out S1NPCFramework.DealerNPCData dealerData))
                 return false;
 
-            dealerData.SigningFee = data.SigningFee;
-            dealerData.SalesCutPercentage = data.Cut;
-            dealerData.DealerType = (S1Economy.EDealerType)(int)data.DealerType;
-            if (!string.IsNullOrWhiteSpace(data.HomeName))
-                dealerData.HomeName = data.HomeName;
+            ApplyDealerDefaults(dealerData, data);
+
+            S1NPCFramework.NPCData? currentData = GetCurrentData(dealer);
+            if (currentData != null
+                && CrossType.Is(currentData, out S1NPCFramework.DealerNPCData currentDealerData)
+                && !ReferenceEquals(currentDealerData, dealerData))
+            {
+                ApplyDealerDefaults(currentDealerData, data);
+            }
+
             return true;
         }
 
@@ -265,8 +272,19 @@ namespace S1API.Internal.Entities
             if (CrossType.Is(data, out S1NPCFramework.SupplierNPCData _))
                 EnsureSupplierDialogueDatabase(data, required: true);
 
-            if (data is S1NPCFramework.DealerNPCData dealerData)
-                PopulateDealerDialogueDefaults(dealerData);
+            if (CrossType.Is(data, out S1NPCFramework.DealerNPCData _))
+                EnsureDealerDialogueDefaults(npc, logFailure: false);
+        }
+
+        private static void ApplyDealerDefaults(
+            S1NPCFramework.DealerNPCData dealerData,
+            DealerDataBuilder.DealerConfigData data)
+        {
+            dealerData.SigningFee = data.SigningFee;
+            dealerData.SalesCutPercentage = data.Cut;
+            dealerData.DealerType = (S1Economy.EDealerType)(int)data.DealerType;
+            if (!string.IsNullOrWhiteSpace(data.HomeName))
+                dealerData.HomeName = data.HomeName;
         }
 
         private static void ApplySupplierDefaults(
@@ -588,33 +606,334 @@ namespace S1API.Internal.Entities
             }
         }
 
-        private static void PopulateDealerDialogueDefaults(S1NPCFramework.DealerNPCData dealerData)
+        internal static bool EnsureDealerDialogueDefaults(S1NPCs.NPC npc, bool logFailure = true)
         {
-            if (dealerData.RecruitDialogue != null
-                && dealerData.CollectCashDialogue != null
-                && dealerData.AssignCustomersDialogue != null)
+            if (npc == null)
+                return false;
+
+            var targets = new List<S1NPCFramework.DealerNPCData>();
+            AddDealerDataTarget(targets, GetOriginalData(npc));
+            AddDealerDataTarget(targets, GetCurrentData(npc));
+            if (npc is S1Economy.Dealer dealer && dealer.DealerData != null)
+                targets.Add(dealer.DealerData);
+
+            bool ready = targets.Count > 0;
+            foreach (S1NPCFramework.DealerNPCData target in targets)
+                ready &= PopulateDealerDialogueDefaults(target);
+
+            if (!ready && logFailure)
             {
-                return;
+                Logger.Error(
+                    $"Dealer '{GetId(npc)}' has no complete native dealer dialogue template. " +
+                    "Recruitment, cash collection, or customer assignment dialogue may be unavailable.");
+            }
+
+            return ready;
+        }
+
+        private static void AddDealerDataTarget(
+            ICollection<S1NPCFramework.DealerNPCData> targets,
+            S1NPCFramework.NPCData? data)
+        {
+            if (data != null
+                && CrossType.Is(data, out S1NPCFramework.DealerNPCData dealerData))
+            {
+                targets.Add(dealerData);
+            }
+        }
+
+        internal static bool HasCompleteDealerDialogueSet(
+            bool hasRecruitDialogue,
+            bool hasCollectCashDialogue,
+            bool hasAssignCustomersDialogue) =>
+            hasRecruitDialogue && hasCollectCashDialogue && hasAssignCustomersDialogue;
+
+        internal const string DealerRecruitDialogueName = "Supplier_Recruitment";
+        internal const string DealerCollectCashDialogueName = "Dealer_CollectCash";
+        internal const string DealerAssignCustomersDialogueName = "Dealer_AssignCustomers";
+
+        private static S1Dialogue.DialogueContainer? _fallbackRecruitDialogue;
+        private static S1Dialogue.DialogueContainer? _fallbackCollectCashDialogue;
+        private static S1Dialogue.DialogueContainer? _fallbackAssignCustomersDialogue;
+
+        private static bool PopulateDealerDialogueDefaults(S1NPCFramework.DealerNPCData dealerData)
+        {
+            if (HasCompleteDealerDialogueSet(
+                    dealerData.RecruitDialogue != null,
+                    dealerData.CollectCashDialogue != null,
+                    dealerData.AssignCustomersDialogue != null))
+                return true;
+
+            // DealerNPCDataObject assets are no longer reliably enumerated in 0.4.6, but the
+            // loaded native Dealer components still expose their complete current/original data.
+            foreach (S1Economy.Dealer donorDealer in
+                     Resources.FindObjectsOfTypeAll<S1Economy.Dealer>())
+            {
+                if (donorDealer == null)
+                    continue;
+
+                S1NPCFramework.DealerNPCData? source = donorDealer.DealerData;
+                if (source == null)
+                    TryGetDealerData(GetOriginalData(donorDealer), out source);
+                if (!TryCopyDealerDialogueDefaults(dealerData, source))
+                    continue;
+
+                return true;
             }
 
             S1NPCFramework.DealerNPCDataObject[] donors =
                 Resources.FindObjectsOfTypeAll<S1NPCFramework.DealerNPCDataObject>();
             foreach (S1NPCFramework.DealerNPCDataObject donor in donors)
             {
-                if (donor == null || donor.GetOriginalData() is not S1NPCFramework.DealerNPCData source)
+                if (donor == null)
                     continue;
 
-                dealerData.RecruitDialogue ??= source.RecruitDialogue;
-                dealerData.CollectCashDialogue ??= source.CollectCashDialogue;
-                dealerData.AssignCustomersDialogue ??= source.AssignCustomersDialogue;
+                TryGetDealerData(donor.GetOriginalData(), out S1NPCFramework.DealerNPCData? source);
+                if (source == null)
+                    TryGetDealerData(donor.GetRuntimeData(), out source);
+                if (!TryCopyDealerDialogueDefaults(dealerData, source))
+                    continue;
 
-                if (dealerData.RecruitDialogue != null
-                    && dealerData.CollectCashDialogue != null
-                    && dealerData.AssignCustomersDialogue != null)
-                {
-                    return;
-                }
+                return true;
             }
+
+            // 0.4.6 no longer guarantees that native DealerNPCDataObject assets are surfaced by
+            // FindObjectsOfTypeAll. Their referenced DialogueContainer assets are still loaded for
+            // base-game dealers, so resolve the same three vanilla assets by stable asset name.
+            S1Dialogue.DialogueContainer[] dialogues =
+                Resources.FindObjectsOfTypeAll<S1Dialogue.DialogueContainer>();
+            dealerData.RecruitDialogue ??=
+                FindDialogueContainer(dialogues, DealerRecruitDialogueName);
+            dealerData.CollectCashDialogue ??=
+                FindDialogueContainer(dialogues, DealerCollectCashDialogueName);
+            dealerData.AssignCustomersDialogue ??=
+                FindDialogueContainer(dialogues, DealerAssignCustomersDialogueName);
+
+            // On 0.4.6 the three containers can be absent from Unity's loaded-object set until a
+            // native dealer has already initialized. Custom NPCs spawn earlier than that in some
+            // saves, so preserve the native dialogue graph as an always-available final fallback.
+            dealerData.RecruitDialogue ??= GetFallbackRecruitDialogue();
+            dealerData.CollectCashDialogue ??= GetFallbackCollectCashDialogue();
+            dealerData.AssignCustomersDialogue ??= GetFallbackAssignCustomersDialogue();
+
+            bool ready = HasCompleteDealerDialogueSet(
+                dealerData.RecruitDialogue != null,
+                dealerData.CollectCashDialogue != null,
+                dealerData.AssignCustomersDialogue != null);
+            if (!ready)
+            {
+                Logger.Error(
+                    "[S1API][DealerDialogue] Failed to persist fallback containers on DealerNPCData. " +
+                    $"RecruitManagedNull={ReferenceEquals(dealerData.RecruitDialogue, null)}, " +
+                    $"CollectManagedNull={ReferenceEquals(dealerData.CollectCashDialogue, null)}, " +
+                    $"AssignManagedNull={ReferenceEquals(dealerData.AssignCustomersDialogue, null)}, " +
+                    $"FallbackRecruitManagedNull={ReferenceEquals(_fallbackRecruitDialogue, null)}, " +
+                    $"FallbackCollectManagedNull={ReferenceEquals(_fallbackCollectCashDialogue, null)}, " +
+                    $"FallbackAssignManagedNull={ReferenceEquals(_fallbackAssignCustomersDialogue, null)}.");
+            }
+
+            return ready;
+        }
+
+        private static bool TryGetDealerData(
+            S1NPCFramework.NPCData? data,
+            out S1NPCFramework.DealerNPCData? dealerData)
+        {
+            if (data != null
+                && CrossType.Is(data, out S1NPCFramework.DealerNPCData typedData))
+            {
+                dealerData = typedData;
+                return true;
+            }
+
+            dealerData = null;
+            return false;
+        }
+
+        private static bool TryCopyDealerDialogueDefaults(
+            S1NPCFramework.DealerNPCData target,
+            S1NPCFramework.DealerNPCData? source)
+        {
+            if (source == null
+                || !HasCompleteDealerDialogueSet(
+                    source.RecruitDialogue != null,
+                    source.CollectCashDialogue != null,
+                    source.AssignCustomersDialogue != null))
+            {
+                return false;
+            }
+
+            target.RecruitDialogue ??= source.RecruitDialogue;
+            target.CollectCashDialogue ??= source.CollectCashDialogue;
+            target.AssignCustomersDialogue ??= source.AssignCustomersDialogue;
+            return HasCompleteDealerDialogueSet(
+                target.RecruitDialogue != null,
+                target.CollectCashDialogue != null,
+                target.AssignCustomersDialogue != null);
+        }
+
+        private static S1Dialogue.DialogueContainer? FindDialogueContainer(
+            IEnumerable<S1Dialogue.DialogueContainer> dialogues,
+            string name) =>
+            dialogues.FirstOrDefault(dialogue =>
+                dialogue != null
+                && string.Equals(dialogue.name, name, StringComparison.Ordinal));
+
+        private static S1Dialogue.DialogueContainer GetFallbackRecruitDialogue()
+        {
+            if (_fallbackRecruitDialogue != null)
+                return _fallbackRecruitDialogue;
+
+            const string entryGuid = "e53bd440-29c4-4dce-a5cd-7415dcda83f8";
+            const string confirmGuid = "4854545e-b2f9-4cba-9703-94e68c058352";
+            const string exitGuid = "1575094b-13a3-4d54-9c06-136b571f8c51";
+            const string acceptedGuid = "dbffb23a-034f-4d0f-9815-36cc247335b6";
+
+            S1Dialogue.DialogueContainer dialogue = CreateDialogueContainer(
+                DealerRecruitDialogueName);
+            AddDialogueNode(
+                dialogue,
+                CreateDialogueNode(
+                    entryGuid,
+                    "Alright, I'll be a dealer for you but there is a <SIGNING_FEE> signing fee, " +
+                    "and I'll take a <CUT> cut of each sale. We got a deal?",
+                    "ENTRY",
+                    new Vector2(416f, 458f),
+                    CreateDialogueChoices(
+                        CreateDialogueChoice(confirmGuid, "Deal (<SIGNING_FEE>)", "CONFIRM"),
+                        CreateDialogueChoice(exitGuid, "Nevermind", string.Empty))));
+            AddDialogueNode(
+                dialogue,
+                CreateDialogueNode(
+                    acceptedGuid,
+                    "Thank you. Bring me some product and assign some customers to me, and I'll get to work.",
+                    string.Empty,
+                    new Vector2(1313f, 566f),
+                    CreateDialogueChoices()));
+            AddNodeLink(dialogue, entryGuid, confirmGuid, acceptedGuid);
+
+            _fallbackRecruitDialogue = dialogue;
+            return dialogue;
+        }
+
+        private static S1Dialogue.DialogueContainer GetFallbackCollectCashDialogue()
+        {
+            if (_fallbackCollectCashDialogue != null)
+                return _fallbackCollectCashDialogue;
+
+            S1Dialogue.DialogueContainer dialogue = CreateDialogueContainer(
+                DealerCollectCashDialogueName);
+            AddDialogueNode(
+                dialogue,
+                CreateDialogueNode(
+                    "4057413b-2c8a-411d-a9a0-d8e606558846",
+                    "No worries, here you are.",
+                    "ENTRY",
+                    new Vector2(765f, 412f),
+                    CreateDialogueChoices()));
+
+            _fallbackCollectCashDialogue = dialogue;
+            return dialogue;
+        }
+
+        private static S1Dialogue.DialogueContainer GetFallbackAssignCustomersDialogue()
+        {
+            if (_fallbackAssignCustomersDialogue != null)
+                return _fallbackAssignCustomersDialogue;
+
+            S1Dialogue.DialogueContainer dialogue = CreateDialogueContainer(
+                DealerAssignCustomersDialogueName);
+            AddDialogueNode(
+                dialogue,
+                CreateDialogueNode(
+                    "56a2eae5-0e64-4ca1-b296-148df22793f9",
+                    "You can assign customers to me with the dealer management app on your phone.",
+                    "ENTRY",
+                    new Vector2(622f, 287f),
+                    CreateDialogueChoices()));
+
+            _fallbackAssignCustomersDialogue = dialogue;
+            return dialogue;
+        }
+
+        private static S1Dialogue.DialogueContainer CreateDialogueContainer(string name)
+        {
+            S1Dialogue.DialogueContainer dialogue =
+                ScriptableObject.CreateInstance<S1Dialogue.DialogueContainer>();
+            if (dialogue == null)
+                throw new InvalidOperationException($"Failed to create dealer dialogue '{name}'.");
+
+            dialogue.name = name;
+            dialogue.hideFlags = HideFlags.DontUnloadUnusedAsset;
+            return dialogue;
+        }
+
+        private static S1Dialogue.DialogueNodeData CreateDialogueNode(
+            string guid,
+            string text,
+            string label,
+            Vector2 position,
+#if IL2CPPMELON
+            Il2CppReferenceArray<S1Dialogue.DialogueChoiceData> choices)
+#else
+            S1Dialogue.DialogueChoiceData[] choices)
+#endif
+        {
+            return new S1Dialogue.DialogueNodeData
+            {
+                Guid = guid,
+                DialogueText = text,
+                DialogueNodeLabel = label,
+                Position = position,
+                choices = choices,
+                VoiceLine = (S1VoiceOver.EVOLineType)0
+            };
+        }
+
+        private static S1Dialogue.DialogueChoiceData CreateDialogueChoice(
+            string guid,
+            string text,
+            string label) =>
+            new S1Dialogue.DialogueChoiceData
+            {
+                Guid = guid,
+                ChoiceText = text,
+                ChoiceLabel = label,
+                ShowWorldspaceDialogue = true
+            };
+
+#if IL2CPPMELON
+        private static Il2CppReferenceArray<S1Dialogue.DialogueChoiceData> CreateDialogueChoices(
+            params S1Dialogue.DialogueChoiceData[] choices)
+        {
+            var result = new Il2CppReferenceArray<S1Dialogue.DialogueChoiceData>(choices.Length);
+            for (int i = 0; i < choices.Length; i++)
+                result[i] = choices[i];
+            return result;
+        }
+#else
+        private static S1Dialogue.DialogueChoiceData[] CreateDialogueChoices(
+            params S1Dialogue.DialogueChoiceData[] choices) => choices;
+#endif
+
+        private static void AddDialogueNode(
+            S1Dialogue.DialogueContainer dialogue,
+            S1Dialogue.DialogueNodeData node) =>
+            dialogue.DialogueNodeData.Add(node);
+
+        private static void AddNodeLink(
+            S1Dialogue.DialogueContainer dialogue,
+            string baseNodeGuid,
+            string baseChoiceGuid,
+            string targetNodeGuid)
+        {
+            dialogue.NodeLinks.Add(
+                new S1Dialogue.NodeLinkData
+                {
+                    BaseDialogueOrBranchNodeGuid = baseNodeGuid,
+                    BaseChoiceOrOptionGUID = baseChoiceGuid,
+                    TargetNodeGuid = targetNodeGuid
+                });
         }
     }
 }
