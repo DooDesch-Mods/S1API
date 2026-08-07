@@ -683,8 +683,10 @@ namespace S1API.Entities
 
         private static void RepairDealerPrefabReferences(GameObject prefabRoot, S1Economy.Dealer dealer)
         {
-            dealer.HomeEvent ??=
-                prefabRoot.GetComponentInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true);
+            dealer.HomeEvent ??= prefabRoot
+                .GetComponentsInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true)
+                .FirstOrDefault(action =>
+                    NPCPrefabBuilder.IsDealerHomeEventName(action?.gameObject?.name));
 
             S1Dialogue.DialogueController_Dealer controller =
                 prefabRoot.GetComponentInChildren<S1Dialogue.DialogueController_Dealer>(true);
@@ -1349,6 +1351,7 @@ namespace S1API.Entities
 
                 // Add to All list
                 All.Add(wrapper);
+                ReconcileAllCustomNpcRelationshipConnections();
 
                 return wrapper;
             }
@@ -1372,6 +1375,14 @@ namespace S1API.Entities
                 wrapper.Appearance = new NPCAppearance(wrapper, runtimeAvatar);
                 wrapper.RestoreRuntimeAvatarAppearance();
 
+                try
+                {
+                    var registry = S1NPCs.NPCManager.NPCRegistry;
+                    if (registry != null && !registry.Contains(baseNpc))
+                        registry.Add(baseNpc);
+                }
+                catch { }
+
                 var identity = baseNpc.gameObject?.GetComponent<NPCPrefabIdentity>();
                 if (identity != null)
                 {
@@ -1383,14 +1394,6 @@ namespace S1API.Entities
 
                 wrapper.RefreshMessagingIcons();
                 wrapper._relationshipDataAppliedFromPrefab = identity != null && baseNpc.RelationData != null;
-
-                try
-                {
-                    var registry = S1NPCs.NPCManager.NPCRegistry;
-                    if (registry != null && !registry.Contains(baseNpc))
-                        registry.Add(baseNpc);
-                }
-                catch { }
             }
             catch (Exception ex)
             {
@@ -2335,6 +2338,7 @@ namespace S1API.Entities
                 _hasExplicitIcon = value != null;
                 NPCDataAccess.ApplyIcon(S1NPC, value);
                 RefreshMessagingIcons();
+                Internal.Patches.ContactsAppPatches.RefreshContactIcon(S1NPC);
             }
         }
 
@@ -2345,6 +2349,7 @@ namespace S1API.Entities
 
             NPCDataAccess.ApplyIcon(S1NPC, icon);
             RefreshMessagingIcons();
+            Internal.Patches.ContactsAppPatches.RefreshContactIcon(S1NPC);
         }
 
         /// <summary>
@@ -4400,6 +4405,7 @@ namespace S1API.Entities
                 // Check if all custom NPCs are now ready (finalized)
                 // This sets the CustomNpcsReady flag once all custom NPCs have been spawned and finalized
                 FinalizedCustomNpcTypes.Add(GetType());
+                ReconcileAllCustomNpcRelationshipConnections();
                 CheckAndSetCustomNpcsReady();
             }
             catch (Exception ex)
@@ -4437,6 +4443,72 @@ namespace S1API.Entities
             catch (Exception ex)
             {
                 Logger.Warning($"[NPC] Failed to check CustomNpcsReady status: {ex.Message}");
+            }
+        }
+
+        internal static void ReconcileAllCustomNpcRelationshipConnections()
+        {
+            var configuredNpcs = All
+                .Where(wrapper => wrapper?.S1NPC != null && wrapper.IsCustomNPC)
+                .Select(wrapper => new
+                {
+                    Wrapper = wrapper,
+                    Identity = wrapper.gameObject?.GetComponent<NPCPrefabIdentity>()
+                })
+                .Where(entry => entry.Identity != null && !string.IsNullOrWhiteSpace(entry.Wrapper.ID))
+                .ToArray();
+
+            var declarations =
+                new global::System.Collections.Generic.Dictionary<
+                    string,
+                    global::System.Collections.Generic.IReadOnlyList<string>>(
+                    StringComparer.OrdinalIgnoreCase);
+            foreach (var entry in configuredNpcs)
+            {
+                if (!declarations.TryAdd(
+                        entry.Wrapper.ID,
+                        entry.Identity!.GetConfiguredConnectionIds()))
+                {
+                    Logger.Warning(
+                        $"[Relationship Data] Duplicate custom NPC ID '{entry.Wrapper.ID}' " +
+                        "prevents deterministic connection reconciliation for that duplicate.");
+                }
+            }
+
+            foreach (var entry in configuredNpcs)
+            {
+                try
+                {
+                    global::System.Collections.Generic.IReadOnlyList<string> connectionIds =
+                        NPCRelationshipGraphPolicy.BuildUndirectedConnectionIds(
+                            entry.Wrapper.ID,
+                            declarations);
+                    if (connectionIds.Count == 0
+                        && !entry.Identity!.HasConfiguredConnections())
+                        continue;
+
+                    var builder = new NPCRelationshipDataBuilder();
+                    builder.WithConnectionsById(connectionIds);
+                    var relationData = entry.Wrapper.S1NPC.RelationData;
+                    if (relationData == null)
+                    {
+                        Logger.Warning(
+                            $"[Relationship Data] RelationData is null for " +
+                            $"'{entry.Wrapper.GetSafeNpcId()}'; skipping connection reconciliation.");
+                        continue;
+                    }
+
+                    builder.ApplyTo(
+                        relationData,
+                        entry.Wrapper.S1NPC,
+                        preserveUnlockState: true);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning(
+                        $"[Relationship Data] Could not reconcile connections for " +
+                        $"'{entry.Wrapper.GetSafeNpcId()}': {ex.Message}");
+                }
             }
         }
 
