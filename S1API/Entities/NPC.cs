@@ -185,6 +185,10 @@ namespace S1API.Entities
         };
         private static volatile bool _prefabsConfiguredForLocalProcess;
         private static bool _loggedBaseEmployeeNormalization;
+        private static bool _loggedExternalPreRegisterAllCall;
+        private static bool _loggedExternalPreRegisterTypeCall;
+        private static readonly System.Collections.Generic.HashSet<string> WarnedUnsupportedDealerSettings =
+            new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
         private static int _clientNetworkSpawnHydrationDepth;
 #if MONOMELON
         private static readonly FieldInfo BehaviourOwnerField =
@@ -533,6 +537,7 @@ namespace S1API.Entities
                 }
 
                 RemoveEmployeeComponentsFromBaseEmployeeFallback(prefabRoot);
+                NormalizeBaseEmployeeDialogueComponents(prefabRoot, rootRole);
                 LogBaseEmployeeComponentState("after employee cleanup", prefabRoot);
                 RewireChildNpcReferences(prefabRoot, replacementNpc);
                 RepairNpcPrefabReferences(prefabRoot, replacementNpc);
@@ -822,6 +827,50 @@ namespace S1API.Entities
             }
         }
 
+        private static void NormalizeBaseEmployeeDialogueComponents(
+            GameObject prefabRoot,
+            NpcRootRole rootRole)
+        {
+            if (prefabRoot == null || rootRole != NpcRootRole.Plain)
+                return;
+
+            try
+            {
+                var employeeControllers =
+                    prefabRoot.GetComponentsInChildren<S1Dialogue.DialogueController_Employee>(true);
+                foreach (S1Dialogue.DialogueController_Employee employeeController in employeeControllers)
+                {
+                    if (employeeController == null)
+                        continue;
+
+                    GameObject controllerObject = employeeController.gameObject;
+                    var civilianController = controllerObject.GetComponent<S1Dialogue.DialogueController>();
+                    if (civilianController == null || civilianController == employeeController)
+                    {
+                        civilianController = controllerObject.AddComponent<S1Dialogue.DialogueController>();
+                        civilianController.IntObj = employeeController.IntObj;
+                        civilianController.GenericDialogue = employeeController.GenericDialogue;
+                        civilianController.DialogueEnabled = employeeController.DialogueEnabled;
+                        civilianController.UseDialogueBehaviour = employeeController.UseDialogueBehaviour;
+                        // Customer and other runtime components rebuild their own role-specific dialogue state.
+                        civilianController.Choices = new List<S1Dialogue.DialogueController.DialogueChoice>();
+                        civilianController.GreetingOverrides = new List<S1Dialogue.DialogueController.GreetingOverride>();
+                        civilianController.OverrideContainer = null;
+                    }
+
+                    RemoveComponentImmediate(employeeController);
+                    Logger.Debug(
+                        $"[S1API][BaseEmployeeFallback][Dialogue] Replaced employee dialogue controller on " +
+                        $"'{controllerObject.name}' with the base civilian controller.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(
+                    $"[S1API][BaseEmployeeFallback][Dialogue] Failed to normalize employee dialogue components: {ex.Message}");
+            }
+        }
+
         private static void RemoveComponentImmediate(Component component)
         {
             try
@@ -975,7 +1024,9 @@ namespace S1API.Entities
                         var supplierDefaults = BuildSupplierDefaultsForType(npcType);
                         if (supplierComponent != null && supplierDefaults != null)
                             TryApplySupplierDefaults(supplierComponent, supplierDefaults);
-                        SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabNO.gameObject);
+                        SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(
+                            prefabNO.gameObject,
+                            supplierDefaults?.PersistentId);
                         break;
                     }
                 }
@@ -1062,7 +1113,9 @@ namespace S1API.Entities
             if (prefabRoot == null || GetDeclaredRootRole(npcType) != NpcRootRole.Supplier)
                 return;
 
-            SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(prefabRoot);
+            SupplierRuntimeCoordinator.FinalizePrefabInfrastructure(
+                prefabRoot,
+                BuildSupplierDefaultsForType(npcType)?.PersistentId);
         }
 
         private static NpcRootRole GetDeclaredRootRole(System.Type npcType)
@@ -1413,10 +1466,25 @@ namespace S1API.Entities
         }
 
         /// <summary>
-        /// Pre-registers a per-type NPC prefab into FishNet spawnables without creating a live instance.
-        /// Should be called on both server and client before any NPC instances are spawned.
+        /// Compatibility shim for manually pre-registering a per-type NPC prefab.
         /// </summary>
+        /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        /// <param name="npcType">The custom NPC type whose prefab S1API will pre-register.</param>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterPrefabForType(System.Type npcType)
+        {
+            if (!_loggedExternalPreRegisterTypeCall)
+            {
+                _loggedExternalPreRegisterTypeCall = true;
+                Logger.Warning(
+                    "[S1API][NPCPrefabRegistration] A mod called the legacy NPC.PreRegisterPrefabForType API. " +
+                    "S1API already owns prefab registration and retry timing; remove this call from mod initialization.");
+            }
+
+            PreRegisterPrefabForTypeInternal(npcType);
+        }
+
+        internal static void PreRegisterPrefabForTypeInternal(System.Type npcType)
         {
             try
             {
@@ -1435,9 +1503,24 @@ namespace S1API.Entities
         }
 
         /// <summary>
-        /// Scans loaded assemblies for subclasses of S1API.Entities.NPC and pre-registers their prefabs.
+        /// Compatibility shim for manually scanning and pre-registering NPC prefabs.
         /// </summary>
+        /// <remarks>S1API owns prefab registration and retry timing. Mods should not call this method.</remarks>
+        [Obsolete("S1API automatically pre-registers NPC prefabs. Remove this call.", false)]
         public static void PreRegisterAllNpcPrefabs()
+        {
+            if (!_loggedExternalPreRegisterAllCall)
+            {
+                _loggedExternalPreRegisterAllCall = true;
+                Logger.Warning(
+                    "[S1API][NPCPrefabRegistration] A mod called the legacy NPC.PreRegisterAllNpcPrefabs API. " +
+                    "S1API already scans and registers NPC prefabs when FishNet is ready; remove this call from mod initialization.");
+            }
+
+            PreRegisterAllNpcPrefabsInternal();
+        }
+
+        internal static void PreRegisterAllNpcPrefabsInternal()
         {
             try
             {
@@ -1475,7 +1558,7 @@ namespace S1API.Entities
                              candidate => candidate.FullName,
                              StringComparer.Ordinal))
                 {
-                    PreRegisterPrefabForType(type);
+                    PreRegisterPrefabForTypeInternal(type);
                 }
 
                 SupplierRuntimeCoordinator.EnsureAllDeliveryPrefabsRegistered();
@@ -1669,13 +1752,69 @@ namespace S1API.Entities
             {
                 var builder = new DealerDataBuilder();
                 configure(builder);
-                TypeToBuiltDealerDefaults[npcType] = builder.BuildInternal();
+                var built = builder.BuildInternal();
+                TypeToBuiltDealerDefaults[npcType] = built;
+                WarnForUnsupportedDealerSettings(DescribeNpcTypeOwner(npcType), built);
             }
             catch (Exception ex)
             {
                 TypeToBuiltDealerDefaults.Remove(npcType);
                 Logger.Warning($"[S1API] Failed to cache dealer defaults for '{npcType.Name}': {ex.Message}");
             }
+        }
+
+        private static void WarnForUnsupportedDealerSettings(
+            string dealerOwner,
+            DealerDataBuilder.DealerConfigData data)
+        {
+            if (data.InsufficientQualityConfigured || data.ExcessQualityConfigured)
+            {
+                var configuredOptions = new System.Collections.Generic.List<string>();
+                if (data.InsufficientQualityConfigured)
+                    configuredOptions.Add("AllowInsufficientQuality");
+                if (data.ExcessQualityConfigured)
+                    configuredOptions.Add("AllowExcessQuality");
+
+                WarnUnsupportedDealerSettingOnce(
+                    dealerOwner,
+                    "quality",
+                    $"{string.Join(" and ", configuredOptions)} cannot be applied because the native dealer quality fields were removed. " +
+                    "Remove these calls; S1API has preserved them as compatibility no-ops.");
+            }
+
+            if (data.CompletedDealsVariableConfigured)
+            {
+                WarnUnsupportedDealerSettingOnce(
+                    dealerOwner,
+                    "completed-deals-variable",
+                    $"WithCompletedDealsVariable('{data.CompletedDealsVariable}') is not supported for custom dealers and is not applied. " +
+                    "Remove this call or track completed deals in the mod's own save data.");
+            }
+        }
+
+        private static void WarnUnsupportedDealerSettingOnce(
+            string dealerOwner,
+            string settingKey,
+            string guidance)
+        {
+            string normalizedOwner = string.IsNullOrWhiteSpace(dealerOwner)
+                ? "<unknown-dealer>"
+                : dealerOwner;
+            string warningKey = normalizedOwner + "|" + settingKey;
+            lock (WarnedUnsupportedDealerSettings)
+            {
+                if (!WarnedUnsupportedDealerSettings.Add(warningKey))
+                    return;
+            }
+
+            Logger.Warning($"[S1API][DealerConfiguration] Dealer '{normalizedOwner}': {guidance}");
+        }
+
+        private static string DescribeNpcTypeOwner(System.Type npcType)
+        {
+            string typeName = npcType.FullName ?? npcType.Name;
+            string assemblyName = npcType.Assembly.GetName().Name ?? "<unknown-assembly>";
+            return $"{typeName} (assembly={assemblyName})";
         }
 
         internal static void RegisterDealerType(System.Type npcType)
@@ -3434,6 +3573,27 @@ namespace S1API.Entities
                 npcBehaviour.DeadBehaviour = existing;
             }
 
+            // Bridge NPCScheduleManager into the Behaviour priority stack. Without this,
+            // custom NPCs' schedules run entirely outside the priority system: nothing ever
+            // pauses NPCScheduleManager when a higher-priority behaviour (dialogue, combat,
+            // flee, etc.) activates, so e.g. NPCs keep walking their schedule while a
+            // conversation is in progress. ScheduleBehaviour.Priority is left at the lowest
+            // value so every other behaviour preempts it, matching vanilla NPC prefabs where
+            // the schedule is the baseline/fallback activity.
+            var scheduleManager = gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
+            if (scheduleManager != null)
+            {
+                var scheduleBehaviour = npcBehaviour.GetComponentInChildren<S1Behaviour.ScheduleBehaviour>(true);
+                if (scheduleBehaviour == null)
+                {
+                    GameObject go = new GameObject("ScheduleBehaviour");
+                    go.transform.SetParent(npcBehaviour.transform, false);
+                    scheduleBehaviour = go.AddComponent<S1Behaviour.ScheduleBehaviour>();
+                }
+                scheduleBehaviour.schedule = scheduleManager;
+                scheduleBehaviour.Priority = -1;
+            }
+
             RepairBehaviourOwnership(gameObject, S1NPC);
 
             foreach (S1Behaviour.Behaviour behaviour in
@@ -3616,6 +3776,8 @@ namespace S1API.Entities
                 Logger.Error($"[NPC] InitializeRelationshipData: Stack trace: {ex.StackTrace}");
                 /* ignore: base game will handle in its own lifecycle if not ready */
             }
+
+            _relationship?.EnsureUnlockedHook();
         }
 
         private void ApplyRandomInventoryDefaults()
@@ -4196,6 +4358,8 @@ namespace S1API.Entities
                     _relationshipDataAppliedFromPrefab = true;
                 }
 
+                _relationship?.EnsureUnlockedHook();
+
                 // Note: Random inventory defaults are applied in InitializeInventoryComponent, not here
                 // to avoid duplicate item insertion when StartupItems is processed by NPCInventory.Awake
 
@@ -4414,8 +4578,9 @@ namespace S1API.Entities
             isPhysical && (!isSupplier || isSupplierMeeting);
 
         internal static bool ShouldApplyLoadedVisibilityBeforeSpawn(
+            bool isPhysical,
             bool isSupplier) =>
-            !isSupplier;
+            isPhysical && !isSupplier;
 
         private IEnumerator DelayedVisibilityRPC()
         {

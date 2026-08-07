@@ -64,6 +64,10 @@ namespace S1API.Internal.Patches
     {
         private static readonly Logging.Log Logger = new Logging.Log("NPCPatches");
         private static readonly HashSet<string> _loadingDealers = new HashSet<string>();
+        private static readonly FieldInfo? ScheduleActionNpcField =
+            AccessTools.Field(typeof(S1NPCsSchedules.NPCAction), "npc");
+        private static readonly PropertyInfo? ScheduleActionNpcProperty =
+            AccessTools.Property(typeof(S1NPCsSchedules.NPCAction), "npc");
         private const float DefaultRelationDelta = 2f;
         public static bool CustomNpcsReady = false;
         // Pending custom NPC types to instantiate when using consolidated NPCs.json saves (non-physical/custom contacts).
@@ -90,6 +94,106 @@ namespace S1API.Internal.Patches
         private static bool SetInventoryMember(S1NPCs.NPCInventory inventory, string memberName, object? value)
         {
             return ReflectionUtils.TrySetFieldOrProperty(inventory, memberName, value);
+        }
+
+        internal static bool ShouldExitCustomNpcAfterSummon(
+            bool isServer,
+            bool isCustomNpc,
+            bool isInsideBuilding) =>
+            isServer && isCustomNpc && isInsideBuilding;
+
+        internal static bool ShouldSuppressResidenceReentry(
+            bool isServer,
+            bool isCustomNpc,
+            bool isSummonBehaviourEnabled) =>
+            isServer && isCustomNpc && isSummonBehaviourEnabled;
+
+        internal static MethodBase? FindSummonLogicMethod(Type behaviourType)
+        {
+            return behaviourType
+                .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                .FirstOrDefault(method =>
+                {
+                    if (!method.Name.StartsWith("RpcLogic___Summon_", StringComparison.Ordinal))
+                        return false;
+
+                    ParameterInfo[] parameters = method.GetParameters();
+                    return method.ReturnType == typeof(void)
+                        && parameters.Length == 3
+                        && parameters[0].ParameterType == typeof(string)
+                        && parameters[1].ParameterType == typeof(int)
+                        && parameters[2].ParameterType == typeof(float);
+                });
+        }
+
+        internal static S1NPCs.NPC? GetScheduleActionNpc(S1NPCsSchedules.NPCAction action)
+        {
+            return ScheduleActionNpcField?.GetValue(action) as S1NPCs.NPC
+                ?? ScheduleActionNpcProperty?.GetValue(action) as S1NPCs.NPC;
+        }
+
+        [HarmonyPatch]
+        private static class NpcBehaviourSummonLogicPatch
+        {
+            private static MethodBase? TargetMethod() =>
+                FindSummonLogicMethod(typeof(S1NPCsBehaviour.NPCBehaviour));
+
+            [HarmonyPostfix]
+            private static void Postfix(S1NPCsBehaviour.NPCBehaviour __instance)
+            {
+                S1NPCs.NPC? npc = __instance?.Npc;
+                if (npc == null)
+                    return;
+
+                bool isCustomNpc = NPC.All.Any(
+                    wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
+                var building = npc.CurrentBuilding;
+                bool isInsideBuilding = building != null;
+                if (!ShouldExitCustomNpcAfterSummon(InstanceFinder.IsServer, isCustomNpc, isInsideBuilding))
+                    return;
+
+                Logger.Debug(
+                    $"[NPCDoorKnock] Exiting summoned custom NPC '{npc.ID}' from " +
+                    $"'{building!.BuildingName}' after native summon behaviour activation.");
+                npc.ExitBuilding();
+            }
+        }
+
+        [HarmonyPatch(typeof(S1NPCsSchedules.NPCEvent_StayInBuilding), nameof(S1NPCsSchedules.NPCEvent_StayInBuilding.OnActiveTick))]
+        [HarmonyPrefix]
+        private static bool StayInBuilding_OnActiveTick_Prefix(
+            S1NPCsSchedules.NPCEvent_StayInBuilding __instance)
+        {
+            // Prevent the residence action from scheduling a new entrance during native summon dwell.
+            return !IsCustomNpcSummonedDuringResidence(__instance);
+        }
+
+        [HarmonyPatch(typeof(S1NPCsSchedules.NPCEvent_StayInBuilding), "PlayEnterAnimation")]
+        [HarmonyPrefix]
+        private static bool StayInBuilding_PlayEnterAnimation_Prefix(
+            S1NPCsSchedules.NPCEvent_StayInBuilding __instance)
+        {
+            // Guard callbacks already queued before the NPC was summoned out of the building.
+            return !IsCustomNpcSummonedDuringResidence(__instance);
+        }
+
+        private static bool IsCustomNpcSummonedDuringResidence(
+            S1NPCsSchedules.NPCEvent_StayInBuilding action)
+        {
+            var npc = GetScheduleActionNpc(action);
+            if (npc == null)
+                return false;
+
+            bool isSummonBehaviourEnabled = npc.Behaviour?.SummonBehaviour?.Enabled == true;
+            if (!isSummonBehaviourEnabled)
+                return false;
+
+            bool isCustomNpc = NPC.All.Any(
+                wrapper => wrapper != null && wrapper.IsCustomNPC && wrapper.S1NPC == npc);
+            return ShouldSuppressResidenceReentry(
+                InstanceFinder.IsServer,
+                isCustomNpc,
+                isSummonBehaviourEnabled);
         }
 
         private static bool GetInventoryBool(S1NPCs.NPCInventory inventory, string memberName)
@@ -1346,10 +1450,13 @@ namespace S1API.Internal.Patches
                         }
                     }
 
-                    // SetVisible(false) deactivates the Avatar GameObject. Custom suppliers
-                    // must remain active through FishNet spawn so native NPC.Awake can find
-                    // the Avatar reference; FinalizeNetworkSpawn applies idle visibility.
-                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(wrap.IsSupplier))
+                    // SetVisible(false) deactivates the Avatar GameObject. Invisible NPCs and
+                    // custom suppliers must remain active through FishNet spawn so native
+                    // NPC.Awake can find the Avatar reference; FinalizeNetworkSpawn applies
+                    // their intended visibility.
+                    if (NPC.ShouldApplyLoadedVisibilityBeforeSpawn(
+                        wrap.IsPhysical,
+                        wrap.IsSupplier))
                     {
                         s1BaseNpc.SetVisible(
                             wrap.ShouldBeVisibleAfterSpawn(),

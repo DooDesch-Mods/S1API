@@ -151,8 +151,7 @@ namespace S1API.Internal.Products
                     _hostPayload = manifest.Serialize(_sessionId);
                     _hostHash = manifest.CompatibilityHash;
                     _hostEntryCount = manifest.Entries.Length;
-                    _hostRequiresValidation = manifest.Entries.Length != 0 ||
-                        manifest.MixingProfiles.Length != 0;
+                    _hostRequiresValidation = RequiresValidation(manifest);
                 }
                 catch (Exception exception)
                 {
@@ -199,8 +198,7 @@ namespace S1API.Internal.Products
                 _hostPayload = manifest.Serialize(_sessionId);
                 _hostHash = manifest.CompatibilityHash;
                 _hostEntryCount = manifest.Entries.Length;
-                _hostRequiresValidation = manifest.Entries.Length != 0 ||
-                    manifest.MixingProfiles.Length != 0;
+                _hostRequiresValidation = RequiresValidation(manifest);
                 Info("host manifest refreshed after dynamic custom-product registration; entries=" +
                     _hostEntryCount);
             }
@@ -755,7 +753,7 @@ namespace S1API.Internal.Products
                     return;
                 _localClientManifest = localManifest;
                 _clientDefinitionsReady = true;
-                ClientGate.Begin(localManifest.Entries.Length != 0);
+                ClientGate.Begin(RequiresValidation(localManifest));
                 pending = _pendingClientManifest;
                 _pendingClientManifest = null;
             }
@@ -765,6 +763,11 @@ namespace S1API.Internal.Products
             if (pending != null)
                 ProcessManifest(pending);
         }
+
+        internal static bool RequiresValidation(
+            CustomProductManifestData manifest) =>
+            manifest.Entries.Length != 0 ||
+            manifest.MixingProfiles.Length != 0;
 
         private static void ProcessManifest(CustomProductManifestData manifest)
         {

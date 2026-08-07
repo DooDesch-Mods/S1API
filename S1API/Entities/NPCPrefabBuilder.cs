@@ -247,9 +247,13 @@ namespace S1API.Entities
                 // Apply settings directly to Avatar component on prefab to prevent destruction issues
                 ApplyAvatarSettingsToPrefab(settings);
             }
-            catch
+            catch (Exception ex)
             {
-                // ignored
+                string ownerName = ownerType?.FullName ?? "<unknown-NPC-type>";
+                string assemblyName = ownerType?.Assembly.GetName().Name ?? "<unknown-assembly>";
+                Logger.Warning(
+                    $"[S1API][NPCAppearanceConfiguration] Failed to configure appearance defaults for " +
+                    $"'{ownerName}' from assembly '{assemblyName}': {ex.GetType().Name}: {ex.Message}");
             }
 
             return this;
