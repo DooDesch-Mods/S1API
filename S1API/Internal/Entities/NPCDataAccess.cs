@@ -614,7 +614,8 @@ namespace S1API.Internal.Entities
             var targets = new List<S1NPCFramework.DealerNPCData>();
             AddDealerDataTarget(targets, GetOriginalData(npc));
             AddDealerDataTarget(targets, GetCurrentData(npc));
-            if (npc is S1Economy.Dealer dealer && dealer.DealerData != null)
+            if (CrossType.Is(npc, out S1Economy.Dealer dealer)
+                && dealer.DealerData != null)
                 targets.Add(dealer.DealerData);
 
             bool ready = targets.Count > 0;
@@ -648,6 +649,7 @@ namespace S1API.Internal.Entities
             bool hasAssignCustomersDialogue) =>
             hasRecruitDialogue && hasCollectCashDialogue && hasAssignCustomersDialogue;
 
+        // Despite the dealer context, this is the stable name of the vanilla recruitment asset.
         internal const string DealerRecruitDialogueName = "Supplier_Recruitment";
         internal const string DealerCollectCashDialogueName = "Dealer_CollectCash";
         internal const string DealerAssignCustomersDialogueName = "Dealer_AssignCustomers";
@@ -655,6 +657,9 @@ namespace S1API.Internal.Entities
         private static S1Dialogue.DialogueContainer? _fallbackRecruitDialogue;
         private static S1Dialogue.DialogueContainer? _fallbackCollectCashDialogue;
         private static S1Dialogue.DialogueContainer? _fallbackAssignCustomersDialogue;
+        private static S1Dialogue.DialogueContainer? _cachedRecruitDialogue;
+        private static S1Dialogue.DialogueContainer? _cachedCollectCashDialogue;
+        private static S1Dialogue.DialogueContainer? _cachedAssignCustomersDialogue;
 
         private static bool PopulateDealerDialogueDefaults(S1NPCFramework.DealerNPCData dealerData)
         {
@@ -662,6 +667,12 @@ namespace S1API.Internal.Entities
                     dealerData.RecruitDialogue != null,
                     dealerData.CollectCashDialogue != null,
                     dealerData.AssignCustomersDialogue != null))
+            {
+                CacheDealerDialogueDefaults(dealerData);
+                return true;
+            }
+
+            if (TryCopyCachedDealerDialogueDefaults(dealerData))
                 return true;
 
             // DealerNPCDataObject assets are no longer reliably enumerated in 0.4.6, but the
@@ -678,6 +689,7 @@ namespace S1API.Internal.Entities
                 if (!TryCopyDealerDialogueDefaults(dealerData, source))
                     continue;
 
+                CacheDealerDialogueDefaults(source!);
                 return true;
             }
 
@@ -694,6 +706,7 @@ namespace S1API.Internal.Entities
                 if (!TryCopyDealerDialogueDefaults(dealerData, source))
                     continue;
 
+                CacheDealerDialogueDefaults(source!);
                 return true;
             }
 
@@ -702,19 +715,25 @@ namespace S1API.Internal.Entities
             // base-game dealers, so resolve the same three vanilla assets by stable asset name.
             S1Dialogue.DialogueContainer[] dialogues =
                 Resources.FindObjectsOfTypeAll<S1Dialogue.DialogueContainer>();
-            dealerData.RecruitDialogue ??=
-                FindDialogueContainer(dialogues, DealerRecruitDialogueName);
-            dealerData.CollectCashDialogue ??=
-                FindDialogueContainer(dialogues, DealerCollectCashDialogueName);
-            dealerData.AssignCustomersDialogue ??=
-                FindDialogueContainer(dialogues, DealerAssignCustomersDialogueName);
+            if (dealerData.RecruitDialogue == null)
+                dealerData.RecruitDialogue =
+                    FindDialogueContainer(dialogues, DealerRecruitDialogueName);
+            if (dealerData.CollectCashDialogue == null)
+                dealerData.CollectCashDialogue =
+                    FindDialogueContainer(dialogues, DealerCollectCashDialogueName);
+            if (dealerData.AssignCustomersDialogue == null)
+                dealerData.AssignCustomersDialogue =
+                    FindDialogueContainer(dialogues, DealerAssignCustomersDialogueName);
 
             // On 0.4.6 the three containers can be absent from Unity's loaded-object set until a
             // native dealer has already initialized. Custom NPCs spawn earlier than that in some
             // saves, so preserve the native dialogue graph as an always-available final fallback.
-            dealerData.RecruitDialogue ??= GetFallbackRecruitDialogue();
-            dealerData.CollectCashDialogue ??= GetFallbackCollectCashDialogue();
-            dealerData.AssignCustomersDialogue ??= GetFallbackAssignCustomersDialogue();
+            if (dealerData.RecruitDialogue == null)
+                dealerData.RecruitDialogue = GetFallbackRecruitDialogue();
+            if (dealerData.CollectCashDialogue == null)
+                dealerData.CollectCashDialogue = GetFallbackCollectCashDialogue();
+            if (dealerData.AssignCustomersDialogue == null)
+                dealerData.AssignCustomersDialogue = GetFallbackAssignCustomersDialogue();
 
             bool ready = HasCompleteDealerDialogueSet(
                 dealerData.RecruitDialogue != null,
@@ -731,8 +750,52 @@ namespace S1API.Internal.Entities
                     $"FallbackCollectManagedNull={ReferenceEquals(_fallbackCollectCashDialogue, null)}, " +
                     $"FallbackAssignManagedNull={ReferenceEquals(_fallbackAssignCustomersDialogue, null)}.");
             }
+            else
+            {
+                CacheDealerDialogueDefaults(dealerData);
+            }
 
             return ready;
+        }
+
+        private static bool TryCopyCachedDealerDialogueDefaults(
+            S1NPCFramework.DealerNPCData target)
+        {
+            if (!HasCompleteDealerDialogueSet(
+                    _cachedRecruitDialogue != null,
+                    _cachedCollectCashDialogue != null,
+                    _cachedAssignCustomersDialogue != null))
+            {
+                return false;
+            }
+
+            if (target.RecruitDialogue == null)
+                target.RecruitDialogue = _cachedRecruitDialogue;
+            if (target.CollectCashDialogue == null)
+                target.CollectCashDialogue = _cachedCollectCashDialogue;
+            if (target.AssignCustomersDialogue == null)
+                target.AssignCustomersDialogue = _cachedAssignCustomersDialogue;
+
+            return HasCompleteDealerDialogueSet(
+                target.RecruitDialogue != null,
+                target.CollectCashDialogue != null,
+                target.AssignCustomersDialogue != null);
+        }
+
+        private static void CacheDealerDialogueDefaults(
+            S1NPCFramework.DealerNPCData source)
+        {
+            if (!HasCompleteDealerDialogueSet(
+                    source.RecruitDialogue != null,
+                    source.CollectCashDialogue != null,
+                    source.AssignCustomersDialogue != null))
+            {
+                return;
+            }
+
+            _cachedRecruitDialogue = source.RecruitDialogue;
+            _cachedCollectCashDialogue = source.CollectCashDialogue;
+            _cachedAssignCustomersDialogue = source.AssignCustomersDialogue;
         }
 
         private static bool TryGetDealerData(
@@ -763,9 +826,12 @@ namespace S1API.Internal.Entities
                 return false;
             }
 
-            target.RecruitDialogue ??= source.RecruitDialogue;
-            target.CollectCashDialogue ??= source.CollectCashDialogue;
-            target.AssignCustomersDialogue ??= source.AssignCustomersDialogue;
+            if (target.RecruitDialogue == null)
+                target.RecruitDialogue = source.RecruitDialogue;
+            if (target.CollectCashDialogue == null)
+                target.CollectCashDialogue = source.CollectCashDialogue;
+            if (target.AssignCustomersDialogue == null)
+                target.AssignCustomersDialogue = source.AssignCustomersDialogue;
             return HasCompleteDealerDialogueSet(
                 target.RecruitDialogue != null,
                 target.CollectCashDialogue != null,
@@ -886,7 +952,7 @@ namespace S1API.Internal.Entities
                 DialogueNodeLabel = label,
                 Position = position,
                 choices = choices,
-                VoiceLine = (S1VoiceOver.EVOLineType)0
+                VoiceLine = S1VoiceOver.EVOLineType.None
             };
         }
 
@@ -918,8 +984,20 @@ namespace S1API.Internal.Entities
 
         private static void AddDialogueNode(
             S1Dialogue.DialogueContainer dialogue,
-            S1Dialogue.DialogueNodeData node) =>
+            S1Dialogue.DialogueNodeData node)
+        {
+            if (dialogue.DialogueNodeData == null)
+            {
+#if IL2CPPMELON
+                dialogue.DialogueNodeData =
+                    new Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueNodeData>();
+#else
+                dialogue.DialogueNodeData = new List<S1Dialogue.DialogueNodeData>();
+#endif
+            }
+
             dialogue.DialogueNodeData.Add(node);
+        }
 
         private static void AddNodeLink(
             S1Dialogue.DialogueContainer dialogue,
@@ -927,6 +1005,16 @@ namespace S1API.Internal.Entities
             string baseChoiceGuid,
             string targetNodeGuid)
         {
+            if (dialogue.NodeLinks == null)
+            {
+#if IL2CPPMELON
+                dialogue.NodeLinks =
+                    new Il2CppSystem.Collections.Generic.List<S1Dialogue.NodeLinkData>();
+#else
+                dialogue.NodeLinks = new List<S1Dialogue.NodeLinkData>();
+#endif
+            }
+
             dialogue.NodeLinks.Add(
                 new S1Dialogue.NodeLinkData
                 {

@@ -4483,13 +4483,23 @@ namespace S1API.Entities
                         NPCRelationshipGraphPolicy.BuildUndirectedConnectionIds(
                             entry.Wrapper.ID,
                             declarations);
-                    if (connectionIds.Count == 0)
+                    if (connectionIds.Count == 0
+                        && !entry.Identity!.HasConfiguredConnections())
                         continue;
 
                     var builder = new NPCRelationshipDataBuilder();
                     builder.WithConnectionsById(connectionIds);
+                    var relationData = entry.Wrapper.S1NPC.RelationData;
+                    if (relationData == null)
+                    {
+                        Logger.Warning(
+                            $"[Relationship Data] RelationData is null for " +
+                            $"'{entry.Wrapper.GetSafeNpcId()}'; skipping connection reconciliation.");
+                        continue;
+                    }
+
                     builder.ApplyTo(
-                        entry.Wrapper.S1NPC.RelationData,
+                        relationData,
                         entry.Wrapper.S1NPC,
                         preserveUnlockState: true);
                 }

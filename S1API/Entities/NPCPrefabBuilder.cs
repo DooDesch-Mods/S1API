@@ -58,6 +58,13 @@ namespace S1API.Entities
         private readonly GameObject prefabRoot;
         private readonly Type ownerType;
 
+        internal const int DealerAttendDealPriority = 5;
+        internal const string DealerHomeEventName = "DealerHomeEvent";
+
+        internal static bool IsDealerHomeEventName(string? name) =>
+            string.Equals(name, DealerHomeEventName, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(name, "HomeEvent", StringComparison.OrdinalIgnoreCase);
+
         internal NPCPrefabBuilder(GameObject prefabRoot, Type ownerType)
         {
             this.prefabRoot = prefabRoot;
@@ -389,13 +396,6 @@ namespace S1API.Entities
 
             return this;
         }
-
-        internal const int DealerAttendDealPriority = 5;
-        internal const string DealerHomeEventName = "DealerHomeEvent";
-
-        internal static bool IsDealerHomeEventName(string? name) =>
-            string.Equals(name, DealerHomeEventName, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(name, "HomeEvent", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Selects a supported base-game voice while preserving the prefab's inherited pitch.

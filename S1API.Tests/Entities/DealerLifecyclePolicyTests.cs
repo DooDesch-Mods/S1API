@@ -77,6 +77,18 @@ public sealed class DealerLifecyclePolicyTests
             NPCRelationshipGraphPolicy.BuildUndirectedConnectionIds("customer_c", declarations));
     }
 
+    [Fact]
+    public void ExplicitlyEmptyConnectionsRemainConfiguredForStaleGraphRemoval()
+    {
+        var builder = new NPCRelationshipDataBuilder()
+            .WithConnectionsById(Array.Empty<string>());
+
+        NPCRelationshipDataBuilder.RelationshipDefaultsData snapshot = builder.CaptureData();
+
+        Assert.True(snapshot.ConnectionsConfigured);
+        Assert.Empty(snapshot.ConnectionIDs!);
+    }
+
     [Theory]
     [InlineData(true, false, true)]
     [InlineData(false, true, true)]

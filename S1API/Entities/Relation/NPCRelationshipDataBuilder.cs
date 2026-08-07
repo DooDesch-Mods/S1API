@@ -28,6 +28,7 @@ namespace S1API.Entities.Relation
         private bool? _unlocked;
         private NPCRelationship.UnlockType? _unlockType;
         private readonly List<string> _connectionIDs = new List<string>();
+        private bool _connectionsConfigured;
 
         /// <summary>
         /// Sets the relationship delta in [0, 5].
@@ -81,6 +82,7 @@ namespace S1API.Entities.Relation
         /// </summary>
         public NPCRelationshipDataBuilder WithConnectionsById(IEnumerable<string> ids)
         {
+            _connectionsConfigured = true;
             _connectionIDs.Clear();
             _connectionIDs.AddRange(NormalizeConnectionIds(ids));
 
@@ -160,6 +162,7 @@ namespace S1API.Entities.Relation
         /// </summary>
         public NPCRelationshipDataBuilder WithConnections(params System.Type?[]? npcTypes)
         {
+            _connectionsConfigured = true;
             _connectionIDs.Clear();
             if (npcTypes == null || npcTypes.Length == 0)
             {
@@ -227,7 +230,8 @@ namespace S1API.Entities.Relation
                 RelationDelta = _relationDelta,
                 Unlocked = _unlocked,
                 UnlockType = _unlockType,
-                ConnectionIDs = _connectionIDs.Count > 0 ? new List<string>(_connectionIDs) : null
+                ConnectionsConfigured = _connectionsConfigured,
+                ConnectionIDs = new List<string>(_connectionIDs)
             };
         }
 
@@ -251,7 +255,7 @@ namespace S1API.Entities.Relation
 
             try
             {
-                if (_connectionIDs.Count > 0)
+                if (_connectionsConfigured)
                 {
                     var registry = S1NPCs.NPCManager.NPCRegistry;
                     var targetList = relationData.Connections;
@@ -362,6 +366,7 @@ namespace S1API.Entities.Relation
             public float? RelationDelta;
             public bool? Unlocked;
             public NPCRelationship.UnlockType? UnlockType;
+            public bool ConnectionsConfigured;
             public List<string>? ConnectionIDs;
         }
     }

@@ -115,6 +115,45 @@ namespace S1API.Entities
 
         private static IEnumerator ProcessMugshotQueue()
         {
+            while (true)
+            {
+                IEnumerator processor = ProcessMugshotQueueCore();
+                bool restart = false;
+
+                while (true)
+                {
+                    bool hasNext;
+                    object? current = null;
+                    try
+                    {
+                        hasNext = processor.MoveNext();
+                        if (hasNext)
+                            current = processor.Current;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Error($"[Mugshot] Capture job failed: {ex}");
+                        restart = CompleteActiveMugshot();
+                        if (!restart)
+                            AbortQueuedMugshots();
+                        break;
+                    }
+
+                    if (!hasNext)
+                        yield break;
+
+                    yield return current;
+                }
+
+                if (!restart)
+                    yield break;
+
+                yield return null;
+            }
+        }
+
+        private static IEnumerator ProcessMugshotQueueCore()
+        {
             var generator = S1AvatarFramework.MugshotGenerator.Instance;
             var mugshotRig = generator != null ? generator.MugshotRig : null;
             var iconGenerator = generator != null ? generator.Generator : null;
@@ -194,6 +233,8 @@ namespace S1API.Entities
                     continue;
                 }
 
+                _activeMugshot = next;
+
                 // Use a per-capture clone so subsequent appearance edits don't mutate the in-flight mugshot
                 var mugshotSettings = ScriptableObject.Instantiate(next._customAvatarSettings);
                 mugshotSettings.Height = 1f;
@@ -213,6 +254,60 @@ namespace S1API.Entities
                 Transform? rightPupil = eyes != null && eyes.rightEye != null ? eyes.rightEye.PupilContainer : null;
                 Quaternion previousLeftPupilRotation = leftPupil != null ? leftPupil.localRotation : Quaternion.identity;
                 Quaternion previousRightPupilRotation = rightPupil != null ? rightPupil.localRotation : Quaternion.identity;
+
+                _restoreActiveMugshotRig = () =>
+                {
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (defaultSettings != null)
+                                mugshotRig.LoadAvatarSettings(defaultSettings);
+                        },
+                        "default appearance");
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (mugshotRig.Animation != null)
+                                mugshotRig.Animation.AllowCulling = previousAllowCulling;
+                        },
+                        "animation culling");
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (lookController != null)
+                            {
+                                lookController.ResetIKWeight();
+                                lookController.enabled = previousLookControllerEnabled;
+                            }
+                        },
+                        "look controller");
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (animator != null)
+                                animator.speed = previousAnimatorSpeed;
+                        },
+                        "animator speed");
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (eyes != null)
+                                eyes.BlinkingEnabled = previousBlinkingEnabled;
+                        },
+                        "blinking");
+                    TryRestoreRigState(
+                        () =>
+                        {
+                            if (leftPupil != null)
+                                leftPupil.localRotation = previousLeftPupilRotation;
+                            if (rightPupil != null)
+                                rightPupil.localRotation = previousRightPupilRotation;
+                        },
+                        "pupil rotation");
+                    TryRestoreRigState(
+                        () => mugshotRig.gameObject.SetActive(false),
+                        "rig visibility");
+                };
 
                 if (mugshotRig.Animation != null)
                     mugshotRig.Animation.AllowCulling = false;
@@ -344,29 +439,7 @@ namespace S1API.Entities
                     _logger.Error($"[Mugshot] {next.NPC.FirstName}: no complete portrait was captured; keeping the existing icon");
                 }
 
-                next.MarkMugshotCompleted();
-
-                next.ApplyToAvatar(next._runtimeAvatar);
-
-                // Reset rig and deactivate
-                if (defaultSettings != null)
-                    mugshotRig.LoadAvatarSettings(defaultSettings);
-                if (mugshotRig.Animation != null)
-                    mugshotRig.Animation.AllowCulling = previousAllowCulling;
-                if (lookController != null)
-                {
-                    lookController.ResetIKWeight();
-                    lookController.enabled = previousLookControllerEnabled;
-                }
-                if (animator != null)
-                    animator.speed = previousAnimatorSpeed;
-                if (eyes != null)
-                    eyes.BlinkingEnabled = previousBlinkingEnabled;
-                if (leftPupil != null)
-                    leftPupil.localRotation = previousLeftPupilRotation;
-                if (rightPupil != null)
-                    rightPupil.localRotation = previousRightPupilRotation;
-                mugshotRig.gameObject.SetActive(false);
+                CompleteActiveMugshot();
 
                 // Small delay between jobs to let the mugshot rig fully reset
                 yield return new WaitForSeconds(0.1f);
@@ -379,6 +452,61 @@ namespace S1API.Entities
             {
                 _mugshotQueued = false;
                 _mugshotCompleted = true;
+            }
+        }
+
+        private static bool CompleteActiveMugshot()
+        {
+            NPCAppearance? active = _activeMugshot;
+            if (active == null)
+                return false;
+
+            try
+            {
+                active.ApplyToAvatar(active._runtimeAvatar);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Mugshot] Failed to restore the runtime avatar: {ex.Message}");
+            }
+
+            try
+            {
+                _restoreActiveMugshotRig?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Mugshot] Failed to restore shared rig state: {ex.Message}");
+            }
+            finally
+            {
+                active.MarkMugshotCompleted();
+                _activeMugshot = null;
+                _restoreActiveMugshotRig = null;
+            }
+
+            return true;
+        }
+
+        private static void AbortQueuedMugshots()
+        {
+            lock (_mugshotQueueLock)
+            {
+                while (_mugshotQueue.Count > 0)
+                    _mugshotQueue.Dequeue().MarkMugshotCompleted();
+                _isProcessingMugshots = false;
+            }
+        }
+
+        private static void TryRestoreRigState(Action restore, string stateName)
+        {
+            try
+            {
+                restore();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Mugshot] Failed to restore {stateName}: {ex.Message}");
             }
         }
 
@@ -823,6 +951,8 @@ namespace S1API.Entities
         private static readonly Queue<NPCAppearance> _mugshotQueue = new Queue<NPCAppearance>();
         private static bool _isProcessingMugshots = false;
         private static bool _hasQueuedMugshots = false;
+        private static NPCAppearance? _activeMugshot;
+        private static Action? _restoreActiveMugshotRig;
 
         /// <summary>
         /// INTERNAL: Resets mugshot queue state on scene change so warmup runs fresh on reload.
@@ -835,6 +965,8 @@ namespace S1API.Entities
                 _mugshotQueue.Clear();
                 _isProcessingMugshots = false;
                 _hasQueuedMugshots = false;
+                _activeMugshot = null;
+                _restoreActiveMugshotRig = null;
             }
         }
 
