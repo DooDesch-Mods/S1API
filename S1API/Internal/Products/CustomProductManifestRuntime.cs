@@ -26,7 +26,8 @@ namespace S1API.Internal.Products
     /// <summary>INTERNAL: Owns the host-authoritative manifest handshake.</summary>
     internal static class CustomProductManifestRuntime
     {
-        private const int HandshakeTimeoutSeconds = 15;
+        private const int ClientManifestTimeoutSeconds = 15;
+        internal const int HostAcknowledgementTimeoutSeconds = 60;
         private static readonly object Gate = new object();
         private static readonly Dictionary<int, PendingHostData>
             PendingHostDataByConnection =
@@ -390,7 +391,7 @@ namespace S1API.Internal.Products
                 bool authorized = ClientGate.AuthorizePlayerDataRequest(request);
                 if (!authorized)
                 {
-                    _clientDeadline = DateTime.UtcNow.AddSeconds(HandshakeTimeoutSeconds);
+                    _clientDeadline = DateTime.UtcNow.AddSeconds(ClientManifestTimeoutSeconds);
                     Info("client player-data request deferred until manifest validation");
                 }
                 return authorized;
@@ -586,7 +587,7 @@ namespace S1API.Internal.Products
                 PendingConnections[connectionId] = new PendingConnection(
                     connectionId,
                     connection,
-                    DateTime.UtcNow.AddSeconds(HandshakeTimeoutSeconds));
+                    DateTime.UtcNow.AddSeconds(HostAcknowledgementTimeoutSeconds));
             }
 
             try
