@@ -763,7 +763,14 @@ namespace S1API.Entities
                             behaviour = go.AddComponent<S1NPCsBehaviour.DealerAttendDealBehaviour>();
                             go.SetActive(false);
                         }
+                        behaviour.Name = "Attend deal";
+                        behaviour.Priority = NPCPrefabBuilder.DealerAttendDealPriority;
                         attendDealField?.SetValue(dealer, behaviour);
+                    }
+                    else
+                    {
+                        existingBehaviour.Name = "Attend deal";
+                        existingBehaviour.Priority = NPCPrefabBuilder.DealerAttendDealPriority;
                     }
                 }
                 catch { /* ignore */ }
@@ -777,19 +784,25 @@ namespace S1API.Entities
                     var homeEventField = typeof(S1Economy.Dealer).GetProperty("HomeEvent", BindingFlags.Public | BindingFlags.Instance);
 #endif
                     var homeEvent = homeEventField?.GetValue(dealer) as S1NPCsSchedules.NPCEvent_StayInBuilding;
-                    if (homeEvent == null)
+                    if (homeEvent == null
+                        || !NPCPrefabBuilder.IsDealerHomeEventName(homeEvent.gameObject?.name))
                     {
                         var sched = NPC.gameObject.GetComponentInChildren<S1NPCs.NPCScheduleManager>(true);
                         if (sched != null)
                         {
-                            homeEvent = NPC.gameObject.GetComponentInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true);
+                            homeEvent = NPC.gameObject
+                                .GetComponentsInChildren<S1NPCsSchedules.NPCEvent_StayInBuilding>(true)
+                                .FirstOrDefault(action =>
+                                    NPCPrefabBuilder.IsDealerHomeEventName(action?.gameObject?.name));
                             if (homeEvent == null)
                             {
-                                var go = new GameObject("HomeEvent");
+                                var go = new GameObject(NPCPrefabBuilder.DealerHomeEventName);
                                 go.transform.SetParent(sched.transform, false);
                                 homeEvent = go.AddComponent<S1NPCsSchedules.NPCEvent_StayInBuilding>();
                                 go.SetActive(false);
                             }
+                            Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(homeEvent, "npc", dealer);
+                            Internal.Utils.ReflectionUtils.TrySetFieldOrProperty(homeEvent, "schedule", sched);
                             homeEventField?.SetValue(dealer, homeEvent);
                         }
                     }
