@@ -394,7 +394,9 @@ namespace S1API.Internal.Products
                 }
 
                 bool authorized = ClientGate.AuthorizePlayerDataRequest(request);
-                if (!authorized)
+                if (ShouldStartClientManifestDeadline(
+                        authorized,
+                        _clientDeadline))
                 {
                     _clientDeadline = DateTime.UtcNow.AddSeconds(ClientManifestTimeoutSeconds);
                     Info("client player-data request deferred until manifest validation");
@@ -402,6 +404,11 @@ namespace S1API.Internal.Products
                 return authorized;
             }
         }
+
+        internal static bool ShouldStartClientManifestDeadline(
+            bool authorized,
+            DateTime currentDeadline) =>
+            !authorized && currentDeadline == DateTime.MaxValue;
 
         internal static bool ShouldRejectClientForMissingManifest(
             bool isWaiting,
@@ -949,6 +956,7 @@ namespace S1API.Internal.Products
                 ClientGate.End();
                 _clientSessionActive = false;
                 _clientDefinitionsReady = false;
+                _clientManifestReceived = false;
                 _pendingClientManifest = null;
                 _localClientManifest = null;
             }
