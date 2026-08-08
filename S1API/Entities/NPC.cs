@@ -143,7 +143,6 @@ namespace S1API.Entities
         private static readonly System.Collections.Generic.HashSet<System.Type> CustomerTypes = new System.Collections.Generic.HashSet<System.Type>();
         private static readonly System.Collections.Generic.HashSet<System.Type> DealerTypes = new System.Collections.Generic.HashSet<System.Type>();
         private static readonly System.Collections.Generic.HashSet<System.Type> SupplierTypes = new System.Collections.Generic.HashSet<System.Type>();
-        private const float DefaultRelationDelta = 2f;
         private const string DealerPrefabName = "Dealer";
         private const string CivilianNpcPrefabName = "CivilianNPC";
         private const string BaseNpcPrefabName = "BaseNPC";
@@ -3221,6 +3220,17 @@ namespace S1API.Entities
         internal bool RelationshipDataAppliedFromPrefab => _relationshipDataAppliedFromPrefab;
 
         /// <summary>
+        /// INTERNAL: Whether native relationship state was hydrated from save data.
+        /// </summary>
+        internal bool RelationshipLoadedFromSave { get; private set; }
+
+        /// <summary>
+        /// INTERNAL: Marks native relationship state as hydrated from save data.
+        /// </summary>
+        internal void MarkRelationshipLoadedFromSave() =>
+            RelationshipLoadedFromSave = true;
+
+        /// <summary>
         /// INTERNAL: Constructor used for base game NPCs.
         /// </summary>
         /// <param name="npc">Reference to a base game NPC.</param>
@@ -4269,24 +4279,10 @@ namespace S1API.Entities
                     Logger.Error($"Stack trace: {ex.StackTrace}");
                 }
 
-                // Apply per-type relationship defaults after base fields are present, unless loaded from save
-                // Also preserve unlock state if NPC is already unlocked (might have been loaded from save)
-                var currentRelationData = S1NPC.RelationData;
-                
-                // Check if relationship data appears to have been loaded from save (unlocked or non-default delta)
-                // This handles the case where load happens after FinalizeNetworkSpawn but before it runs
-                bool appearsLoadedFromSave = false;
-                if (currentRelationData != null)
-                {
-                    bool isUnlocked = currentRelationData.Unlocked;
-                    float delta = currentRelationData.RelationDelta;
-                    
-                    // If NPC is unlocked or delta is not default (2.0), it likely came from save data
-                    // This prevents defaults from overwriting loaded relationship data
-                    appearsLoadedFromSave = isUnlocked || (Math.Abs(delta - DefaultRelationDelta) > 0.01f);
-                }
-                
-                if (!appearsLoadedFromSave)
+                // Apply per-type relationship defaults after base fields are present, unless
+                // the native relationship payload has already been hydrated from save data.
+                if (NPCRelationshipPersistencePolicy.ShouldApplyDefaults(
+                    RelationshipLoadedFromSave))
                 {
                     try
                     {
