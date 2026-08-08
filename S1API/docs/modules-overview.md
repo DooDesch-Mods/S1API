@@ -123,6 +123,18 @@ Script multi-stage phone conversations.
 
 ## World & Interaction
 
+### Weather
+**Namespace**: `S1API.Weather`
+
+Read the current weather-condition state, observe distinct weather changes, and inspect the known
+weather sequence identifiers without exposing native game types.
+
+**Key Classes**:
+- `WeatherManager` - Current state, change events, and sequence identifiers
+- `WeatherState` - Immutable nine-component weather snapshot
+
+**Documentation**: [Weather](weather.md)
+
 ### Map & Buildings
 **Namespace**: `S1API.Map`
 
