@@ -13,6 +13,7 @@ using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1Quests = Il2CppScheduleOne.Quests;
+using S1Properties = Il2CppScheduleOne.Property;
 using Il2CppFishNet;
 using Il2CppFishNet.Object;
 using Il2CppScheduleOne.DevUtilities;
@@ -35,6 +36,7 @@ using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Items = ScheduleOne.ItemFramework;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Quests = ScheduleOne.Quests;
+using S1Properties = ScheduleOne.Property;
 #endif
 
 using System;
@@ -43,6 +45,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using NumericsVector3 = System.Numerics.Vector3;
 using HarmonyLib;
 using MelonLoader;
 using S1API.Entities;
@@ -123,6 +126,192 @@ namespace S1API.Internal.Patches
                         && parameters[1].ParameterType == typeof(int)
                         && parameters[2].ParameterType == typeof(float);
                 });
+        }
+
+        internal static MethodBase? FindNpcMovementDestinationMethod(Type movementType)
+        {
+            return movementType.GetMethod(
+                "SetDestination",
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                binder: null,
+                types: new[] { typeof(Vector3) },
+                modifiers: null);
+        }
+
+        internal static bool TryGetCustomNpcFollowDestination(
+            bool isCustomNpc,
+            bool isFollowingPlayer,
+            Vector3 playerPosition,
+            Vector3 npcPosition,
+            Vector3 fallbackDirection,
+            out Vector3 destination)
+        {
+            destination = default;
+            if (!TryCalculateCustomNpcFollowDestination(
+                    isCustomNpc,
+                    isFollowingPlayer,
+                    new NumericsVector3(playerPosition.x, playerPosition.y, playerPosition.z),
+                    new NumericsVector3(npcPosition.x, npcPosition.y, npcPosition.z),
+                    new NumericsVector3(fallbackDirection.x, fallbackDirection.y, fallbackDirection.z),
+                    out NumericsVector3 calculatedDestination))
+            {
+                return false;
+            }
+
+            destination = new Vector3(
+                calculatedDestination.X,
+                calculatedDestination.Y,
+                calculatedDestination.Z);
+            return true;
+        }
+
+        internal static bool TryCalculateCustomNpcFollowDestination(
+            bool isCustomNpc,
+            bool isFollowingPlayer,
+            NumericsVector3 playerPosition,
+            NumericsVector3 npcPosition,
+            NumericsVector3 fallbackDirection,
+            out NumericsVector3 destination)
+        {
+            destination = default;
+            if (!isCustomNpc || !isFollowingPlayer)
+                return false;
+
+            NumericsVector3 direction = npcPosition - playerPosition;
+            if (direction.LengthSquared() <= 0.0001f)
+                direction = fallbackDirection;
+            if (direction.LengthSquared() <= 0.0001f)
+                direction = -NumericsVector3.UnitZ;
+
+            destination = playerPosition + NumericsVector3.Normalize(direction) * 2.5f;
+            return true;
+        }
+
+        internal static bool TryCalculateCustomNpcPropertyApproachDestination(
+            bool isCustomNpc,
+            bool isInitialApproach,
+            bool playerInsideOwnedProperty,
+            NumericsVector3? propertyExteriorSpawnPosition,
+            out NumericsVector3 destination)
+        {
+            destination = default;
+            if (!isCustomNpc || !isInitialApproach || !playerInsideOwnedProperty ||
+                propertyExteriorSpawnPosition is not NumericsVector3 spawnPosition ||
+                !IsValidNavigationPosition(spawnPosition))
+            {
+                return false;
+            }
+
+            destination = spawnPosition;
+            return true;
+        }
+
+        private static bool IsValidNavigationPosition(NumericsVector3 position) =>
+            float.IsFinite(position.X) &&
+            float.IsFinite(position.Y) &&
+            float.IsFinite(position.Z) &&
+            position.LengthSquared() <= 100_000_000f;
+
+        private static bool TryGetCustomNpcPropertyApproachDestination(
+            bool isCustomNpc,
+            bool isInitialApproach,
+            Vector3 playerPosition,
+            out Vector3 destination)
+        {
+            destination = default;
+            foreach (S1Properties.Property property in S1Properties.Property.OwnedProperties)
+            {
+                if (property == null || !property.DoBoundsContainPoint(playerPosition))
+                    continue;
+
+                Vector3? spawnPosition = property.SpawnPoint != null
+                    ? property.SpawnPoint.position
+                    : null;
+                NumericsVector3? numericSpawnPosition = spawnPosition.HasValue
+                    ? new NumericsVector3(
+                        spawnPosition.Value.x,
+                        spawnPosition.Value.y,
+                        spawnPosition.Value.z)
+                    : null;
+                if (!TryCalculateCustomNpcPropertyApproachDestination(
+                        isCustomNpc,
+                        isInitialApproach,
+                        playerInsideOwnedProperty: true,
+                        numericSpawnPosition,
+                        out NumericsVector3 calculatedDestination))
+                {
+                    return false;
+                }
+
+                destination = new Vector3(
+                    calculatedDestination.X,
+                    calculatedDestination.Y,
+                    calculatedDestination.Z);
+                return true;
+            }
+
+            return false;
+        }
+
+        [HarmonyPatch]
+        private static class RequestProductMovementDestinationPatch
+        {
+            private static MethodBase? TargetMethod() =>
+                FindNpcMovementDestinationMethod(typeof(S1NPCs.NPCMovement));
+
+            [HarmonyPrefix]
+            private static void Prefix(S1NPCs.NPCMovement __instance, ref Vector3 pos)
+            {
+                S1NPCs.NPC? nativeNpc = __instance?.GetComponent<S1NPCs.NPC>();
+                S1NPCsBehaviour.RequestProductBehaviour? request =
+                    nativeNpc?.Behaviour?.RequestProductBehaviour;
+                var targetPlayer = request?.TargetPlayer;
+                if (nativeNpc == null || request == null || targetPlayer == null)
+                    return;
+
+                bool isCustomNpc = IsS1ApiCustomNpcComponent(nativeNpc);
+                bool isInitialApproach =
+                    request.Active &&
+                    request.State == S1NPCsBehaviour.RequestProductBehaviour.EState.InitialApproach;
+                if (TryGetCustomNpcPropertyApproachDestination(
+                        isCustomNpc,
+                        isInitialApproach,
+                        targetPlayer.transform.position,
+                        out Vector3 propertyApproachDestination))
+                {
+                    pos = propertyApproachDestination;
+                    return;
+                }
+
+                bool isFollowingPlayer =
+                    request.Active &&
+                    request.State == S1NPCsBehaviour.RequestProductBehaviour.EState.FollowPlayer;
+                if (!TryGetCustomNpcFollowDestination(
+                        isCustomNpc,
+                        isFollowingPlayer,
+                        targetPlayer.transform.position,
+                        nativeNpc.transform.position,
+                        -targetPlayer.transform.forward,
+                        out Vector3 desiredDestination))
+                {
+                    return;
+                }
+
+                var agent = __instance?.Agent;
+                if (agent != null && NavMeshUtility.SamplePosition(
+                        desiredDestination,
+                        out var hit,
+                        15f,
+                        agent.areaMask))
+                {
+                    pos = hit.position;
+                }
+                else
+                {
+                    Logger.Warning(
+                        $"[RequestProduct] Failed to find a spaced follow destination for custom NPC '{nativeNpc.ID}'; preserving the native destination.");
+                }
+            }
         }
 
         internal static S1NPCs.NPC? GetScheduleActionNpc(S1NPCsSchedules.NPCAction action)
