@@ -10,6 +10,7 @@ using S1API.GameTime;
 using S1API.Internal.Entities;
 using S1API.Internal.Map;
 using S1API.Internal.Patches;
+using S1API.Internal.Weather;
 using UnityEngine;
 
 namespace S1API.Internal.Lifecycle
@@ -82,6 +83,7 @@ namespace S1API.Internal.Lifecycle
                     ShopManager.InvalidateCache();
                     DeferredMapResolver.Clear();
                     TimeManager.ResetBindings();
+                    WeatherRuntime.ResetBindings();
                     HomeScreenScrollPatch.ResetInitializationState();
                     NPCAppearance.ResetMugshotState();
                     LoadingScreenPatches.ResetState();
@@ -112,6 +114,9 @@ namespace S1API.Internal.Lifecycle
                     }
 
                     TryRun(TimeManager.TryBindToCurrentInstance);
+
+                    if (string.Equals(sceneName, "Main", StringComparison.OrdinalIgnoreCase))
+                        TryRun(WeatherRuntime.TryBindToCurrentInstance);
                 }
             }
             catch (Exception ex)
@@ -121,5 +126,4 @@ namespace S1API.Internal.Lifecycle
         }
     }
 }
-
 

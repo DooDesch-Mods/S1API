@@ -16,6 +16,8 @@
   items:
     - name: Module Overview
       href: modules-overview.md
+    - name: Weather
+      href: weather.md
     - name: NPCs
       items:
         - name: Overview

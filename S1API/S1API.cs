@@ -8,6 +8,7 @@ using S1API.Internal.Lifecycle;
 using S1API.Internal.NPCWorkbench;
 using S1API.Internal.Products;
 using S1API.Internal.Rendering;
+using S1API.Internal.Weather;
 using S1API.Lifecycle;
 using S1API.Map;
 
@@ -36,6 +37,7 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            WeatherRuntime.ResetBindings();
             NPCWorkbenchRuntime.Close();
             PresentationWorkbenchRuntime.Close();
             ProductPackagingContentRuntime.ResetForSceneChange();
@@ -46,6 +48,7 @@ namespace S1API
 
         public override void OnUpdate()
         {
+            WeatherRuntime.Tick();
             PresentationWorkbenchRuntime.Tick();
             CutsceneManager.Tick(UnityEngine.Time.unscaledDeltaTime);
             NPCWorkbenchRuntime.Tick();
