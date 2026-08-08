@@ -147,6 +147,8 @@ namespace S1API.Entities
         private const string CivilianNpcPrefabName = "CivilianNPC";
         private const string BaseNpcPrefabName = "BaseNPC";
         private const string BaseEmployeePrefabName = "BaseEmployee";
+        private const string PropertyInteriorNavMeshAreaName = "PropertyInterior";
+        private const string LadderNavMeshAreaName = "Ladder";
         private static readonly bool LogBetaNpcPrefabDiagnostics = false;
         private static readonly string[] BaseNpcMembersToCopy =
         {
@@ -472,6 +474,7 @@ namespace S1API.Entities
             if (sourceNpc == null && existingPlainNpc != null)
             {
                 RepairNpcPrefabReferences(prefabRoot, existingPlainNpc);
+                NormalizeBaseEmployeeNavigation(prefabRoot, rootRole);
                 if (rootRole == NpcRootRole.Dealer)
                     EnsureDealerComponentOnPrefab(prefabRoot);
                 else if (rootRole == NpcRootRole.Supplier)
@@ -540,6 +543,7 @@ namespace S1API.Entities
                 LogBaseEmployeeComponentState("after employee cleanup", prefabRoot);
                 RewireChildNpcReferences(prefabRoot, replacementNpc);
                 RepairNpcPrefabReferences(prefabRoot, replacementNpc);
+                NormalizeBaseEmployeeNavigation(prefabRoot, rootRole);
                 LogBaseEmployeeNormalization();
             }
             catch (Exception ex)
@@ -616,6 +620,42 @@ namespace S1API.Entities
         {
             return prefabRoot.GetComponent<UnityEngine.AI.NavMeshAgent>()
                    ?? prefabRoot.AddComponent<UnityEngine.AI.NavMeshAgent>();
+        }
+
+        private static void NormalizeBaseEmployeeNavigation(GameObject prefabRoot, NpcRootRole rootRole)
+        {
+            if (prefabRoot == null || rootRole != NpcRootRole.Plain)
+                return;
+
+            var movement = prefabRoot.GetComponent<S1NPCs.NPCMovement>()
+                           ?? prefabRoot.GetComponentInChildren<S1NPCs.NPCMovement>(true);
+            UnityEngine.AI.NavMeshAgent agent = EnsureRootNavMeshAgent(prefabRoot);
+            int propertyInteriorArea = UnityEngine.AI.NavMesh.GetAreaFromName(PropertyInteriorNavMeshAreaName);
+            int ladderArea = UnityEngine.AI.NavMesh.GetAreaFromName(LadderNavMeshAreaName);
+            agent.areaMask = IncludeNavMeshArea(
+                ExcludeNavMeshArea(agent.areaMask, propertyInteriorArea),
+                ladderArea);
+            agent.obstacleAvoidanceType = UnityEngine.AI.ObstacleAvoidanceType.MedQualityObstacleAvoidance;
+
+            if (movement != null)
+            {
+                movement.SetAgentType(S1NPCs.NPCMovement.EAgentType.Humanoid);
+                movement.DefaultObstacleAvoidanceType = UnityEngine.AI.ObstacleAvoidanceType.HighQualityObstacleAvoidance;
+            }
+        }
+
+        internal static int ExcludeNavMeshArea(int areaMask, int areaIndex)
+        {
+            return areaIndex is >= 0 and < 32
+                ? areaMask & ~(1 << areaIndex)
+                : areaMask;
+        }
+
+        internal static int IncludeNavMeshArea(int areaMask, int areaIndex)
+        {
+            return areaIndex is >= 0 and < 32
+                ? areaMask | (1 << areaIndex)
+                : areaMask;
         }
 
         private static S1Economy.Dealer? EnsureDealerComponentOnPrefab(GameObject prefabRoot)
