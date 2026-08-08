@@ -68,7 +68,6 @@ namespace S1API.Internal.Patches
             AccessTools.Field(typeof(S1NPCsSchedules.NPCAction), "npc");
         private static readonly PropertyInfo? ScheduleActionNpcProperty =
             AccessTools.Property(typeof(S1NPCsSchedules.NPCAction), "npc");
-        private const float DefaultRelationDelta = 2f;
         public static bool CustomNpcsReady = false;
         // Pending custom NPC types to instantiate when using consolidated NPCs.json saves (non-physical/custom contacts).
         private static readonly System.Collections.Generic.List<Type> _pendingCustomNpcTypes = new System.Collections.Generic.List<Type>();
@@ -1285,12 +1284,15 @@ namespace S1API.Internal.Patches
 
                 s1BaseNpc.Load(saveData, baseData);
 
-                // Check if relationship data exists in save
+                // Native relationship data is authoritative whenever a finite saved delta exists.
                 if (saveData.TryGetData("Relationship", out S1Datas.RelationshipData rel) && rel != null && s1BaseNpc.RelationData != null)
                 {
-                    if (!float.IsNaN(rel.RelationDelta) && !float.IsInfinity(rel.RelationDelta))
+                    if (NPCRelationshipPersistencePolicy.IsValidSavedDelta(rel.RelationDelta))
                     {
-                        s1BaseNpc.RelationData.SetRelationship(rel.RelationDelta);
+                        s1BaseNpc.RelationData.SetRelationship(
+                            rel.RelationDelta,
+                            false);
+                        apiNpc.MarkRelationshipLoadedFromSave();
                     }
                     
                     if (rel.Unlocked)
@@ -1317,19 +1319,6 @@ namespace S1API.Internal.Patches
                     }
                 }
                 
-                // IMPORTANT: Mark as loaded from save IMMEDIATELY after processing relationship data
-                // This must happen before FinalizeNetworkSpawn runs, otherwise defaults will overwrite loaded data
-                try
-                {
-                    apiNpc = FindWrapperForS1Npc(s1BaseNpc);
-                    if (apiNpc != null)
-                    {
-                        typeof(NPC).GetMethod("MarkLoadedFromSave", BindingFlags.NonPublic | BindingFlags.Instance)
-                            ?.Invoke(apiNpc, null);
-                    }
-                }
-                catch { }
-
                 if (saveData.TryGetData("MessageConversation", out S1Datas.MSGConversationData convo))
                 {
                     apiNpc?.EnsureMessageConversationReady(resetDefaults: false);
@@ -1426,37 +1415,24 @@ namespace S1API.Internal.Patches
                 var wrap = FindWrapperForS1Npc(s1BaseNpc);
                 if (wrap != null)
                 {
-                    // Mark that this instance was hydrated from save data FIRST to prevent defaults overwrite
-                    typeof(NPC).GetMethod("MarkLoadedFromSave", BindingFlags.NonPublic | BindingFlags.Instance)
-                        ?.Invoke(wrap, null);
-                    
                     var npcType = wrap.GetType();
                     bool hasDefaults = NPC.TypeToRelationshipDefaults.TryGetValue(npcType, out var relCfg) && relCfg != null;
-                    
-                    if (hasDefaults)
+
+                    if (!NPCRelationshipPersistencePolicy.ShouldApplyDefaults(
+                        wrap.RelationshipLoadedFromSave))
+                    {
+                        s1BaseNpc.GetComponent<NPCPrefabIdentity>()
+                            ?.ApplyRelationshipConnectionsTo(s1BaseNpc);
+                    }
+                    else if (hasDefaults)
                     {
                         var builder = new NPCRelationshipDataBuilder();
                         relCfg!(builder);
                         var rel = s1BaseNpc.RelationData;
                         if (rel != null)
                         {
-                            // Preserve relationship delta if it was loaded from save (non-default value)
-                            // Default relationship delta is 2.0, so if it's different, it came from save
-                            float currentDelta = rel.RelationDelta;
-                            bool deltaWasLoadedFromSave = Math.Abs(currentDelta - DefaultRelationDelta) > 0.01f;
-                            
-                            // Store the loaded delta before applying defaults
-                            float savedDelta = currentDelta;
-                            
                             bool beforeApplyDefaults = rel.Unlocked;
                             builder.ApplyTo(rel, s1BaseNpc, preserveUnlockState: true);
-                            
-                            // Restore relationship delta if it was loaded from save
-                            if (deltaWasLoadedFromSave)
-                            {
-                                rel.SetRelationship(savedDelta);
-                            }
-                            
                             bool afterApplyDefaults = rel.Unlocked;
                             
                             if (beforeApplyDefaults && !afterApplyDefaults)
@@ -1985,17 +1961,15 @@ namespace S1API.Internal.Patches
 
             apiNpc.LoadFromDynamic(saveData);
 
-            // Mark as loaded from save so prefab defaults won't overwrite
-            try
+            if (saveData.TryGetData(
+                    "Relationship",
+                    out S1Datas.RelationshipData relationshipData)
+                && relationshipData != null
+                && NPCRelationshipPersistencePolicy.IsValidSavedDelta(
+                    relationshipData.RelationDelta))
             {
-                typeof(NPC).GetMethod("MarkLoadedFromSave", BindingFlags.NonPublic | BindingFlags.Instance)
-                    ?.Invoke(apiNpc, null);
+                apiNpc.MarkRelationshipLoadedFromSave();
             }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[S1API] NPCLoader_Load_Postfix: Exception marking NPC '{baseData.ID}' as loaded: {ex.Message}");
-            }
-
         }
 
         /// <summary>
