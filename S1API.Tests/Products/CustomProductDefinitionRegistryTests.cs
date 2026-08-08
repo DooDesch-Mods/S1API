@@ -6,7 +6,6 @@ using NativePackagingDefinition = ScheduleOne.Product.Packaging.PackagingDefinit
 using NativeProductDefinition = ScheduleOne.Product.ProductDefinition;
 #endif
 
-using System.Runtime.CompilerServices;
 using S1API.Internal.Products;
 using S1API.Items;
 using S1API.Products;
@@ -494,9 +493,7 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
         string productId = CreateProductId();
         NativeProductDefinition definition = CreateDefinition();
         var nativePackaging =
-            (NativePackagingDefinition)RuntimeHelpers.GetUninitializedObject(
-                typeof(NativePackagingDefinition));
-        GC.SuppressFinalize(nativePackaging);
+            TestObjectFactory.CreateUninitialized<NativePackagingDefinition>();
         var packaging = new PackagingDefinition(nativePackaging);
         CustomProductDefinitionMetadata metadata =
             CreateMetadata(productId, new[] { packaging });
@@ -585,9 +582,7 @@ public sealed class CustomProductDefinitionRegistryTests : IDisposable
     private static NativeProductDefinition CreateDefinition(
         string? productId = null)
     {
-        var definition = (NativeProductDefinition)RuntimeHelpers.GetUninitializedObject(
-            typeof(NativeProductDefinition));
-        GC.SuppressFinalize(definition);
+        var definition = TestObjectFactory.CreateUninitialized<NativeProductDefinition>();
 #if MONOMELON
         if (productId != null)
             definition.ID = productId;
