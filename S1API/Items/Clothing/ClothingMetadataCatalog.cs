@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using UnityEngine;
-#if IL2CPPMELON
-using S1Clothing = Il2CppScheduleOne.Clothing;
-using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
-#elif MONOMELON
+#if MONOMELON
 using S1Clothing = ScheduleOne.Clothing;
 using S1DevUtilities = ScheduleOne.DevUtilities;
+#elif IL2CPPMELON
+using S1Clothing = Il2CppScheduleOne.Clothing;
+using S1DevUtilities = Il2CppScheduleOne.DevUtilities;
 #endif
 
 namespace S1API.Items.Clothing

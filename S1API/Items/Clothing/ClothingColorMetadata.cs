@@ -25,7 +25,7 @@ namespace S1API.Items.Clothing
         public ClothingColor Color { get; }
 
         /// <summary>
-        /// Gets the base game's display name for the color.
+        /// Gets the clothing color enum identifier used by the base game as its label.
         /// </summary>
         public string DisplayName { get; }
 
