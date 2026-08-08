@@ -29,6 +29,14 @@ public sealed class CustomNpcRequestProductPolicyTests
         Assert.Equal(57, global::S1API.Entities.NPC.ExcludeNavMeshArea(57, areaIndex));
     }
 
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(32)]
+    public void BaseEmployeeNavigation_IncludeIgnoresInvalidAreaIndices(int areaIndex)
+    {
+        Assert.Equal(57, global::S1API.Entities.NPC.IncludeNavMeshArea(57, areaIndex));
+    }
+
     [Fact]
     public void FollowDestination_KeepsCustomNpcOutsidePlayerSpace()
     {
@@ -57,6 +65,84 @@ public sealed class CustomNpcRequestProductPolicyTests
 
         Assert.True(overridden);
         Assert.Equal(new NumericsVector3(0f, 0f, -2.5f), destination);
+    }
+
+    [Fact]
+    public void FollowDestination_UsesNegativeZWhenNpcAndFallbackDirectionsAreZero()
+    {
+        bool overridden = global::S1API.Internal.Patches.NPCPatches.TryCalculateCustomNpcFollowDestination(
+            isCustomNpc: true,
+            isFollowingPlayer: true,
+            playerPosition: NumericsVector3.Zero,
+            npcPosition: NumericsVector3.Zero,
+            fallbackDirection: NumericsVector3.Zero,
+            out NumericsVector3 destination);
+
+        Assert.True(overridden);
+        Assert.Equal(new NumericsVector3(0f, 0f, -2.5f), destination);
+    }
+
+    [Fact]
+    public void PropertyApproachDestination_UsesOwnedPropertyExteriorSpawnForCustomInitialApproach()
+    {
+        var propertyExteriorSpawn = new NumericsVector3(-67f, 0.7f, 81.5f);
+
+        bool overridden = global::S1API.Internal.Patches.NPCPatches
+            .TryCalculateCustomNpcPropertyApproachDestination(
+                isCustomNpc: true,
+                isInitialApproach: true,
+                playerInsideOwnedProperty: true,
+                propertyExteriorSpawn,
+                out NumericsVector3 destination);
+
+        Assert.True(overridden);
+        Assert.Equal(propertyExteriorSpawn, destination);
+    }
+
+    [Theory]
+    [InlineData(false, true, true, true)]
+    [InlineData(true, false, true, true)]
+    [InlineData(true, true, false, true)]
+    [InlineData(true, true, true, false)]
+    public void PropertyApproachDestination_PreservesNativeDestinationOutsideCustomOwnedPropertyApproach(
+        bool isCustomNpc,
+        bool isInitialApproach,
+        bool playerInsideOwnedProperty,
+        bool hasExteriorSpawnPoint)
+    {
+        NumericsVector3? propertyExteriorSpawn = hasExteriorSpawnPoint
+            ? new NumericsVector3(-67f, 0.7f, 81.5f)
+            : null;
+
+        bool overridden = global::S1API.Internal.Patches.NPCPatches
+            .TryCalculateCustomNpcPropertyApproachDestination(
+                isCustomNpc,
+                isInitialApproach,
+                playerInsideOwnedProperty,
+                propertyExteriorSpawn,
+                out _);
+
+        Assert.False(overridden);
+    }
+
+    [Theory]
+    [InlineData(float.NaN, 0f, 0f)]
+    [InlineData(float.PositiveInfinity, 0f, 0f)]
+    [InlineData(10001f, 0f, 0f)]
+    public void PropertyApproachDestination_RejectsInvalidExteriorSpawn(
+        float x,
+        float y,
+        float z)
+    {
+        bool overridden = global::S1API.Internal.Patches.NPCPatches
+            .TryCalculateCustomNpcPropertyApproachDestination(
+                isCustomNpc: true,
+                isInitialApproach: true,
+                playerInsideOwnedProperty: true,
+                new NumericsVector3(x, y, z),
+                out _);
+
+        Assert.False(overridden);
     }
 
     [Theory]

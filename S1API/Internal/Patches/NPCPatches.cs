@@ -13,6 +13,7 @@ using S1Datas = Il2CppScheduleOne.Persistence.Datas;
 using S1Items = Il2CppScheduleOne.ItemFramework;
 using S1GameTime = Il2CppScheduleOne.GameTime;
 using S1Quests = Il2CppScheduleOne.Quests;
+using S1Properties = Il2CppScheduleOne.Property;
 using Il2CppFishNet;
 using Il2CppFishNet.Object;
 using Il2CppScheduleOne.DevUtilities;
@@ -35,6 +36,7 @@ using S1Datas = ScheduleOne.Persistence.Datas;
 using S1Items = ScheduleOne.ItemFramework;
 using S1GameTime = ScheduleOne.GameTime;
 using S1Quests = ScheduleOne.Quests;
+using S1Properties = ScheduleOne.Property;
 #endif
 
 using System;
@@ -185,6 +187,72 @@ namespace S1API.Internal.Patches
             return true;
         }
 
+        internal static bool TryCalculateCustomNpcPropertyApproachDestination(
+            bool isCustomNpc,
+            bool isInitialApproach,
+            bool playerInsideOwnedProperty,
+            NumericsVector3? propertyExteriorSpawnPosition,
+            out NumericsVector3 destination)
+        {
+            destination = default;
+            if (!isCustomNpc || !isInitialApproach || !playerInsideOwnedProperty ||
+                propertyExteriorSpawnPosition is not NumericsVector3 spawnPosition ||
+                !IsValidNavigationPosition(spawnPosition))
+            {
+                return false;
+            }
+
+            destination = spawnPosition;
+            return true;
+        }
+
+        private static bool IsValidNavigationPosition(NumericsVector3 position) =>
+            float.IsFinite(position.X) &&
+            float.IsFinite(position.Y) &&
+            float.IsFinite(position.Z) &&
+            position.LengthSquared() <= 100_000_000f;
+
+        private static bool TryGetCustomNpcPropertyApproachDestination(
+            bool isCustomNpc,
+            bool isInitialApproach,
+            Vector3 playerPosition,
+            out Vector3 destination)
+        {
+            destination = default;
+            foreach (S1Properties.Property property in S1Properties.Property.OwnedProperties)
+            {
+                if (property == null || !property.DoBoundsContainPoint(playerPosition))
+                    continue;
+
+                Vector3? spawnPosition = property.SpawnPoint != null
+                    ? property.SpawnPoint.position
+                    : null;
+                NumericsVector3? numericSpawnPosition = spawnPosition.HasValue
+                    ? new NumericsVector3(
+                        spawnPosition.Value.x,
+                        spawnPosition.Value.y,
+                        spawnPosition.Value.z)
+                    : null;
+                if (!TryCalculateCustomNpcPropertyApproachDestination(
+                        isCustomNpc,
+                        isInitialApproach,
+                        playerInsideOwnedProperty: true,
+                        numericSpawnPosition,
+                        out NumericsVector3 calculatedDestination))
+                {
+                    return false;
+                }
+
+                destination = new Vector3(
+                    calculatedDestination.X,
+                    calculatedDestination.Y,
+                    calculatedDestination.Z);
+                return true;
+            }
+
+            return false;
+        }
+
         [HarmonyPatch]
         private static class RequestProductMovementDestinationPatch
         {
@@ -202,6 +270,19 @@ namespace S1API.Internal.Patches
                     return;
 
                 bool isCustomNpc = IsS1ApiCustomNpcComponent(nativeNpc);
+                bool isInitialApproach =
+                    request.Active &&
+                    request.State == S1NPCsBehaviour.RequestProductBehaviour.EState.InitialApproach;
+                if (TryGetCustomNpcPropertyApproachDestination(
+                        isCustomNpc,
+                        isInitialApproach,
+                        targetPlayer.transform.position,
+                        out Vector3 propertyApproachDestination))
+                {
+                    pos = propertyApproachDestination;
+                    return;
+                }
+
                 bool isFollowingPlayer =
                     request.Active &&
                     request.State == S1NPCsBehaviour.RequestProductBehaviour.EState.FollowPlayer;
@@ -216,7 +297,12 @@ namespace S1API.Internal.Patches
                     return;
                 }
 
-                if (NavMeshUtility.SamplePosition(desiredDestination, out var hit, 15f, -1))
+                var agent = __instance?.Agent;
+                if (agent != null && NavMeshUtility.SamplePosition(
+                        desiredDestination,
+                        out var hit,
+                        15f,
+                        agent.areaMask))
                 {
                     pos = hit.position;
                 }

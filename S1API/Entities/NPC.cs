@@ -644,19 +644,15 @@ namespace S1API.Entities
             }
         }
 
-        internal static int ExcludeNavMeshArea(int areaMask, int areaIndex)
-        {
-            return areaIndex is >= 0 and < 32
+        internal static int ExcludeNavMeshArea(int areaMask, int areaIndex) =>
+            areaIndex is >= 0 and < 32
                 ? areaMask & ~(1 << areaIndex)
                 : areaMask;
-        }
 
-        internal static int IncludeNavMeshArea(int areaMask, int areaIndex)
-        {
-            return areaIndex is >= 0 and < 32
+        internal static int IncludeNavMeshArea(int areaMask, int areaIndex) =>
+            areaIndex is >= 0 and < 32
                 ? areaMask | (1 << areaIndex)
                 : areaMask;
-        }
 
         private static S1Economy.Dealer? EnsureDealerComponentOnPrefab(GameObject prefabRoot)
         {
