@@ -131,7 +131,6 @@ namespace S1API.Entities
             if (string.IsNullOrEmpty(dialogueContainerName))
                 return false;
 
-            EnsureHandler();
             var controller = Handler?.GetComponent<S1Dialogue.DialogueController>();
             var choices = controller?.Choices;
             if (choices == null)
@@ -249,7 +248,7 @@ namespace S1API.Entities
             if (handler == null)
                 return;
 
-            if (ReferenceEquals(_hookedHandler, handler))
+            if (_hookedHandler == handler)
                 return;
 
             RemoveEventHooks();
@@ -685,14 +684,22 @@ namespace S1API.Entities
 #if IL2CPPMELON
         private Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>? GetRuntimeModules()
         {
-            return ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>
-                ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>;
+            var handler = Handler;
+            if (handler == null)
+                return null;
+
+            return ReflectionUtils.TryGetFieldOrProperty(handler, "RuntimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>
+                ?? ReflectionUtils.TryGetFieldOrProperty(handler, "runtimeModules") as Il2CppSystem.Collections.Generic.List<S1Dialogue.DialogueModule>;
         }
 #else
         private List<S1Dialogue.DialogueModule>? GetRuntimeModules()
         {
-            return ReflectionUtils.TryGetFieldOrProperty(Handler, "runtimeModules") as List<S1Dialogue.DialogueModule>
-                ?? ReflectionUtils.TryGetFieldOrProperty(Handler, "RuntimeModules") as List<S1Dialogue.DialogueModule>;
+            var handler = Handler;
+            if (handler == null)
+                return null;
+
+            return ReflectionUtils.TryGetFieldOrProperty(handler, "runtimeModules") as List<S1Dialogue.DialogueModule>
+                ?? ReflectionUtils.TryGetFieldOrProperty(handler, "RuntimeModules") as List<S1Dialogue.DialogueModule>;
         }
 #endif
 
