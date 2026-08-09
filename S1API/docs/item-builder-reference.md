@@ -25,6 +25,29 @@ This page collects the main builder methods, advanced item-instance notes, and i
 - `WithUseCallback(callback)` - Registers a callback when the item is used
 - `Build()` - Finalizes and returns the equippable
 
+## FurnitureDefinitionBuilder Methods
+
+- `WithBasicInfo(id, name, description)` - Sets the stable ID and player-facing text
+- `WithModel(model)` - Supplies the model cloned into all native furniture representations
+- `WithPlacement(mode)` - Selects grid or surface placement
+- `WithFootprint(width, depth)` - Sets a grid footprint in 0.5 metre tiles
+- `WithSurfacePlacement(types, allowRotation)` - Selects wall/roof compatibility
+- `WithBuildSound(soundType)` - Selects the native completion sound
+- `WithPricing(basePrice, resellMultiplier)` - Configures economic properties
+- `WithStackLimit(limit)` - Sets the inventory stack limit
+- `WithIcon(sprite)` / `WithGeneratedIcon(resolution)` - Configures the inventory icon
+- `Build()` - Composes the native prefabs, registers, and returns the furniture definition
+
+## BuildableItemDefinitionBuilder Ghost Visuals
+
+Buildables cloned from a native machine or station can opt into a custom placement visual with
+`WithGhostVisual(visualFactory, replaceExistingVisual)`. S1API invokes the factory after the native
+grid, procedural-grid, or surface placement system creates its ghost, parents and activates the
+returned object, and restores the inherited renderers if the factory fails.
+
+Set `replaceExistingVisual: true` when the custom visual replaces the cloned native model. Buildables
+that do not call this method retain the game's normal ghost behavior.
+
 ## Advanced: Custom Item Instances
 
 For items with custom runtime state, such as extra fields that must serialize, you will need to:
@@ -45,6 +68,7 @@ For items with custom runtime state, such as extra fields that must serialize, y
 ## See Also
 
 - [Item Registration & Basics](item-registration-basics.md)
+- [Custom Furniture](furniture-items.md)
 - [Runtime Additives](runtime-additives.md)
 - [Equippable Items](equippable-items.md)
 - [Avatar Equippable Prefabs](avatar-equippable-prefabs.md)

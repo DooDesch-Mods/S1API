@@ -86,6 +86,8 @@
           href: item-registration-basics.md
         - name: Item Icons
           href: item-icons.md
+        - name: Custom Furniture
+          href: furniture-items.md
         - name: Equippable Items
           href: equippable-items.md
         - name: Avatar Equippable Prefabs

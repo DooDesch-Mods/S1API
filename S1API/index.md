@@ -70,7 +70,7 @@ _layout: landing
     </a>
     <a class="s1-card" href="docs/items.md">
       <h3>Items</h3>
-      <p>Register custom storable, additive, buildable, clothing, and equippable item definitions.</p>
+      <p>Register custom storable, furniture, additive, clothing, and equippable item definitions.</p>
     </a>
     <a class="s1-card" href="docs/products-system.md">
       <h3>Products</h3>
