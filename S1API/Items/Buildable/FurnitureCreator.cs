@@ -8,6 +8,7 @@ namespace S1API.Items.Buildable
         /// <summary>
         /// Creates a builder for a custom placeable furniture item.
         /// </summary>
+        /// <returns>A new furniture definition builder with grid-placement defaults.</returns>
         public static FurnitureDefinitionBuilder CreateBuilder()
         {
             return new FurnitureDefinitionBuilder();

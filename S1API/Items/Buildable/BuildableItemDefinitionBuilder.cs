@@ -70,6 +70,16 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>
+        /// INTERNAL: Assigns a native build-sound value after a caller-specific compatibility mapping.
+        /// </summary>
+        internal BuildableItemDefinitionBuilder WithNativeBuildSound(
+            S1ItemFramework.BuildableItemDefinition.EBuildSoundType soundType)
+        {
+            BuildableDefinition.BuildSoundType = soundType;
+            return this;
+        }
+
+        /// <summary>
         /// Configures an optional visual created whenever the native placement system creates this
         /// buildable's ghost. The factory runs on Unity's main thread and must return the created
         /// visual. S1API parents and activates it under the supplied ghost transform.

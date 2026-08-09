@@ -15,8 +15,8 @@ public sealed class FurnitureNativeCompositionContractTests
     public void ComposerDoesNotExposeProceduralGridWithoutGenericNativeTemplate()
     {
         Assert.DoesNotContain(
-            "Procedural",
-            Enum.GetNames<global::S1API.Items.Buildable.FurniturePlacementMode>());
+            Enum.GetNames<global::S1API.Items.Buildable.FurniturePlacementMode>(),
+            name => name.StartsWith("Procedural", StringComparison.Ordinal));
     }
 
     [Fact]

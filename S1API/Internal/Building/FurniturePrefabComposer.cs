@@ -80,14 +80,17 @@ namespace S1API.Internal.Building
 
             RuntimePrefabCache.Store(builtItem.gameObject);
 
-            var storedRoot = new GameObject($"{id}_StoredItem");
-            storedRoot.SetActive(false);
-            AddModelClone(model, storedRoot.transform, Vector3.zero, BuildableGhostRuntime.FurnitureVisualName);
-            S1Storage.StoredItem storedItem = storedRoot.AddComponent<S1Storage.StoredItem>();
-            RuntimePrefabCache.Store(storedRoot);
-
-            if (template.Equippable == null)
-                throw new InvalidOperationException($"Furniture template '{templateId}' has no native equippable prefab.");
+            S1Storage.StoredItem storedItem = InactiveObjectCloner.CloneComponent(
+                template.StoredItem,
+                parent: null);
+            storedItem.gameObject.name = $"{id}_StoredItem";
+            DisableTemplateRenderers(storedItem.gameObject);
+            AddModelClone(
+                model,
+                storedItem.transform,
+                Vector3.zero,
+                BuildableGhostRuntime.FurnitureVisualName);
+            RuntimePrefabCache.Store(storedItem.gameObject);
 
             return new FurnitureComposition(
                 template,
@@ -107,6 +110,10 @@ namespace S1API.Internal.Building
 
             if (definition.BuiltItem == null)
                 throw new InvalidOperationException($"Native furniture template '{templateId}' has no placed-item prefab.");
+            if (definition.StoredItem == null)
+                throw new InvalidOperationException($"Native furniture template '{templateId}' has no stored-item prefab.");
+            if (definition.Equippable == null)
+                throw new InvalidOperationException($"Native furniture template '{templateId}' has no native equippable prefab.");
 
             return definition;
         }
@@ -141,24 +148,19 @@ namespace S1API.Internal.Building
             if (renderers.Length == 0)
                 throw new ArgumentException("Furniture model must contain at least one Renderer.", nameof(model));
 
-            Bounds worldBounds = renderers[0].bounds;
-            for (int index = 1; index < renderers.Length; index++)
-                worldBounds.Encapsulate(renderers[index].bounds);
-
-            Vector3 localCenter = builtItem.transform.InverseTransformPoint(worldBounds.center);
-            Vector3 localSize = builtItem.transform.InverseTransformVector(worldBounds.size);
-            localSize = new Vector3(Mathf.Abs(localSize.x), Mathf.Abs(localSize.y), Mathf.Abs(localSize.z));
+            Bounds builtItemBounds = CalculateCombinedBounds(renderers, builtItem.transform);
+            Bounds modelBounds = CalculateCombinedBounds(renderers, model.transform);
 
             BoxCollider boundingCollider = builtItem.BoundingCollider;
             if (boundingCollider == null)
                 boundingCollider = builtItem.gameObject.AddComponent<BoxCollider>();
-            boundingCollider.center = localCenter;
-            boundingCollider.size = localSize;
+            boundingCollider.center = builtItemBounds.center;
+            boundingCollider.size = builtItemBounds.size;
             builtItem.BoundingCollider = boundingCollider;
 
             var collision = model.AddComponent<BoxCollider>();
-            collision.center = model.transform.InverseTransformPoint(worldBounds.center);
-            collision.size = model.transform.InverseTransformVector(worldBounds.size);
+            collision.center = modelBounds.center;
+            collision.size = modelBounds.size;
 
             builtItem.GameObjectsToCull = new[] { model };
 #if (IL2CPPMELON)
@@ -182,9 +184,75 @@ namespace S1API.Internal.Building
             // Grid build points are ground anchors. Moving one to the model center lowers the
             // footprint below the tile detectors, which makes the ghost invisible and invalid.
             if (placementMode == FurniturePlacementMode.Surface && builtItem.BuildPoint != null)
-                builtItem.BuildPoint.localPosition = localCenter;
+                builtItem.BuildPoint.localPosition = builtItemBounds.center;
             if (builtItem.MidAirCenterPoint != null)
-                builtItem.MidAirCenterPoint.localPosition = localCenter;
+                builtItem.MidAirCenterPoint.localPosition = builtItemBounds.center;
+        }
+
+        private static Bounds CalculateCombinedBounds(
+            Renderer[] renderers,
+            Transform relativeTo)
+        {
+            Bounds combined = default;
+            bool hasPoint = false;
+
+            foreach (Renderer renderer in renderers)
+            {
+                if (!TryGetRendererLocalBounds(renderer, out Bounds rendererBounds))
+                    continue;
+
+                Vector3 center = rendererBounds.center;
+                Vector3 extents = rendererBounds.extents;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    var offset = new Vector3(
+                        (corner & 1) == 0 ? -extents.x : extents.x,
+                        (corner & 2) == 0 ? -extents.y : extents.y,
+                        (corner & 4) == 0 ? -extents.z : extents.z);
+                    Vector3 point = relativeTo.InverseTransformPoint(
+                        renderer.transform.TransformPoint(center + offset));
+                    if (!hasPoint)
+                    {
+                        combined = new Bounds(point, Vector3.zero);
+                        hasPoint = true;
+                    }
+                    else
+                    {
+                        combined.Encapsulate(point);
+                    }
+                }
+            }
+
+            if (!hasPoint)
+            {
+                throw new ArgumentException(
+                    "Furniture model must contain a MeshRenderer with a mesh or a SkinnedMeshRenderer.",
+                    nameof(renderers));
+            }
+
+            return combined;
+        }
+
+        private static bool TryGetRendererLocalBounds(
+            Renderer renderer,
+            out Bounds bounds)
+        {
+            MeshFilter? meshFilter = renderer.GetComponent<MeshFilter>();
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                bounds = meshFilter.sharedMesh.bounds;
+                return true;
+            }
+
+            SkinnedMeshRenderer? skinnedRenderer = renderer.GetComponent<SkinnedMeshRenderer>();
+            if (skinnedRenderer != null)
+            {
+                bounds = skinnedRenderer.localBounds;
+                return true;
+            }
+
+            bounds = default;
+            return false;
         }
 
         private static void ConfigureGridFootprint(

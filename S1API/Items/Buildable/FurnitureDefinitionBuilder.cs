@@ -18,7 +18,7 @@ namespace S1API.Items.Buildable
         private int _footprintDepth = 1;
         private FurnitureSurfaceType _surfaceTypes = FurnitureSurfaceType.Wall;
         private bool _allowSurfaceRotation = true;
-        private BuildSoundType _buildSound = BuildSoundType.Wood;
+        private BuildSoundType _buildSound = FurnitureBuildSoundMapper.Default;
         private int _stackLimit = 10;
         private float _purchasePrice = 10f;
         private float _resellMultiplier = 0.5f;
@@ -31,6 +31,10 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Sets the stable registry ID and player-facing text.</summary>
+        /// <param name="id">The stable item ID shared by every multiplayer peer.</param>
+        /// <param name="name">The player-facing item name.</param>
+        /// <param name="description">The player-facing item description. An empty description is allowed.</param>
+        /// <returns>This builder for fluent chaining.</returns>
         public FurnitureDefinitionBuilder WithBasicInfo(string id, string name, string description)
         {
             _id = id;
@@ -43,13 +47,22 @@ namespace S1API.Items.Buildable
         /// Sets the model used for the placed object, placement ghost, stored item, and generated icon.
         /// The supplied object is cloned and is never modified by S1API.
         /// </summary>
+        /// <param name="model">The model root to clone. It must contain at least one mesh renderer.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="model"/> is null.</exception>
         public FurnitureDefinitionBuilder WithModel(GameObject model)
         {
-            _model = model != null ? model : throw new ArgumentNullException(nameof(model));
+            if (ReferenceEquals(model, null) || model == null)
+                throw new ArgumentNullException(nameof(model));
+
+            _model = model;
             return this;
         }
 
         /// <summary>Chooses the native placement family.</summary>
+        /// <param name="placementMode">The grid or surface placement family to compose.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown for an undefined placement mode.</exception>
         public FurnitureDefinitionBuilder WithPlacement(FurniturePlacementMode placementMode)
         {
             if (!Enum.IsDefined(typeof(FurniturePlacementMode), placementMode))
@@ -60,6 +73,10 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Sets the floor-grid footprint in 0.5 metre tiles.</summary>
+        /// <param name="width">The positive footprint width in grid tiles.</param>
+        /// <param name="depth">The positive footprint depth in grid tiles.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when either dimension is less than one.</exception>
         public FurnitureDefinitionBuilder WithFootprint(int width, int depth)
         {
             if (width < 1)
@@ -73,6 +90,12 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Configures valid surfaces and rotation for surface-placed furniture.</summary>
+        /// <param name="surfaceTypes">One or more supported wall or roof surface flags.</param>
+        /// <param name="allowRotation">Whether the player can rotate the item during surface placement.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="surfaceTypes"/> is empty or contains an unknown flag.
+        /// </exception>
         public FurnitureDefinitionBuilder WithSurfacePlacement(
             FurnitureSurfaceType surfaceTypes,
             bool allowRotation = true)
@@ -89,13 +112,24 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Sets the sound family used when placement completes.</summary>
+        /// <param name="buildSound">
+        /// The public sound family. Plastic uses the native metal sound because the game has no plastic family.
+        /// </param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown for an undefined sound family.</exception>
         public FurnitureDefinitionBuilder WithBuildSound(BuildSoundType buildSound)
         {
+            if (!Enum.IsDefined(typeof(BuildSoundType), buildSound))
+                throw new ArgumentOutOfRangeException(nameof(buildSound));
+
             _buildSound = buildSound;
             return this;
         }
 
         /// <summary>Sets the purchase and resale values.</summary>
+        /// <param name="basePurchasePrice">The non-negative base purchase price.</param>
+        /// <param name="resellMultiplier">The resale fraction, clamped between zero and one.</param>
+        /// <returns>This builder for fluent chaining.</returns>
         public FurnitureDefinitionBuilder WithPricing(float basePurchasePrice, float resellMultiplier = 0.5f)
         {
             _purchasePrice = Mathf.Max(0f, basePurchasePrice);
@@ -104,6 +138,8 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Sets the inventory stack limit.</summary>
+        /// <param name="stackLimit">The stack limit, clamped between 1 and 999.</param>
+        /// <returns>This builder for fluent chaining.</returns>
         public FurnitureDefinitionBuilder WithStackLimit(int stackLimit)
         {
             _stackLimit = Mathf.Clamp(stackLimit, 1, 999);
@@ -111,9 +147,15 @@ namespace S1API.Items.Buildable
         }
 
         /// <summary>Uses an existing inventory icon.</summary>
+        /// <param name="icon">The icon to assign without using the native render rig.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="icon"/> is null.</exception>
         public FurnitureDefinitionBuilder WithIcon(Sprite icon)
         {
-            _icon = icon != null ? icon : throw new ArgumentNullException(nameof(icon));
+            if (ReferenceEquals(icon, null) || icon == null)
+                throw new ArgumentNullException(nameof(icon));
+
+            _icon = icon;
             _generateIcon = false;
             return this;
         }
@@ -122,6 +164,11 @@ namespace S1API.Items.Buildable
         /// Queues inventory-icon generation from the supplied model. The definition registers immediately,
         /// and S1API replaces its fallback icon when the gameplay rendering rig becomes available.
         /// </summary>
+        /// <param name="resolution">The square icon resolution from 64 through 2048 pixels.</param>
+        /// <returns>This builder for fluent chaining.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// Thrown when <paramref name="resolution"/> is outside the supported range.
+        /// </exception>
         public FurnitureDefinitionBuilder WithGeneratedIcon(int resolution = 512)
         {
             if (resolution < 64 || resolution > 2048)
@@ -138,6 +185,10 @@ namespace S1API.Items.Buildable
         /// Call this after the game's item registry and vanilla furniture definitions are available.
         /// Every multiplayer peer must perform the same registration.
         /// </summary>
+        /// <returns>The registered custom furniture definition.</returns>
+        /// <exception cref="InvalidOperationException">
+        /// Thrown when required identity or model configuration is missing, or a native donor is unavailable.
+        /// </exception>
         public BuildableItemDefinition Build()
         {
             Validate();
@@ -153,7 +204,7 @@ namespace S1API.Items.Buildable
 
             var builder = new BuildableItemDefinitionBuilder(composition.TemplateDefinition)
                 .WithBasicInfo(_id!, _name!, _description!, ItemCategory.Furniture)
-                .WithBuildSound(_buildSound)
+                .WithNativeBuildSound(FurnitureBuildSoundMapper.ToNative(_buildSound))
                 .WithPricing(_purchasePrice, _resellMultiplier)
                 .WithStackLimit(_stackLimit)
                 .WithBuiltItem(composition.BuiltItem)

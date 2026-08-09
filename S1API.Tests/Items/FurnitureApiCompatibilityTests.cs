@@ -1,4 +1,5 @@
 using System.Reflection;
+using S1API.Internal.Building;
 using S1API.Items.Buildable;
 using UnityEngine;
 
@@ -62,6 +63,42 @@ public sealed class FurnitureApiCompatibilityTests
         FurnitureDefinitionBuilder builder = FurnitureCreator.CreateBuilder();
         Assert.Throws<ArgumentOutOfRangeException>(
             () => builder.WithSurfacePlacement(surfaceTypes));
+    }
+
+    [Fact]
+    public void ModelAndIconRejectNull()
+    {
+        FurnitureDefinitionBuilder builder = FurnitureCreator.CreateBuilder();
+
+        Assert.Throws<ArgumentNullException>(() => builder.WithModel(null!));
+        Assert.Throws<ArgumentNullException>(() => builder.WithIcon(null!));
+    }
+
+    [Fact]
+    public void DefaultBuildSoundIsWood()
+    {
+        Assert.Equal(BuildSoundType.Wood, FurnitureBuildSoundMapper.Default);
+    }
+
+    [Theory]
+    [InlineData(BuildSoundType.Cardboard, 0)]
+    [InlineData(BuildSoundType.Wood, 1)]
+    [InlineData(BuildSoundType.Metal, 2)]
+    [InlineData(BuildSoundType.Plastic, 2)]
+    public void BuildSoundsMapToNativeValues(BuildSoundType soundType, int nativeValue)
+    {
+        Assert.Equal(
+            nativeValue,
+            Convert.ToInt32(FurnitureBuildSoundMapper.ToNative(soundType)));
+    }
+
+    [Fact]
+    public void BuildSoundRejectsUnknownValue()
+    {
+        FurnitureDefinitionBuilder builder = FurnitureCreator.CreateBuilder();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => builder.WithBuildSound((BuildSoundType)int.MaxValue));
     }
 
     private static void AssertFluent(string name, params Type[] parameterTypes)

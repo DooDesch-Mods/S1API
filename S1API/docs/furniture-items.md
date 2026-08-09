@@ -38,6 +38,9 @@ var chair = FurnitureCreator.CreateBuilder()
 Grid footprint cells are 0.5 metres. Size the footprint to cover the model's horizontal bounds;
 for example, a model just under one metre wide and deep uses `WithFootprint(2, 2)`.
 
+Schedule One exposes native cardboard, wood, and metal placement sounds. `BuildSoundType.Plastic`
+uses the native metal sound as its compatibility fallback.
+
 ## Surface furniture
 
 Use surface placement for wall or roof-mounted decorations:

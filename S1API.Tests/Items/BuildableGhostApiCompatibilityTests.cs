@@ -16,8 +16,11 @@ public sealed class BuildableGhostApiCompatibilityTests
 
         Assert.NotNull(method);
         Assert.Equal(typeof(BuildableItemDefinitionBuilder), method!.ReturnType);
-        Assert.True(method.GetParameters()[1].HasDefaultValue);
-        Assert.Equal(false, method.GetParameters()[1].DefaultValue);
+        ParameterInfo[] parameters = method.GetParameters();
+        Assert.Equal("visualFactory", parameters[0].Name);
+        Assert.Equal("replaceExistingVisual", parameters[1].Name);
+        Assert.True(parameters[1].HasDefaultValue);
+        Assert.Equal(false, parameters[1].DefaultValue);
     }
 
     [Fact]

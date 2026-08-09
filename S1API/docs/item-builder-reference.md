@@ -32,7 +32,7 @@ This page collects the main builder methods, advanced item-instance notes, and i
 - `WithPlacement(mode)` - Selects grid or surface placement
 - `WithFootprint(width, depth)` - Sets a grid footprint in 0.5 metre tiles
 - `WithSurfacePlacement(types, allowRotation)` - Selects wall/roof compatibility
-- `WithBuildSound(soundType)` - Selects the native completion sound
+- `WithBuildSound(soundType)` - Selects the native completion sound; plastic furniture uses the metal fallback
 - `WithPricing(basePrice, resellMultiplier)` - Configures economic properties
 - `WithStackLimit(limit)` - Sets the inventory stack limit
 - `WithIcon(sprite)` / `WithGeneratedIcon(resolution)` - Configures the inventory icon

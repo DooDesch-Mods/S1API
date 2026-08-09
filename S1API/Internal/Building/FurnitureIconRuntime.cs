@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using MelonLoader;
+using S1API.Internal.Products;
 using S1API.Items.Buildable;
 using S1API.Logging;
 using S1API.Rendering;
@@ -41,20 +42,8 @@ namespace S1API.Internal.Building
 
         private static IEnumerator ProcessQueue()
         {
-            while (true)
+            try
             {
-                Request request;
-                lock (Gate)
-                {
-                    if (Pending.Count == 0)
-                    {
-                        _processing = false;
-                        yield break;
-                    }
-
-                    request = Pending.Dequeue();
-                }
-
                 const int readinessFrames = 600;
                 int readinessFrame = 0;
                 while (!IconFactory.IsItemIconGeneratorReady && readinessFrame < readinessFrames)
@@ -65,36 +54,208 @@ namespace S1API.Internal.Building
 
                 if (!IconFactory.IsItemIconGeneratorReady)
                 {
+                    int requestCount = DrainPendingRequests();
                     Logger.Warning(
-                        $"Could not generate furniture icon for '{request.Definition.ID}': " +
-                        "the native item-icon rendering rig did not become ready.");
-                    continue;
+                        $"Could not generate {requestCount} furniture icon(s): " +
+                        "the native item-icon rendering rig did not become ready. " +
+                        "The definitions retain their native fallback icons.");
+                    yield break;
                 }
 
+                while (TryDequeue(out Request? request))
+                {
+                    IEnumerator requestProcessor = ProcessRequest(request!);
+                    while (requestProcessor.MoveNext())
+                        yield return requestProcessor.Current;
+                }
+            }
+            finally
+            {
+                FinishProcessing();
+            }
+        }
+
+        private static IEnumerator ProcessRequest(Request request)
+        {
+            if (request.Model == null)
+            {
+                Logger.Warning(
+                    $"Could not generate furniture icon for '{request.Definition.ID}': " +
+                    "the source model was destroyed before capture.");
+                yield break;
+            }
+
+            ProductIconRenderRigArbiter.CaptureLease renderLease =
+                ProductIconRenderRigArbiter.Enqueue();
+            GameObject? iconModel = null;
+            try
+            {
+                while (!ProductIconRenderRigArbiter.TryAcquire(renderLease))
+                    yield return null;
+
+                if (!TryCreatePreview(request, out iconModel, out string failure))
+                {
+                    Logger.Warning(
+                        $"Could not generate furniture icon for '{request.Definition.ID}': {failure}.");
+                    yield break;
+                }
+
+                const int maxRetries = 30;
+                bool generated = false;
+                for (int attempt = 0; attempt <= maxRetries; attempt++)
+                {
+                    // Let the newly activated preview complete Update and render before capture.
+                    yield return null;
+                    yield return new WaitForEndOfFrame();
+
+                    RenderAttemptResult result = TryRender(
+                        request,
+                        iconModel!,
+                        out Sprite? icon,
+                        out failure);
+                    if (result == RenderAttemptResult.Success)
+                    {
+                        request.Definition.Icon = icon!;
+                        generated = true;
+                        break;
+                    }
+
+                    if (result == RenderAttemptResult.Failure)
+                        break;
+                }
+
+                if (!generated)
+                {
+                    Logger.Warning(
+                        $"Could not generate furniture icon for '{request.Definition.ID}': {failure}.");
+                }
+
+                Object.Destroy(iconModel);
+                iconModel = null;
+
+                // Keep the shared rig lease through cleanup and a settled frame so the next
+                // queued subject cannot capture the outgoing preview.
+                yield return null;
                 yield return new WaitForEndOfFrame();
-                GameObject iconModel = Object.Instantiate(request.Model.gameObject);
-                iconModel.name = $"{request.Model.name}_IconPreview";
-                Sprite? icon;
-                try
-                {
-                    icon = IconFactory.GenerateIconSprite(
-                        iconModel.transform,
-                        request.Resolution);
-                }
-                finally
-                {
+            }
+            finally
+            {
+                if (iconModel != null)
                     Object.Destroy(iconModel);
+
+                ProductIconRenderRigArbiter.Release(renderLease);
+            }
+        }
+
+        private static bool TryCreatePreview(
+            Request request,
+            out GameObject? iconModel,
+            out string failure)
+        {
+            iconModel = null;
+            try
+            {
+                if (request.Model == null)
+                {
+                    failure = "the source model was destroyed before capture";
+                    return false;
                 }
+
+                iconModel = Object.Instantiate(request.Model.gameObject);
+                if (iconModel == null)
+                {
+                    failure = "the source model could not be cloned";
+                    return false;
+                }
+
+                iconModel.name = $"{request.Model.name}_IconPreview";
+                iconModel.SetActive(true);
+                failure = string.Empty;
+                return true;
+            }
+            catch (System.Exception exception)
+            {
+                failure = $"preview creation failed: {exception.Message}";
+                if (iconModel != null)
+                    Object.Destroy(iconModel);
+                iconModel = null;
+                return false;
+            }
+        }
+
+        private static RenderAttemptResult TryRender(
+            Request request,
+            GameObject iconModel,
+            out Sprite? icon,
+            out string failure)
+        {
+            icon = null;
+            try
+            {
+                icon = IconFactory.GenerateIconSprite(
+                    iconModel.transform,
+                    request.Resolution);
                 if (icon == null)
                 {
-                    Logger.Warning(
-                        $"Could not generate furniture icon for '{request.Definition.ID}': " +
-                        "the native renderer returned no sprite.");
-                    continue;
+                    failure = "the native renderer returned no visible pixels";
+                    return RenderAttemptResult.Retry;
                 }
 
-                request.Definition.Icon = icon;
+                failure = string.Empty;
+                return RenderAttemptResult.Success;
             }
+            catch (System.Exception exception)
+            {
+                failure = $"rendering failed: {exception.Message}";
+                return RenderAttemptResult.Failure;
+            }
+        }
+
+        private static bool TryDequeue(out Request? request)
+        {
+            lock (Gate)
+            {
+                if (Pending.Count == 0)
+                {
+                    request = null;
+                    return false;
+                }
+
+                request = Pending.Dequeue();
+                return true;
+            }
+        }
+
+        private static int DrainPendingRequests()
+        {
+            lock (Gate)
+            {
+                int requestCount = Pending.Count;
+                Pending.Clear();
+                return requestCount;
+            }
+        }
+
+        private static void FinishProcessing()
+        {
+            bool restart;
+            lock (Gate)
+            {
+                _processing = false;
+                restart = Pending.Count != 0;
+                if (restart)
+                    _processing = true;
+            }
+
+            if (restart)
+                MelonCoroutines.Start(ProcessQueue());
+        }
+
+        private enum RenderAttemptResult
+        {
+            Success,
+            Retry,
+            Failure,
         }
 
         private sealed class Request

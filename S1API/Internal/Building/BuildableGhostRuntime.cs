@@ -77,6 +77,7 @@ namespace S1API.Internal.Building
         {
             Renderer[] existingRenderers = ghostRoot.GetComponentsInChildren<Renderer>(true);
             bool[] previousStates = new bool[existingRenderers.Length];
+            GameObject? createdVisual = null;
 
             try
             {
@@ -89,8 +90,11 @@ namespace S1API.Internal.Building
                     }
                 }
 
-                GameObject visual = visualFactory(ghostRoot.transform) ??
+                GameObject visual = visualFactory(ghostRoot.transform);
+                if (visual == null)
                     throw new InvalidOperationException("The buildable ghost visual factory returned null.");
+
+                createdVisual = visual;
                 if (!visual.transform.IsChildOf(ghostRoot.transform))
                     visual.transform.SetParent(ghostRoot.transform, false);
 
@@ -99,6 +103,9 @@ namespace S1API.Internal.Building
             }
             catch
             {
+                if (createdVisual != null)
+                    UnityEngine.Object.Destroy(createdVisual);
+
                 if (replaceExistingVisual)
                 {
                     for (int index = 0; index < existingRenderers.Length; index++)
