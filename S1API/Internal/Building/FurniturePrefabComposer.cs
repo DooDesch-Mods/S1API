@@ -183,10 +183,11 @@ namespace S1API.Internal.Building
 
             // Grid build points are ground anchors. Moving one to the model center lowers the
             // footprint below the tile detectors, which makes the ghost invisible and invalid.
+            Vector3 boundsCenterWorld = builtItem.transform.TransformPoint(builtItemBounds.center);
             if (placementMode == FurniturePlacementMode.Surface && builtItem.BuildPoint != null)
-                builtItem.BuildPoint.localPosition = builtItemBounds.center;
+                builtItem.BuildPoint.position = boundsCenterWorld;
             if (builtItem.MidAirCenterPoint != null)
-                builtItem.MidAirCenterPoint.localPosition = builtItemBounds.center;
+                builtItem.MidAirCenterPoint.position = boundsCenterWorld;
         }
 
         private static Bounds CalculateCombinedBounds(

@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using MelonLoader;
 using S1API.Internal.Products;
+using S1API.Internal.Utils;
 using S1API.Items.Buildable;
 using S1API.Logging;
 using S1API.Rendering;
@@ -15,6 +16,7 @@ namespace S1API.Internal.Building
     /// </summary>
     internal static class FurnitureIconRuntime
     {
+        private const int RenderRigWaitFrames = 600;
         private static readonly Log Logger = new Log("FurnitureIconRuntime");
         private static readonly object Gate = new object();
         private static readonly Queue<Request> Pending = new Queue<Request>();
@@ -44,9 +46,8 @@ namespace S1API.Internal.Building
         {
             try
             {
-                const int readinessFrames = 600;
                 int readinessFrame = 0;
-                while (!IconFactory.IsItemIconGeneratorReady && readinessFrame < readinessFrames)
+                while (!IconFactory.IsItemIconGeneratorReady && readinessFrame < RenderRigWaitFrames)
                 {
                     readinessFrame++;
                     yield return null;
@@ -65,8 +66,15 @@ namespace S1API.Internal.Building
                 while (TryDequeue(out Request? request))
                 {
                     IEnumerator requestProcessor = ProcessRequest(request!);
-                    while (requestProcessor.MoveNext())
-                        yield return requestProcessor.Current;
+                    try
+                    {
+                        while (requestProcessor.MoveNext())
+                            yield return requestProcessor.Current;
+                    }
+                    finally
+                    {
+                        (requestProcessor as System.IDisposable)?.Dispose();
+                    }
                 }
             }
             finally
@@ -90,8 +98,22 @@ namespace S1API.Internal.Building
             GameObject? iconModel = null;
             try
             {
-                while (!ProductIconRenderRigArbiter.TryAcquire(renderLease))
+                int acquisitionFrame = 0;
+                bool leaseAcquired = false;
+                while (!(leaseAcquired = ProductIconRenderRigArbiter.TryAcquire(renderLease)) &&
+                       acquisitionFrame < RenderRigWaitFrames)
+                {
+                    acquisitionFrame++;
                     yield return null;
+                }
+
+                if (!leaseAcquired)
+                {
+                    Logger.Warning(
+                        $"Could not generate furniture icon for '{request.Definition.ID}': " +
+                        "the shared item-icon rendering rig remained busy.");
+                    yield break;
+                }
 
                 if (!TryCreatePreview(request, out iconModel, out string failure))
                 {
@@ -161,7 +183,7 @@ namespace S1API.Internal.Building
                     return false;
                 }
 
-                iconModel = Object.Instantiate(request.Model.gameObject);
+                iconModel = InactiveObjectCloner.CloneGameObject(request.Model.gameObject);
                 if (iconModel == null)
                 {
                     failure = "the source model could not be cloned";
@@ -169,6 +191,8 @@ namespace S1API.Internal.Building
                 }
 
                 iconModel.name = $"{request.Model.name}_IconPreview";
+                foreach (Collider collider in iconModel.GetComponentsInChildren<Collider>(true))
+                    collider.enabled = false;
                 iconModel.SetActive(true);
                 failure = string.Empty;
                 return true;
