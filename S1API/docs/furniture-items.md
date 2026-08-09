@@ -38,6 +38,18 @@ var chair = FurnitureCreator.CreateBuilder()
 Grid footprint cells are 0.5 metres. Size the footprint to cover the model's horizontal bounds;
 for example, a model just under one metre wide and deep uses `WithFootprint(2, 2)`.
 
+## Placement ghost
+
+Furniture created with `FurnitureCreator` does not need separate ghost setup. `WithModel(model)`
+uses the supplied model for the placed object, stored item, generated icon, and placement ghost.
+When the native placement system creates a ghost, S1API clones that model into it and prepares the
+clone as a non-interactive placement visual.
+
+`WithGhostVisual(...)` belongs to the lower-level `BuildableItemDefinitionBuilder` path. Use it when
+cloning a native non-furniture buildable, such as a machine or station, whose inherited ghost should
+show a custom model. See [Custom ghosts for cloned buildables](item-builder-reference.md#custom-ghosts-for-cloned-buildables)
+for the complete pattern.
+
 Schedule One exposes native cardboard, wood, and metal placement sounds. `BuildSoundType.Plastic`
 uses the native metal sound as its compatibility fallback.
 
