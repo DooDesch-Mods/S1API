@@ -38,15 +38,37 @@ This page collects the main builder methods, advanced item-instance notes, and i
 - `WithIcon(sprite)` / `WithGeneratedIcon(resolution)` - Configures the inventory icon
 - `Build()` - Composes the native prefabs, registers, and returns the furniture definition
 
-## BuildableItemDefinitionBuilder Ghost Visuals
+## Custom ghosts for cloned buildables
 
-Buildables cloned from a native machine or station can opt into a custom placement visual with
-`WithGhostVisual(visualFactory, replaceExistingVisual)`. S1API invokes the factory after the native
-grid, procedural-grid, or surface placement system creates its ghost, parents and activates the
-returned object, and restores the inherited renderers if the factory fails.
+Use `WithGhostVisual(visualFactory, replaceExistingVisual)` when a buildable cloned from a native
+machine or station needs a different placement model. Furniture created through `FurnitureCreator`
+does not call this method: `WithModel(...)` automatically supplies its placed, stored, icon, and
+ghost visuals.
+
+```csharp
+GameObject ghostModel = LoadMachineModel();
+ghostModel.SetActive(false);
+
+var machine = BuildableItemCreator.CloneFrom("brickpress")
+    .WithBasicInfo(
+        "my-mod:tablet-press",
+        "Tablet Press",
+        "A compact manual tablet press.",
+        ItemCategory.Equipment)
+    .WithGhostVisual(
+        parent => Object.Instantiate(ghostModel, parent, false),
+        replaceExistingVisual: true)
+    .Build();
+```
+
+The factory runs on Unity's main thread whenever the native grid, procedural-grid, or surface
+placement system creates a ghost. It must create and return a fresh `GameObject`; do not return the
+shared source object. S1API parents the result when necessary, activates it, and disables its
+colliders, navigation, networking, canvases, and lights so it behaves as a placement visual.
 
 Set `replaceExistingVisual: true` when the custom visual replaces the cloned native model. Buildables
-that do not call this method retain the game's normal ghost behavior.
+that do not call this method retain the game's normal ghost behavior. If the factory throws or
+returns `null`, S1API removes the partial visual and restores any inherited renderers it hid.
 
 ## Advanced: Custom Item Instances
 
