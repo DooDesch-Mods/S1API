@@ -350,7 +350,33 @@ Dialogue.OnChoiceSelected("LEAVE", () => {
     Debug.Log("Player chose to leave");
     Dialogue.StopOverride(); // Safe to call here
 });
+
+// When any interaction handled by this NPC ends
+Dialogue.OnDialogueEnded(() => {
+    Quest.Advance("talked-to-shopkeeper");
+});
+
+// Enable or disable a controller-level choice by its destination container
+bool updated = Dialogue.SetChoiceEnabled("ShopDialogue", enabled: false);
 ```
+
+`OnNodeDisplayed` matches the node label supplied by the dialogue container and
+`OnChoiceSelected` matches the `ChoiceLabel` of a node choice. Both labels are
+case-insensitive. `OnDialogueEnded` is handler-wide: it does not identify the
+container that ended. It fires when the native handler ends the interaction,
+including when code calls `Dialogue.End()`; the native handler controls the
+exact ordering relative to other dialogue events.
+
+`SetChoiceEnabled` targets a controller-level choice, not a choice inside the
+current dialogue node. Its key is the destination dialogue container name, not
+the displayed choice text. Matching is case-insensitive. The change is live
+runtime state only; it is not saved, synchronized, or applied to node choices.
+The method returns `false` when the NPC has no matching controller choice.
+
+Callbacks are registered on the NPC's current dialogue handler. Callbacks are
+invoked in registration order, duplicate registrations are preserved, and
+`ClearCallbacks()` removes all four callback categories and their native event
+hooks. Callback exceptions are isolated from other callbacks.
 
 ### Important: StopOverride Usage
 
