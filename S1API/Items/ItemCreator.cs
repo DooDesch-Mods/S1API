@@ -145,8 +145,40 @@ namespace S1API.Items
         }
 
         /// <summary>
-        /// Creates an item using the parameter order used before S1API 3.1, without a rank requirement.
-        /// Provided for backwards compatibility with mods compiled against S1API 3.0.x.
+        /// Creates an item using the parameter order from S1API 3.0.0 through 3.0.4, without a rank requirement.
+        /// Provided for source compatibility with nine-argument positional calls.
+        /// </summary>
+        /// <param name="id">Unique identifier for the item (e.g., "my_custom_tool").</param>
+        /// <param name="name">Display name shown in UI.</param>
+        /// <param name="description">Item description shown in tooltips.</param>
+        /// <param name="category">Item category for inventory organization.</param>
+        /// <param name="stackLimit">Maximum quantity per inventory slot.</param>
+        /// <param name="basePurchasePrice">Base price when buying from shops.</param>
+        /// <param name="resellMultiplier">Fraction of purchase price recovered when selling.</param>
+        /// <param name="legalStatus">Whether the item is legal or illegal.</param>
+        /// <param name="legacyIcon">Optional sprite to use as the item icon.</param>
+        /// <returns>A wrapper around the created item definition.</returns>
+        /// <remarks>
+        /// The distinct parameter name keeps calls that target the current overload with <c>icon:</c> unambiguous.
+        /// </remarks>
+        [Obsolete("Use the overload with requiresLevelToPurchase and requiredRank. This compatibility overload may be removed in a future S1API version.")]
+        public static StorableItemDefinition CreateItem(
+            string id,
+            string name,
+            string description,
+            ItemCategory category,
+            int stackLimit,
+            float basePurchasePrice,
+            float resellMultiplier,
+            LegalStatus legalStatus,
+            Sprite? legacyIcon) =>
+            CreateItem(id, name, description, category, stackLimit, basePurchasePrice,
+                resellMultiplier, legalStatus, requiresLevelToPurchase: false, requiredRank: null,
+                icon: legacyIcon, equippable: null);
+
+        /// <summary>
+        /// Creates an item using the parameter order from S1API 3.0.0 through 3.0.4, without a rank requirement.
+        /// Provided for binary compatibility with mods compiled against those versions.
         /// </summary>
         /// <param name="id">Unique identifier for the item (e.g., "my_custom_tool").</param>
         /// <param name="name">Display name shown in UI.</param>
@@ -160,11 +192,9 @@ namespace S1API.Items
         /// <param name="equippable">Optional equippable component to attach.</param>
         /// <returns>A wrapper around the created item definition.</returns>
         /// <remarks>
-        /// 3.1 inserted <c>requiresLevelToPurchase</c> and <c>requiredRank</c> before <c>icon</c>. Optional
-        /// parameters are source-compatible, so nothing failed to compile, but the ten-parameter method a
-        /// 3.0.x mod was compiled against no longer exists and throws <see cref="MissingMethodException"/>
-        /// when the feature runs. This overload declares no default values, so it is reachable only by an
-        /// exact ten-argument call in the old order and no existing call site rebinds to it.
+        /// S1API 3.0.5 inserted <c>requiresLevelToPurchase</c> and <c>requiredRank</c> before <c>icon</c>.
+        /// This overload retains the former ten-parameter binary signature. Its parameters remain required
+        /// so current calls that use the named <c>icon</c> parameter continue to bind unambiguously.
         /// </remarks>
         [Obsolete("Use the overload with requiresLevelToPurchase and requiredRank. This compatibility overload may be removed in a future S1API version.")]
         public static StorableItemDefinition CreateItem(
@@ -177,12 +207,10 @@ namespace S1API.Items
             float resellMultiplier,
             LegalStatus legalStatus,
             Sprite? icon,
-            Equippable? equippable)
-        {
-            return CreateItem(id, name, description, category, stackLimit, basePurchasePrice,
+            Equippable? equippable) =>
+            CreateItem(id, name, description, category, stackLimit, basePurchasePrice,
                 resellMultiplier, legalStatus, requiresLevelToPurchase: false, requiredRank: null,
                 icon: icon, equippable: equippable);
-        }
 
         /// <summary>
         /// Creates a new equippable builder for creating custom equippable components.
