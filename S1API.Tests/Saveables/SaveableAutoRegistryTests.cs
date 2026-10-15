@@ -3,8 +3,15 @@ using S1API.Saveables;
 
 namespace S1API.Tests.Saveables;
 
+/// <summary>
+/// Freezes which types <see cref="SaveableAutoRegistry"/> discovers and how it caches their instances.
+/// </summary>
 public sealed class SaveableAutoRegistryTests
 {
+    /// <summary>
+    /// A direct, concrete <see cref="Saveable"/> subclass is registered; indirect and abstract subclasses and
+    /// S1API's own types are not.
+    /// </summary>
     [Fact]
     public void DiscoveryRegistersOnlyDirectConcreteSaveablesOutsideS1Api()
     {
@@ -26,6 +33,9 @@ public sealed class SaveableAutoRegistryTests
         }
     }
 
+    /// <summary>
+    /// Discovery creates each saveable once; later calls return the cached instance.
+    /// </summary>
     [Fact]
     public void DiscoveryReturnsTheSameInstanceOnRepeatedCalls()
     {

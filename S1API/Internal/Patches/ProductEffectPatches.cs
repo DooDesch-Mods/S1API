@@ -294,6 +294,10 @@ namespace S1API.Internal.Patches
             }
         }
 
+        /// <summary>
+        /// Maps each NPC ID to the concrete S1API NPC wrapper type that declares it through a public static
+        /// <c>NPCId</c> string property. The first wrapper found for an ID wins; the map is built once and cached.
+        /// </summary>
         private static Dictionary<string, Type> GetNpcWrapperTypeById()
         {
             if (_npcWrapperTypeById != null)
