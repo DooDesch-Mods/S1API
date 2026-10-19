@@ -25,6 +25,9 @@ namespace S1API.Vehicles
         private S1Player? _observedOccupant;
         private Player? _observedPlayer;
 
+        /// <summary>Captures seat metadata and initial occupancy without emitting a change event.</summary>
+        /// <param name="index">The seat's index in the native vehicle seat array.</param>
+        /// <param name="seat">The native seat, or null for an unavailable array slot.</param>
         internal VehicleSeatInfo(int index, S1Vehicles.VehicleSeat? seat)
         {
             Index = index;
@@ -58,6 +61,11 @@ namespace S1API.Vehicles
         /// </remarks>
         public event Action<Player?, Player?>? OccupantChanged;
 
+        /// <summary>Updates observed occupancy and notifies subscribers when native player identity changes.</summary>
+        /// <remarks>
+        /// Updates the observed state before notifying. A managed-wrapper change alone does not notify;
+        /// a native identity change still notifies when both managed occupants are unavailable.
+        /// </remarks>
         internal void Refresh()
         {
             var current = ReadOccupant();
@@ -74,6 +82,7 @@ namespace S1API.Vehicles
             NotifyOccupantChanged(previous, player);
         }
 
+        /// <summary>Clears occupancy and subscriptions without notifying, retaining the seat's index and driver metadata.</summary>
         internal void Invalidate()
         {
             _seat = null;
@@ -82,6 +91,10 @@ namespace S1API.Vehicles
             OccupantChanged = null;
         }
 
+        /// <summary>Invokes the current occupant-change subscribers, isolating each subscriber's exceptions.</summary>
+        /// <param name="previous">The previous managed occupant, or null if empty or unavailable.</param>
+        /// <param name="current">The current managed occupant, or null if empty or unavailable.</param>
+        /// <remarks>Both arguments may be null; this method does not suppress duplicate notifications.</remarks>
         internal void NotifyOccupantChanged(Player? previous, Player? current)
         {
             var handlers = OccupantChanged;
@@ -108,6 +121,8 @@ namespace S1API.Vehicles
             }
         }
 
+        /// <summary>Reads the live native occupant.</summary>
+        /// <returns>Null if the seat or occupant is missing or destroyed; otherwise the native player.</returns>
         private S1Player? ReadOccupant()
         {
             if (ReferenceEquals(_seat, null) || _seat == null)
@@ -116,6 +131,10 @@ namespace S1API.Vehicles
             return ReferenceEquals(occupant, null) || occupant == null ? null : occupant;
         }
 
+        /// <summary>Compares player identity without treating a destroyed Unity object as null.</summary>
+        /// <param name="left">The first native player, or null.</param>
+        /// <param name="right">The second native player, or null.</param>
+        /// <returns>Whether native pointers match on IL2CPP or managed references match on Mono.</returns>
         private static bool SameIdentity(S1Player? left, S1Player? right)
         {
             // Unity equality treats a destroyed player as null, which would hide disconnects.
@@ -126,6 +145,9 @@ namespace S1API.Vehicles
 #endif
         }
 
+        /// <summary>Finds the first managed player with the supplied native identity in <see cref="Player.All"/>.</summary>
+        /// <param name="native">The native player to resolve, or null.</param>
+        /// <returns>The matching managed player, or null if the input is null or no match exists.</returns>
         private static Player? ResolvePlayer(S1Player? native)
         {
             if (ReferenceEquals(native, null))

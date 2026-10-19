@@ -35,6 +35,7 @@ namespace S1API
             }
         }
 
+        /// <summary>Releases tracked seats and resets internal runtime systems when the mod shuts down.</summary>
         public override void OnDeinitializeMelon()
         {
             Internal.Vehicles.VehicleSeats.Clear();
@@ -49,6 +50,7 @@ namespace S1API
             UnityExceptionTraceHook.Remove();
         }
 
+        /// <summary>Refreshes tracked seat occupancy and advances the API's runtime systems each frame.</summary>
         public override void OnUpdate()
         {
             Internal.Vehicles.VehicleSeats.Tick();
@@ -71,6 +73,9 @@ namespace S1API
             }
         }
 
+        /// <summary>Clears tracked seats and scene state, resetting the game lifecycle when Main unloads.</summary>
+        /// <param name="buildIndex">The unloaded scene's build index; unused by this callback.</param>
+        /// <param name="sceneName">The unloaded scene's name; Main and Tutorial receive additional cleanup.</param>
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
             Internal.Vehicles.VehicleSeats.Clear();

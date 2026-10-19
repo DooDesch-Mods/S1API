@@ -18,6 +18,12 @@ namespace S1API.Internal.Vehicles
         private static readonly IReadOnlyList<VehicleSeatInfo> Empty = Array.AsReadOnly(Array.Empty<VehicleSeatInfo>());
         private static bool _lifecycleHooked;
 
+        /// <summary>Gets or creates shared seat wrappers and registers scene cleanup on first caching.</summary>
+        /// <param name="vehicle">The native vehicle, which may be null or destroyed.</param>
+        /// <returns>
+        /// The cached read-only collection in native array order, including wrappers for null slots,
+        /// or an empty collection if the vehicle or its seat array is unavailable.
+        /// </returns>
         internal static IReadOnlyList<VehicleSeatInfo> Get(S1Vehicles.LandVehicle? vehicle)
         {
             if (ReferenceEquals(vehicle, null) || vehicle == null)
@@ -41,12 +47,18 @@ namespace S1API.Internal.Vehicles
             return seats;
         }
 
+        /// <summary>Refreshes one cached seat, notifying subscribers if its native occupant changed.</summary>
+        /// <param name="vehicle">The vehicle whose cached seat should be refreshed.</param>
+        /// <param name="index">The native seat-array index; out-of-range indices are ignored.</param>
+        /// <remarks>Does nothing if the vehicle has no cached seat collection.</remarks>
         internal static void Refresh(S1Vehicles.LandVehicle vehicle, int index)
         {
             if (Cache.TryGetValue(vehicle, out var seats) && index >= 0 && index < seats.Count)
                 seats[index].Refresh();
         }
 
+        /// <summary>Refreshes cached seats and removes destroyed vehicles during an API update.</summary>
+        /// <remarks>Occupant changes can notify subscribers; removing a vehicle does not emit exits.</remarks>
         internal static void Tick()
         {
             if (Cache.Count == 0)
@@ -62,6 +74,8 @@ namespace S1API.Internal.Vehicles
             }
         }
 
+        /// <summary>Removes cached seats and releases their subscriptions without emitting exit events.</summary>
+        /// <param name="vehicle">The vehicle to remove; an uncached vehicle is ignored.</param>
         internal static void Remove(S1Vehicles.LandVehicle vehicle)
         {
             if (!Cache.TryGetValue(vehicle, out var seats))
@@ -71,6 +85,7 @@ namespace S1API.Internal.Vehicles
                 seat.Invalidate();
         }
 
+        /// <summary>Invalidates all cached seats and releases their subscriptions without emitting exit events.</summary>
         internal static void Clear()
         {
             foreach (var seats in Cache.Values)

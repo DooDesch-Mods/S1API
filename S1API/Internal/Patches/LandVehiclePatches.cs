@@ -13,6 +13,8 @@ namespace S1API.Internal.Patches
     [HarmonyPatch(typeof(S1Vehicles.LandVehicle))]
     internal class LandVehiclePatches
     {
+        /// <summary>Invalidates cached seats and attempts to remove the destroyed vehicle from vehicle tracking.</summary>
+        /// <param name="__instance">The vehicle whose native destruction callback has completed.</param>
         [HarmonyPatch("OnDestroy")]
         [HarmonyPostfix]
         public static void OnDestroy(S1Vehicles.LandVehicle __instance) {
