@@ -16,6 +16,7 @@ namespace S1API.Internal.Patches
         [HarmonyPatch("OnDestroy")]
         [HarmonyPostfix]
         public static void OnDestroy(S1Vehicles.LandVehicle __instance) {
+            Internal.Vehicles.VehicleSeats.Remove(__instance);
             try
             {
                 if (__instance != null)

@@ -37,6 +37,7 @@ namespace S1API
 
         public override void OnDeinitializeMelon()
         {
+            Internal.Vehicles.VehicleSeats.Clear();
             Internal.Compatibility.AvatarCompatibility.ResetRendering();
             Rendering.IconFactory.ResetAccessoryIconState();
             WeatherRuntime.ResetBindings();
@@ -50,6 +51,7 @@ namespace S1API
 
         public override void OnUpdate()
         {
+            Internal.Vehicles.VehicleSeats.Tick();
             WeatherRuntime.Tick();
             PresentationWorkbenchRuntime.Tick();
             CutsceneManager.Tick(UnityEngine.Time.unscaledDeltaTime);
@@ -71,6 +73,7 @@ namespace S1API
 
         public override void OnSceneWasUnloaded(int buildIndex, string sceneName)
         {
+            Internal.Vehicles.VehicleSeats.Clear();
             NPCWorkbenchRuntime.Close();
             PresentationWorkbenchRuntime.Close();
             CutsceneManager.CleanupForSceneChange();
