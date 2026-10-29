@@ -1669,6 +1669,7 @@ namespace S1API.Entities
                     .Where(type => type.Assembly != baseAssembly);
 
                 bool ownsBatch = BeginSpawnablePrefabBatch(spawnables);
+                NPCDataAccess.BeginLookupBatch();
                 try
                 {
                     foreach (System.Type type in candidateTypes.OrderBy(
@@ -1680,6 +1681,7 @@ namespace S1API.Entities
                 }
                 finally
                 {
+                    NPCDataAccess.EndLookupBatch();
                     if (ownsBatch)
                         FlushSpawnablePrefabBatch();
                 }
