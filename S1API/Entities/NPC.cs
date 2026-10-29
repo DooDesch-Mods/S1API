@@ -1236,6 +1236,16 @@ namespace S1API.Entities
             spawnablePrefabs.AddObject(prefabNO);
         }
 
+        /// <summary>
+        /// Registers a spawnable prefab that is created while an NPC prefab is built (a supplier delivery
+        /// vehicle). During a pre-registration batch it is queued behind the NPC prefabs built before it, so
+        /// FishNet assigns the same prefab ids as registering everything one at a time.
+        /// </summary>
+        internal static void RegisterSpawnablePrefabInOrder(PrefabObjects spawnablePrefabs, NetworkObject prefab)
+        {
+            RegisterSpawnablePrefab(spawnablePrefabs, prefab, prefab.gameObject.name);
+        }
+
         private static void FinalizeSupplierPrefabIfNeeded(System.Type npcType, GameObject prefabRoot)
         {
             if (prefabRoot == null || GetDeclaredRootRole(npcType) != NpcRootRole.Supplier)
