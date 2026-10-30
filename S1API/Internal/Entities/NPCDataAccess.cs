@@ -167,6 +167,17 @@ namespace S1API.Internal.Entities
             return ApplyToData(npc, data => data.Appearance.Mugshot = icon);
         }
 
+        internal static bool ApplyDefaultRelationshipValue(S1NPCs.NPC npc, float value)
+        {
+            return ApplyToData(npc, data =>
+            {
+                if (data.Relationship == null)
+                    throw new InvalidOperationException("The custom NPC data has no relationship settings.");
+
+                data.Relationship.DefaultRelationshipValue = value;
+            });
+        }
+
         internal static Sprite? GetIcon(S1NPCs.NPC npc) =>
             GetCurrentData(npc)?.Appearance?.Mugshot;
 
