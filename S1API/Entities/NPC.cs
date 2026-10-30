@@ -955,6 +955,7 @@ namespace S1API.Entities
 
             if (TypeToPrefab.TryGetValue(npcType, out var cached) && cached != null)
             {
+                RetryFailedSpawnablePrefab(cached);
                 FinalizeSupplierPrefabIfNeeded(npcType, cached);
                 MarkPrefabsConfigured();
                 return cached;
@@ -964,6 +965,7 @@ namespace S1API.Entities
             {
                 if (TypeToPrefab.TryGetValue(npcType, out cached) && cached != null)
                 {
+                    RetryFailedSpawnablePrefab(cached);
                     FinalizeSupplierPrefabIfNeeded(npcType, cached);
                     MarkPrefabsConfigured();
                     return cached;
@@ -1136,22 +1138,7 @@ namespace S1API.Entities
                 try
                 {
                     if (spawnablePrefabs != null)
-                    {
-                        bool alreadyRegistered = false;
-                        int existingCount = spawnablePrefabs.GetObjectCount();
-                        for (int i = 0; i < existingCount; i++)
-                        {
-                            NetworkObject existing = spawnablePrefabs.GetObject(true, i);
-                            if (existing != null && existing.gameObject != null && existing.gameObject.name == prefabName)
-                            {
-                                alreadyRegistered = true;
-                                break;
-                            }
-                        }
-
-                        if (!alreadyRegistered)
-                            spawnablePrefabs.AddObject(prefabNO);
-                    }
+                        RegisterSpawnablePrefab(spawnablePrefabs, prefabNO, prefabName);
                 }
                 catch (Exception ex)
                 {
@@ -1165,6 +1152,111 @@ namespace S1API.Entities
                 MarkPrefabsConfigured();
                 return prefabNO.gameObject;
             }
+        }
+
+        // FishNet's SinglePrefabObjects.AddObject re-initializes every spawnable prefab (InitializePrefabRange(0)),
+        // so registering NPC prefabs one at a time costs O(n^2) on the main thread: several seconds per 50 NPCs
+        // once a few hundred are installed, while the main menu stays frozen. A pre-registration pass queues the
+        // prefabs here and hands them to FishNet in one AddObjects call, which assigns the same prefab ids.
+        private static PrefabObjects? _batchSpawnablePrefabs;
+        private static SpawnablePrefabBatch<NetworkObject>? _pendingSpawnablePrefabs;
+        private static readonly PrefabRegistrationFailures<NetworkObject> FailedSpawnablePrefabs =
+            new PrefabRegistrationFailures<NetworkObject>();
+
+        private static void RetryFailedSpawnablePrefab(GameObject prefab)
+        {
+            try
+            {
+                FailedSpawnablePrefabs.Retry(prefab.name, failed =>
+                {
+                    var spawnables = InstanceFinder.NetworkManager?.SpawnablePrefabs;
+                    if (spawnables == null)
+                        throw new InvalidOperationException("SpawnablePrefabs is not available for registration retry.");
+
+                    spawnables.AddObject(failed, true);
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to retry registration of {prefab.name} in SpawnablePrefabs: {ex.Message}");
+            }
+        }
+
+        private static bool BeginSpawnablePrefabBatch(PrefabObjects spawnablePrefabs)
+        {
+            if (_pendingSpawnablePrefabs != null)
+                return false;
+
+            var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            int count = spawnablePrefabs.GetObjectCount();
+            for (int i = 0; i < count; i++)
+            {
+                NetworkObject existing = spawnablePrefabs.GetObject(true, i);
+                if (existing != null && existing.gameObject != null)
+                    names.Add(existing.gameObject.name);
+            }
+
+            _batchSpawnablePrefabs = spawnablePrefabs;
+            _pendingSpawnablePrefabs = new SpawnablePrefabBatch<NetworkObject>(names);
+            return true;
+        }
+
+        private static void FlushSpawnablePrefabBatch()
+        {
+            var target = _batchSpawnablePrefabs;
+            var pending = _pendingSpawnablePrefabs;
+            _batchSpawnablePrefabs = null;
+            _pendingSpawnablePrefabs = null;
+            if (target == null || pending == null || pending.Count == 0)
+                return;
+
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            pending.Register(
+                prefabs =>
+                {
+                    var batch = new List<NetworkObject>();
+                    foreach (var prefab in prefabs)
+                        batch.Add(prefab);
+                    target.AddObjects(batch, false);
+                    Logger.Debug($"Registered {pending.Count} spawnable prefab(s) in {stopwatch.ElapsedMilliseconds} ms.");
+                },
+                prefab => target.AddObject(prefab, true),
+                ex => Logger.Warning($"Batch registration of {pending.Count} spawnable prefab(s) failed, registering one by one: {ex.Message}"),
+                (prefab, ex) =>
+                {
+                    if (prefab != null && prefab.gameObject != null)
+                        FailedSpawnablePrefabs.Record(prefab.gameObject.name, prefab);
+                    Logger.Warning($"Failed to register {(prefab != null ? prefab.name : "<null>")} in SpawnablePrefabs: {ex.Message}");
+                });
+        }
+
+        private static void RegisterSpawnablePrefab(PrefabObjects spawnablePrefabs, NetworkObject prefabNO, string prefabName)
+        {
+            if (_pendingSpawnablePrefabs != null && ReferenceEquals(_batchSpawnablePrefabs, spawnablePrefabs))
+            {
+                _pendingSpawnablePrefabs.Add(prefabName, prefabNO);
+                return;
+            }
+
+            int existingCount = spawnablePrefabs.GetObjectCount();
+            for (int i = 0; i < existingCount; i++)
+            {
+                NetworkObject existing = spawnablePrefabs.GetObject(true, i);
+                if (existing != null && existing.gameObject != null && existing.gameObject.name == prefabName)
+                    return;
+            }
+
+            spawnablePrefabs.AddObject(prefabNO);
+        }
+
+        /// <summary>
+        /// Registers a spawnable prefab that is created while an NPC prefab is built (a supplier delivery
+        /// vehicle). During a pre-registration batch it is queued behind the NPC prefabs built before it, so
+        /// FishNet assigns the same prefab ids as registering everything one at a time.
+        /// </summary>
+        internal static void RegisterSpawnablePrefabInOrder(PrefabObjects spawnablePrefabs, NetworkObject prefab)
+        {
+            RegisterSpawnablePrefab(spawnablePrefabs, prefab, prefab.gameObject.name);
         }
 
         private static void FinalizeSupplierPrefabIfNeeded(System.Type npcType, GameObject prefabRoot)
@@ -1599,11 +1691,22 @@ namespace S1API.Entities
                 var candidateTypes = ReflectionUtils.GetDerivedClasses<NPC>()
                     .Where(type => type.Assembly != baseAssembly);
 
-                foreach (System.Type type in candidateTypes.OrderBy(
-                             candidate => candidate.FullName,
-                             StringComparer.Ordinal))
+                bool ownsBatch = BeginSpawnablePrefabBatch(spawnables);
+                NPCDataAccess.BeginLookupBatch();
+                try
                 {
-                    PreRegisterPrefabForTypeInternal(type);
+                    foreach (System.Type type in candidateTypes.OrderBy(
+                                 candidate => candidate.FullName,
+                                 StringComparer.Ordinal))
+                    {
+                        PreRegisterPrefabForTypeInternal(type);
+                    }
+                }
+                finally
+                {
+                    NPCDataAccess.EndLookupBatch();
+                    if (ownsBatch)
+                        FlushSpawnablePrefabBatch();
                 }
 
                 SupplierRuntimeCoordinator.EnsureAllDeliveryPrefabsRegistered();
