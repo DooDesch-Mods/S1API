@@ -3988,6 +3988,7 @@ namespace S1API.Entities
             {
                 if (S1NPC.RelationData != null)
                 {
+                    gameObject.GetComponent<NPCPrefabIdentity>()?.ApplyDefaultRelationshipValue(S1NPC);
                     S1NPC.RelationData.Init(S1NPC);
                 }
                 else
