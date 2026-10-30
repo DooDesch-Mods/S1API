@@ -1157,8 +1157,7 @@ namespace S1API.Entities
         // once a few hundred are installed, while the main menu stays frozen. A pre-registration pass queues the
         // prefabs here and hands them to FishNet in one AddObjects call, which assigns the same prefab ids.
         private static PrefabObjects? _batchSpawnablePrefabs;
-        private static System.Collections.Generic.List<NetworkObject>? _pendingSpawnablePrefabs;
-        private static System.Collections.Generic.HashSet<string>? _batchSpawnableNames;
+        private static SpawnablePrefabBatch<NetworkObject>? _pendingSpawnablePrefabs;
 
         private static bool BeginSpawnablePrefabBatch(PrefabObjects spawnablePrefabs)
         {
@@ -1175,8 +1174,7 @@ namespace S1API.Entities
             }
 
             _batchSpawnablePrefabs = spawnablePrefabs;
-            _batchSpawnableNames = names;
-            _pendingSpawnablePrefabs = new System.Collections.Generic.List<NetworkObject>();
+            _pendingSpawnablePrefabs = new SpawnablePrefabBatch<NetworkObject>(names);
             return true;
         }
 
@@ -1186,42 +1184,29 @@ namespace S1API.Entities
             var pending = _pendingSpawnablePrefabs;
             _batchSpawnablePrefabs = null;
             _pendingSpawnablePrefabs = null;
-            _batchSpawnableNames = null;
             if (target == null || pending == null || pending.Count == 0)
                 return;
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-            try
-            {
-                var batch = new List<NetworkObject>();
-                foreach (var prefab in pending)
-                    batch.Add(prefab);
-                target.AddObjects(batch, false);
-                Logger.Msg($"[S1API][NPCPrefabRegistration] Registered {pending.Count} NPC prefab(s) in SpawnablePrefabs in {stopwatch.ElapsedMilliseconds} ms.");
-            }
-            catch (Exception ex)
-            {
-                Logger.Warning($"[S1API][NPCPrefabRegistration] Batch registration of {pending.Count} NPC prefab(s) failed, registering one by one: {ex.Message}");
-                foreach (var prefab in pending)
+            pending.Register(
+                prefabs =>
                 {
-                    try
-                    {
-                        target.AddObject(prefab, true);
-                    }
-                    catch (Exception inner)
-                    {
-                        Logger.Warning($"[S1API] Failed to register {(prefab != null ? prefab.name : "<null>")} in SpawnablePrefabs: {inner.Message}");
-                    }
-                }
-            }
+                    var batch = new List<NetworkObject>();
+                    foreach (var prefab in prefabs)
+                        batch.Add(prefab);
+                    target.AddObjects(batch, false);
+                    Logger.Debug($"Registered {pending.Count} spawnable prefab(s) in {stopwatch.ElapsedMilliseconds} ms.");
+                },
+                prefab => target.AddObject(prefab, true),
+                ex => Logger.Warning($"Batch registration of {pending.Count} spawnable prefab(s) failed, registering one by one: {ex.Message}"),
+                (prefab, ex) => Logger.Warning($"Failed to register {(prefab != null ? prefab.name : "<null>")} in SpawnablePrefabs: {ex.Message}"));
         }
 
         private static void RegisterSpawnablePrefab(PrefabObjects spawnablePrefabs, NetworkObject prefabNO, string prefabName)
         {
-            if (_pendingSpawnablePrefabs != null && _batchSpawnableNames != null && ReferenceEquals(_batchSpawnablePrefabs, spawnablePrefabs))
+            if (_pendingSpawnablePrefabs != null && ReferenceEquals(_batchSpawnablePrefabs, spawnablePrefabs))
             {
-                if (_batchSpawnableNames.Add(prefabName))
-                    _pendingSpawnablePrefabs.Add(prefabNO);
+                _pendingSpawnablePrefabs.Add(prefabName, prefabNO);
                 return;
             }
 
