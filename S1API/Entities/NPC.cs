@@ -955,6 +955,7 @@ namespace S1API.Entities
 
             if (TypeToPrefab.TryGetValue(npcType, out var cached) && cached != null)
             {
+                RetryFailedSpawnablePrefab(cached);
                 FinalizeSupplierPrefabIfNeeded(npcType, cached);
                 MarkPrefabsConfigured();
                 return cached;
@@ -964,6 +965,7 @@ namespace S1API.Entities
             {
                 if (TypeToPrefab.TryGetValue(npcType, out cached) && cached != null)
                 {
+                    RetryFailedSpawnablePrefab(cached);
                     FinalizeSupplierPrefabIfNeeded(npcType, cached);
                     MarkPrefabsConfigured();
                     return cached;
@@ -1158,6 +1160,27 @@ namespace S1API.Entities
         // prefabs here and hands them to FishNet in one AddObjects call, which assigns the same prefab ids.
         private static PrefabObjects? _batchSpawnablePrefabs;
         private static SpawnablePrefabBatch<NetworkObject>? _pendingSpawnablePrefabs;
+        private static readonly PrefabRegistrationFailures<NetworkObject> FailedSpawnablePrefabs =
+            new PrefabRegistrationFailures<NetworkObject>();
+
+        private static void RetryFailedSpawnablePrefab(GameObject prefab)
+        {
+            try
+            {
+                FailedSpawnablePrefabs.Retry(prefab.name, failed =>
+                {
+                    var spawnables = InstanceFinder.NetworkManager?.SpawnablePrefabs;
+                    if (spawnables == null)
+                        throw new InvalidOperationException("SpawnablePrefabs is not available for registration retry.");
+
+                    spawnables.AddObject(failed, true);
+                });
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning($"Failed to retry registration of {prefab.name} in SpawnablePrefabs: {ex.Message}");
+            }
+        }
 
         private static bool BeginSpawnablePrefabBatch(PrefabObjects spawnablePrefabs)
         {
@@ -1199,7 +1222,12 @@ namespace S1API.Entities
                 },
                 prefab => target.AddObject(prefab, true),
                 ex => Logger.Warning($"Batch registration of {pending.Count} spawnable prefab(s) failed, registering one by one: {ex.Message}"),
-                (prefab, ex) => Logger.Warning($"Failed to register {(prefab != null ? prefab.name : "<null>")} in SpawnablePrefabs: {ex.Message}"));
+                (prefab, ex) =>
+                {
+                    if (prefab != null && prefab.gameObject != null)
+                        FailedSpawnablePrefabs.Record(prefab.gameObject.name, prefab);
+                    Logger.Warning($"Failed to register {(prefab != null ? prefab.name : "<null>")} in SpawnablePrefabs: {ex.Message}");
+                });
         }
 
         private static void RegisterSpawnablePrefab(PrefabObjects spawnablePrefabs, NetworkObject prefabNO, string prefabName)
