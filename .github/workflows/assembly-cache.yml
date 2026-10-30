@@ -9,7 +9,7 @@ on:
     - cron: '23 5 * * *'
   workflow_dispatch:
 
-# Never run PR code with assembly-repository credentials. All entries are
+# Never run PR code with assembly-repository credentials. All
 # scheduled entries are published in the default branch's scope so fork PRs
 # can restore them. Manual branch runs allow testing before merge.
 permissions:
@@ -57,16 +57,24 @@ jobs:
             prefix=game-assemblies-v6
             target=Managed
             mkdir -p "$bundle/$target"
-            cp -a assembly-source/Managed/. "$bundle/$target/"
-            cp -a assembly-source/MelonLoader/. "$bundle/MelonLoader/"
+            if [[ -d assembly-source/Managed ]]; then
+              cp -a assembly-source/Managed/. "$bundle/$target/"
+            fi
+            if [[ -d assembly-source/MelonLoader ]]; then
+              cp -a assembly-source/MelonLoader/. "$bundle/MelonLoader/"
+            fi
             required=(Assembly-CSharp.dll ScheduleOne.Core.dll Unity.TextMeshPro.dll Unity.Burst.dll)
             loader_required=(0Harmony.dll MelonLoader.dll)
           else
             prefix=il2cpp-game-assemblies-v7
             target=Il2CppAssemblies
             mkdir -p "$bundle/$target"
-            cp -a assembly-source/MelonLoader/Il2CppAssemblies/. "$bundle/$target/"
-            cp -a assembly-source/MelonLoader/net6/. "$bundle/MelonLoader/"
+            if [[ -d assembly-source/MelonLoader/Il2CppAssemblies ]]; then
+              cp -a assembly-source/MelonLoader/Il2CppAssemblies/. "$bundle/$target/"
+            fi
+            if [[ -d assembly-source/MelonLoader/net6 ]]; then
+              cp -a assembly-source/MelonLoader/net6/. "$bundle/MelonLoader/"
+            fi
             required=(Assembly-CSharp.dll Il2Cppmscorlib.dll UnityEngine.dll
               UnityEngine.CoreModule.dll UnityEngine.UI.dll UnityEngine.InputLegacyModule.dll
               UnityEngine.UIModule.dll UnityEngine.JSONSerializeModule.dll

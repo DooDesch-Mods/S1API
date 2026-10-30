@@ -184,6 +184,7 @@ jobs:
         if: steps.cache-il2cpp-assemblies.outputs.cache-matched-key == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
 
       - name: Verify IL2CPP Assembly Copies
+        id: verify-assemblies
         run: |
           echo "=== Verifying IL2CPP Assembly Structure ==="
           ls -la S1API/ScheduleOneAssemblies/
@@ -216,7 +217,7 @@ jobs:
           )
 
           for ASSEMBLY in "${REQUIRED_UNITY_ASSEMBLIES[@]}"; do
-            if [ -f "S1API/ScheduleOneAssemblies/Il2CppAssemblies/$ASSEMBLY" ]; then
+            if [ -s "S1API/ScheduleOneAssemblies/Il2CppAssemblies/$ASSEMBLY" ]; then
               echo "✓ Found $ASSEMBLY"
               ls -l "S1API/ScheduleOneAssemblies/Il2CppAssemblies/$ASSEMBLY" | awk '{print "  " $9 " (" $5 " bytes)"}'
             else
@@ -231,7 +232,7 @@ jobs:
           echo ""
           echo ""
           echo "=== MelonLoader Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll ]; then
             echo "✓ Found 0Harmony.dll (net6)"
             ls -l S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll
           else
@@ -245,6 +246,7 @@ jobs:
           echo ""
           echo "=== Il2CppInterop Assembly Check ==="
           REQUIRED_IL2CPP_INTEROP_ASSEMBLIES=(
+            "MelonLoader.dll"
             "Il2CppInterop.Runtime.dll"
             "Il2CppInterop.Common.dll"
             "Il2CppInterop.HarmonySupport.dll"
@@ -253,7 +255,7 @@ jobs:
           )
 
           for ASSEMBLY in "${REQUIRED_IL2CPP_INTEROP_ASSEMBLIES[@]}"; do
-            if [ -f "S1API/ScheduleOneAssemblies/MelonLoader/$ASSEMBLY" ]; then
+            if [ -s "S1API/ScheduleOneAssemblies/MelonLoader/$ASSEMBLY" ]; then
               echo "✓ Found $ASSEMBLY"
               ls -l "S1API/ScheduleOneAssemblies/MelonLoader/$ASSEMBLY" | awk '{print "  " $9 " (" $5 " bytes)"}'
             else
@@ -281,14 +283,7 @@ jobs:
           else
             echo "✓ Using fresh IL2CPP assemblies from repository"
           fi
-
-      # Save only verified non-empty assembly caches.
-      - name: Save IL2CPP Game Assemblies to Cache
-        uses: actions/cache/save@v4
-        if: success() && github.event_name != 'pull_request' && hashFiles('S1API/ScheduleOneAssemblies/Il2CppAssemblies/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/Il2CppInterop.Runtime.dll') != ''
-        with:
-          path: S1API/ScheduleOneAssemblies
-          key: il2cpp-game-assemblies-${{ env.IL2CPP_ASSEMBLIES_CACHE_VERSION }}-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          echo "cache_ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Create CI Build Properties
         run: |
@@ -410,6 +405,14 @@ jobs:
 
       - name: Build S1API (IL2CPP)
         run: dotnet build S1API/S1API.csproj --no-restore -c Il2CppMelon -v normal
+
+      # Save only verified non-empty assembly caches.
+      - name: Save IL2CPP Game Assemblies to Cache
+        uses: actions/cache/save@v4
+        if: success() && github.event_name != 'pull_request' && steps.verify-assemblies.outputs.cache_ready == 'true'
+        with:
+          path: S1API/ScheduleOneAssemblies
+          key: il2cpp-game-assemblies-${{ env.IL2CPP_ASSEMBLIES_CACHE_VERSION }}-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload S1API Il2Cpp Artifact
         uses: actions/upload-artifact@v4

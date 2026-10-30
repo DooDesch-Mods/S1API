@@ -161,6 +161,7 @@ jobs:
         if: steps.cache-assemblies.outputs.cache-matched-key == '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
 
       - name: Verify Assembly Copies
+        id: verify-assemblies
         run: |
           echo "=== Verifying Assembly Structure ==="
           ls -la S1API/ScheduleOneAssemblies/
@@ -172,7 +173,7 @@ jobs:
           ls -la S1API/ScheduleOneAssemblies/MelonLoader/ | head -10
           echo ""
           echo "=== Critical Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll ]; then
             echo "✓ Found Assembly-CSharp.dll"
             ls -l S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll
           else
@@ -184,7 +185,7 @@ jobs:
           fi
           echo ""
           echo "=== TextMeshPro Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/Managed/Unity.TextMeshPro.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/Managed/Unity.TextMeshPro.dll ]; then
             echo "✓ Found Unity.TextMeshPro.dll"
             ls -l S1API/ScheduleOneAssemblies/Managed/Unity.TextMeshPro.dll
           else
@@ -198,7 +199,7 @@ jobs:
           fi
           echo ""
           echo "=== Burst Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll ]; then
             echo "✓ Found Unity.Burst.dll"
             ls -l S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll
           else
@@ -207,7 +208,7 @@ jobs:
           fi
           echo ""
           echo "=== MelonLoader Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll ]; then
             echo "✓ Found 0Harmony.dll"
             ls -l S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll
           else
@@ -223,14 +224,15 @@ jobs:
           else
             echo "✓ Using fresh assemblies from repository"
           fi
-
-      # Save only verified non-empty assembly caches.
-      - name: Save Game Assemblies to Cache
-        uses: actions/cache/save@v4
-        if: success() && github.event_name != 'pull_request' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != ''
-        with:
-          path: S1API/ScheduleOneAssemblies
-          key: game-assemblies-v6-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}-${{ github.run_id }}-${{ github.run_attempt }}
+          for assembly in Managed/Assembly-CSharp.dll Managed/ScheduleOne.Core.dll \
+            Managed/Unity.TextMeshPro.dll Managed/Unity.Burst.dll \
+            MelonLoader/0Harmony.dll MelonLoader/MelonLoader.dll; do
+            if [ ! -s "S1API/ScheduleOneAssemblies/$assembly" ]; then
+              echo "::error::Missing or empty required Mono assembly: $assembly"
+              exit 1
+            fi
+          done
+          echo "cache_ready=true" >> "$GITHUB_OUTPUT"
 
       - name: Create CI Build Properties
         run: |
@@ -293,6 +295,14 @@ jobs:
           --configuration MonoMelon
           --verbosity normal
           --property:AutomateLocalDeployment=false
+
+      # Save only verified non-empty assembly caches.
+      - name: Save Game Assemblies to Cache
+        uses: actions/cache/save@v4
+        if: success() && github.event_name != 'pull_request' && steps.verify-assemblies.outputs.cache_ready == 'true'
+        with:
+          path: S1API/ScheduleOneAssemblies
+          key: game-assemblies-v6-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload S1API Mono Artifact
         uses: actions/upload-artifact@v4

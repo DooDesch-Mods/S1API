@@ -138,7 +138,7 @@ jobs:
           ls -la S1API/ScheduleOneAssemblies/ || echo "ScheduleOneAssemblies directory not found"
           echo ""
           echo "=== Critical Assembly Check ==="
-          if [ -f S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll ] && [ -f S1API/ScheduleOneAssemblies/Managed/ScheduleOne.Core.dll ]; then
+          if [ -s S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll ] && [ -s S1API/ScheduleOneAssemblies/Managed/ScheduleOne.Core.dll ]; then
             echo "✓ Found Assembly-CSharp.dll"
             ls -l S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll
             echo "✓ Found ScheduleOne.Core.dll"
@@ -154,6 +154,15 @@ jobs:
           else
             echo "✓ Using fresh assemblies from repository"
           fi
+          cache_ready=true
+          for assembly in Managed/Assembly-CSharp.dll Managed/ScheduleOne.Core.dll \
+            Managed/Unity.TextMeshPro.dll Managed/Unity.Burst.dll \
+            MelonLoader/0Harmony.dll MelonLoader/MelonLoader.dll; do
+            if [ ! -s "S1API/ScheduleOneAssemblies/$assembly" ]; then
+              cache_ready=false
+            fi
+          done
+          echo "cache_ready=$cache_ready" >> "$GITHUB_OUTPUT"
 
       - name: Create CI Build Properties
         if: steps.verify-assemblies.outputs.has_assemblies == 'true'
@@ -338,7 +347,7 @@ jobs:
       # Only trusted, successful runs can publish non-empty assembly caches.
       - name: Save Game Assemblies to Cache
         uses: actions/cache/save@v4
-        if: success() && github.event_name != 'pull_request' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Assembly-CSharp.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/Managed/Unity.Burst.dll') != '' && hashFiles('S1API/ScheduleOneAssemblies/MelonLoader/0Harmony.dll') != ''
+        if: success() && github.event_name != 'pull_request' && steps.verify-assemblies.outputs.has_assemblies == 'true' && steps.verify-assemblies.outputs.cache_ready == 'true'
         with:
           path: S1API/ScheduleOneAssemblies
           key: game-assemblies-v6-${{ steps.assembly-branch.outputs.branch }}-${{ hashFiles('S1API/S1API.csproj') }}-${{ github.run_id }}-${{ github.run_attempt }}
